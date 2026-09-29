@@ -1,0 +1,62 @@
+{
+    "username": "! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪",
+    "handle": "5susu",
+    "bio": "3 ثانوي 📖 + GYM 🦾",
+    "joinYear": "2020",
+    "footerDomain": "sultan.kesug.com",
+    "playlist": [
+        {
+            "title": "SuSu 1",
+            "artist": "Sultan",
+            "file": "song1.mp3"
+        },
+        {
+            "title": "SuSu 2",
+            "artist": "Sultan",
+            "file": "song2.mp3"
+        },
+        {
+            "title": "SuSu 3",
+            "artist": "Sultan",
+            "file": "song3.mp3"
+        },
+        {
+            "title": "SuSu 4",
+            "artist": "Sultan",
+            "file": "song4.mp3"
+        },
+        {
+            "title": "SuSu 5",
+            "artist": "Sultan",
+            "file": "song5.mp3"
+        }
+    ],
+    "theme": "default",
+    "lastUpdated": "2026-09-21T15:07:40-04:00",
+    "countdownDate": "2027-08-25T00:00",
+    "countdownLabel": "08/25/2009",
+    "socials": {
+        "discord": "https://discord.gg/TUU6EeC6pb",
+        "telegram": "#",
+        "whatsapp": "#",
+        "facebook": "#",
+        "instagram": "#",
+        "tiktok": "https://www.tiktok.com/@mohamed0_0hamdy",
+        "twitter": "#",
+        "youtube": "#",
+        "snapchat": "#",
+        "github": "#"
+    },
+    "socialsEnabled": {
+        "discord": true,
+        "telegram": false,
+        "whatsapp": false,
+        "facebook": false,
+        "instagram": false,
+        "tiktok": true,
+        "twitter": false,
+        "youtube": false,
+        "snapchat": false,
+        "github": false
+    }
+}

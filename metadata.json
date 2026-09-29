@@ -1,0 +1,6 @@
+{
+  "name": "SULTAN - 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪 Bio & Music Vault",
+  "description": "الموقع الشخصي الفاخر لـ سلطان: مشغل الأغاني الحصري، بطاقة الديسكورد التفاعلية، الألعاب والأسرار، ولوحة تحكم متطورة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

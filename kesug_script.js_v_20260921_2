@@ -1,0 +1,1464 @@
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
+window.siteConfig = {
+  username: 'SEVN',
+  handle: 'sevn',
+  bio: '3 ثانوي 📖 + GYM 🦾',
+  joinYear: '2024',
+  footerDomain: 'sultan.kesug.com',
+  songTitle: 'After Hours',
+  songArtist: 'The Weeknd',
+  songFile: 'bg-music.mp3',
+  theme: 'default',
+  countdownDate: '',
+  countdownLabel: '',
+  socials: {
+    discord: '#', telegram: '#', whatsapp: '#',
+    facebook: '#', instagram: '#', tiktok: '#',
+    twitter: '#', youtube: '#', snapchat: '#', github: '#'
+  },
+  socialsEnabled: {
+    discord: true, telegram: true, whatsapp: true,
+    facebook: true, instagram: true, tiktok: true,
+    twitter: false, youtube: false, snapchat: false, github: false
+  }
+};
+
+const SOCIAL_ICON_LIB = {
+  discord: { label:'Discord', cls:'sc-discord', svg:'<path d="M20.3 5.4A17.6 17.6 0 0015.7 4l-.3.5a13 13 0 015 2.5c-2.1-1.1-4.2-1.6-6.4-1.6s-4.3.5-6.4 1.6a13 13 0 015-2.6L12.3 4a17.6 17.6 0 00-4.6 1.4C4.6 9 3.8 12.5 4 16a17.7 17.7 0 005.4 2.7l.7-1.1a11.5 11.5 0 01-1.8-.9l.4-.3a12.8 12.8 0 0010.6 0l.4.3c-.6.4-1.2.6-1.8.9l.7 1.1A17.6 17.6 0 0024 16c.3-4-.8-7.4-3.7-10.6zM9.7 14.1c-.8 0-1.5-.8-1.5-1.7 0-1 .6-1.7 1.5-1.7s1.5.8 1.5 1.7c0 1-.7 1.7-1.5 1.7zm4.6 0c-.8 0-1.5-.8-1.5-1.7 0-1 .6-1.7 1.5-1.7s1.5.8 1.5 1.7c0 1-.6 1.7-1.5 1.7z"/>' },
+  tiktok: { label:'TikTok', cls:'sc-tiktok', svg:'<path d="M16.6 5.82s.51.5 0 0A4.278 4.278 0 0115.54 3h-3.09v12.4a2.592 2.592 0 01-2.59 2.5c-1.42 0-2.6-1.16-2.6-2.6c0-1.72 1.66-3.01 3.37-2.48V9.66c-3.45-.46-6.47 2.22-6.47 5.64c0 3.33 2.76 5.7 5.69 5.7c3.14 0 5.69-2.55 5.69-5.7V9.01a7.35 7.35 0 004.3 1.38V7.3s-1.88.09-3.24-1.48z"/>' },
+  instagram: { label:'Instagram', cls:'sc-instagram', svg:'<path d="M12 2c2.7 0 3 .01 4.1.06 1.1.05 1.8.2 2.4.45.7.27 1.2.6 1.7 1.1.5.5.9 1 1.1 1.7.25.6.4 1.3.45 2.4.05 1.1.06 1.4.06 4.1s-.01 3-.06 4.1c-.05 1.1-.2 1.8-.45 2.4-.27.7-.6 1.2-1.1 1.7-.5.5-1 .9-1.7 1.1-.6.25-1.3.4-2.4.45-1.1.05-1.4.06-4.1.06s-3-.01-4.1-.06c-1.1-.05-1.8-.2-2.4-.45-.7-.27-1.2-.6-1.7-1.1-.5-.5-.9-1-1.1-1.7-.25-.6-.4-1.3-.45-2.4C2.01 15 2 14.7 2 12s.01-3 .06-4.1c.05-1.1.2-1.8.45-2.4.27-.7.6-1.2 1.1-1.7.5-.5 1-.9 1.7-1.1.6-.25 1.3-.4 2.4-.45C8.99 2.01 9.3 2 12 2zm0 1.8c-2.6 0-2.9.01-4 .06-.9.04-1.4.18-1.7.3-.44.17-.75.37-1.08.7-.33.33-.53.64-.7 1.08-.12.3-.26.8-.3 1.7-.05 1.1-.06 1.4-.06 4s.01 2.9.06 4c.04.9.18 1.4.3 1.7.17.44.37.75.7 1.08.33.33.64.53 1.08.7.3.12.8.26 1.7.3 1.1.05 1.4.06 4 .06s2.9-.01 4-.06c.9-.04 1.4-.18 1.7-.3.44-.17.75-.37 1.08-.7.33-.33.53-.64.7-1.08.12-.3.26-.8.3-1.7.05-1.1.06-1.4.06-4s-.01-2.9-.06-4c-.04-.9-.18-1.4-.3-1.7-.17-.44-.37-.75-.7-1.08a2.9 2.9 0 00-1.08-.7c-.3-.12-.8-.26-1.7-.3-1.1-.05-1.4-.06-4-.06zm0 3.5a4.7 4.7 0 110 9.4 4.7 4.7 0 010-9.4zm0 1.8a2.9 2.9 0 100 5.8 2.9 2.9 0 000-5.8zm5.9-2a1.1 1.1 0 11-2.2 0 1.1 1.1 0 012.2 0z"/>' },
+  facebook: { label:'Facebook', cls:'sc-facebook', svg:'<path d="M13.5 21v-7.5h2.5l.5-3h-3V8.5c0-.87.24-1.46 1.49-1.46H16.5V4.36C16.24 4.32 15.32 4.25 14.24 4.25c-2.24 0-3.74 1.36-3.74 3.87V10.5H8v3h2.5V21h3z"/>' },
+  whatsapp: { label:'WhatsApp', cls:'sc-whatsapp', svg:'<path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.39 1.26 4.81L2 22l5.42-1.42a9.87 9.87 0 004.62 1.18h.01c5.46 0 9.9-4.45 9.9-9.91C21.96 6.45 17.5 2 12.04 2zm0 18.1h-.01a8.2 8.2 0 01-4.18-1.14l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 01-1.25-4.34c0-4.53 3.69-8.21 8.23-8.21 2.2 0 4.26.86 5.82 2.42a8.17 8.17 0 012.41 5.8c0 4.53-3.69 8.18-8.23 8.18zm4.52-6.14c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.22-1.46-1.37-1.7-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.87.85-.87 2.08 0 1.22.89 2.4 1.02 2.57.12.17 1.75 2.67 4.25 3.74.59.26 1.06.41 1.42.52.6.19 1.14.16 1.57.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.23-.17-.48-.29z"/>' },
+  telegram: { label:'Telegram', cls:'sc-telegram', svg:'<path d="M9.036 15.803l-.396 4.98c.567 0 .811-.244 1.106-.537l2.652-2.54 5.494 4.02c1.007.554 1.72.263 1.98-.929L23.94 4.363c.383-1.482-.537-2.06-1.516-1.685L1.116 10.93c-1.436.56-1.418 1.36-.245 1.72l5.652 1.764L19.86 6.63c.62-.394 1.185-.176.72.218L9.036 15.803z"/>' },
+  twitter: { label:'X', cls:'sc-twitter', svg:'<path d="M17.3 3H20l-6.4 7.3L21 21h-6.2l-4.9-6.4L4.3 21H1.6l6.9-7.9L1 3h6.3l4.4 5.9L17.3 3zm-1.1 16h1.7L7.9 4.9H6.1L16.2 19z"/>' },
+  youtube: { label:'YouTube', cls:'sc-youtube', svg:'<path d="M23.5 6.2c-.3-1.1-1.1-1.9-2.2-2.2C19.4 3.5 12 3.5 12 3.5s-7.4 0-9.3.5C1.6 4.3.8 5.1.5 6.2 0 8.1 0 12 0 12s0 3.9.5 5.8c.3 1.1 1.1 1.9 2.2 2.2 1.9.5 9.3.5 9.3.5s7.4 0 9.3-.5c1.1-.3 1.9-1.1 2.2-2.2.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.6 15.5V8.5l6.2 3.5-6.2 3.5z"/>' },
+  snapchat: { label:'Snapchat', cls:'sc-snapchat', svg:'<path d="M12 2c-3.2 0-5.7 2.6-5.7 6v1.8c0 .3-.2.5-.6.7-.6.3-1.5.5-2 .6-.3 0-.5.2-.5.5.1.5.9 2.5 1.4.1 0 .2.2.2.3-.1.3-.2.6-.3.9-.1.2 0 .4.3.4 1 0 1.6.2 2 .5.6.5 1.3 1.5 3.1 1.5s2.5-1 3.1-1.5c.4-.3 1-.5 2-.5.3 0 .4-.2.3-.4-.1-.3-.2-.6-.3-.9 0-.1.1-.3.2-.3 1.6-.5 2.4-.9 2.5-1.4 0-.3-.2-.5-.5-.5-.5-.1-1.4-.3-2-.6-.4-.2-.6-.4-.6-.7V8c0-3.4-2.5-6-5.7-6z"/>' },
+  github: { label:'GitHub', cls:'sc-github', svg:'<path d="M12 2a10 10 0 00-3.16 19.5c.5.1.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.15-1.11-1.46-1.11-1.46-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.34 1.09 2.9.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.5 9.5 0 015 0c1.9-1.3 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.6 1.03 2.68 0 3.84-2.34 4.68-4.58 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0012 2z"/>' },
+};
+const SOCIAL_ORDER = ['discord','telegram','whatsapp','facebook','instagram','tiktok','twitter','youtube','snapchat','github'];
+
+const THEME_PRESETS = {
+  default: { accent1:'#7c5cff', accent2:'#26d9ff', accent3:'#ff4fd8' },
+  gold:    { accent1:'#e63946', accent2:'#ffd700', accent3:'#ff9f1c' },
+  emerald: { accent1:'#16a34a', accent2:'#06b6d4', accent3:'#a3e635' },
+  rose:    { accent1:'#ff4fd8', accent2:'#7c5cff', accent3:'#ff8fab' },
+};
+function applyTheme(themeName){
+  const t = THEME_PRESETS[themeName] || THEME_PRESETS.default;
+  const root = document.documentElement.style;
+  root.setProperty('--accent1', t.accent1);
+  root.setProperty('--accent2', t.accent2);
+  root.setProperty('--accent3', t.accent3);
+}
+
+function safeExternalUrl(value){
+  if(value === '#') return '#';
+  try{
+    const url = new URL(String(value || ''), window.location.origin);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '#';
+  }catch(e){ return '#'; }
+}
+
+function renderSocials(socials, enabled){
+  const container = document.getElementById('socialsContainer');
+  if(!container) return;
+  container.innerHTML = '';
+  SOCIAL_ORDER.forEach(key => {
+    const icon = SOCIAL_ICON_LIB[key];
+    if(!icon) return;
+    const isEnabled = !enabled || enabled[key] !== false;
+    const url = safeExternalUrl((socials && socials[key]) || '#');
+    if(!isEnabled) return; 
+
+    const a = document.createElement('a');
+    a.className = 'social ' + icon.cls;
+    a.href = url;
+    a.title = icon.label;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor">${icon.svg}</svg>`;
+    container.appendChild(a);
+  });
+}
+renderSocials(window.siteConfig.socials, window.siteConfig.socialsEnabled); 
+
+function formatRelativeTime(isoString){
+  const then = new Date(isoString).getTime();
+  if(isNaN(then)) return '';
+  const diff = Date.now() - then;
+  if(diff < 0) return 'قبل لحظات';
+  const mins = Math.floor(diff / 60000);
+  if(mins < 1) return 'قبل لحظات';
+  if(mins < 60) return `قبل ${mins} دقيقة`;
+  const hours = Math.floor(mins / 60);
+  if(hours < 24) return `قبل ${hours} ساعة`;
+  const days = Math.floor(hours / 24);
+  if(days === 1) return 'أمس';
+  if(days < 30) return `قبل ${days} يوم`;
+  const months = Math.floor(days / 30);
+  return `قبل ${months} شهر`;
+}
+
+function applySiteConfig(cfg){
+  window.siteConfig = cfg;
+  try{
+    const luEl = document.getElementById('lastUpdatedRow');
+    if(luEl){
+      const rel = cfg.lastUpdated ? formatRelativeTime(cfg.lastUpdated) : '';
+      if(rel){
+        luEl.textContent = '🔄 آخر تحديث: ' + rel;
+        luEl.style.display = '';
+      } else {
+        luEl.style.display = 'none';
+      }
+    }
+    applyTheme(cfg.theme);
+    bioText = cfg.bio || bioText;
+    if(typeof entered !== 'undefined' && entered) typeBio(true);
+
+    const usernameEl = document.getElementById('usernameText');
+    const handleEl   = document.getElementById('handleText');
+    if(usernameEl && !usernameEl.closest('.username').classList.contains('discord-loaded')){
+      usernameEl.textContent = cfg.username || usernameEl.textContent;
+    }
+    if(handleEl && !handleEl.classList.contains('discord-loaded')){
+      handleEl.textContent = '@' + (cfg.handle || '');
+    }
+
+    const joinYearEl = document.getElementById('joinYearText');
+    if(joinYearEl) joinYearEl.textContent = cfg.joinYear || joinYearEl.textContent;
+
+    const footerEl = document.getElementById('footerDomainText');
+    if(footerEl) footerEl.textContent = cfg.footerDomain || footerEl.textContent;
+
+    if(cfg.playlist && cfg.playlist.length && window.setPlaylist){
+      window.setPlaylist(cfg.playlist);
+    }
+
+    renderSocials(cfg.socials, cfg.socialsEnabled);
+
+    setupCountdown(cfg.countdownDate, cfg.countdownLabel);
+  }catch(e){ }
+}
+
+let countdownInterval = null;
+function setupCountdown(dateStr, label){
+  const row = document.getElementById('countdownRow');
+  if(countdownInterval){ clearInterval(countdownInterval); countdownInterval = null; }
+  if(!dateStr){ row.style.display = 'none'; return; }
+
+  const target = new Date(dateStr);
+  if(isNaN(target.getTime())){ row.style.display = 'none'; return; }
+
+  document.getElementById('countdownLabel').textContent = label || 'باقي على الموعد:';
+  const valueEl = document.getElementById('countdownValue');
+
+  function tick(){
+    const diff = target.getTime() - Date.now();
+    if(diff <= 0){
+      valueEl.textContent = 'وصلنا! 🎉';
+      clearInterval(countdownInterval);
+      return;
+    }
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    if(days > 0) valueEl.textContent = `${days} يوم و${hours} ساعة`;
+    else if(hours > 0) valueEl.textContent = `${hours} ساعة و${mins} دقيقة`;
+    else valueEl.textContent = `${mins} دقيقة`;
+  }
+  tick();
+  countdownInterval = setInterval(tick, 30000); 
+  row.style.display = '';
+}
+
+fetch('config.json', { cache: 'no-store' })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(cfg => applySiteConfig(Object.assign({}, window.siteConfig, cfg, {
+    socials: Object.assign({}, window.siteConfig.socials, cfg.socials || {}),
+    socialsEnabled: Object.assign({}, window.siteConfig.socialsEnabled, cfg.socialsEnabled || {})
+  })))
+  .catch(() => { });
+
+(function hideIntroLoader(){
+  const loader = document.getElementById('introLoader');
+  setTimeout(() => {
+    loader.classList.add('hide');
+    setTimeout(() => loader.remove(), 450);
+  }, 700);
+})();
+
+let bioText = "3 ثانوي 📖 + GYM 🦾";
+const bioEl = document.getElementById('typedBio');
+let bioIndex = 0;
+let bioTimer = null;
+function typeBio(reset = false){
+  if(reset){
+    bioIndex = 0;
+    if(bioTimer) clearTimeout(bioTimer);
+  }
+  if(bioIndex <= bioText.length){
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    bioEl.replaceChildren(document.createTextNode(bioText.slice(0, bioIndex)), cursor);
+    if(bioIndex > 0 && bioText[bioIndex - 1] !== ' ') playTypeTick();
+    bioIndex++;
+    bioTimer = setTimeout(() => typeBio(), 38);
+  }
+}
+
+(function applyTimeOfDay(){
+  const hour = new Date().getHours();
+  let cls = 'tod-night';
+  if (hour >= 5  && hour < 11) cls = 'tod-morning';
+  else if (hour >= 11 && hour < 17) cls = 'tod-day';
+  else if (hour >= 17 && hour < 20) cls = 'tod-evening';
+  document.body.classList.add(cls);
+})();
+
+(function animateTabTitle(){
+  const baseTitle = 'SULTAN';
+  let idx = 0;
+  let deleting = false;
+  function step(){
+    if(!deleting){
+      idx++;
+      document.title = baseTitle.slice(0, idx);
+      if(idx >= baseTitle.length){
+        deleting = true;
+        setTimeout(step, 1400); 
+        return;
+      }
+      setTimeout(step, 160);
+    } else {
+      idx--;
+      document.title = baseTitle.slice(0, idx) || '\u200B';
+      if(idx <= 0){
+        deleting = false;
+        setTimeout(step, 500); 
+        return;
+      }
+      setTimeout(step, 90);
+    }
+  }
+  step();
+})();
+
+const viewEl = document.getElementById('viewCount');
+fetch('views.php')
+  .then(r => r.json())
+  .then(data => {
+    window.siteTotalViews = data.views; 
+    let target = data.views;
+    let cur = 0;
+    function countUp(){
+      cur += Math.max(1, Math.ceil(target/30));
+      if(cur >= target){ viewEl.textContent = target.toLocaleString(); return; }
+      viewEl.textContent = cur.toLocaleString();
+      requestAnimationFrame(countUp);
+    }
+    countUp();
+  })
+  .catch(() => { viewEl.textContent = '—'; });
+
+function postSiteEvent(event, data){
+  return fetch('notify.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(Object.assign({ event }, data || {}))
+  }).then(r => r.ok ? r.json() : null).catch(() => null);
+}
+
+function postTracking(data){
+  return fetch('track.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify(data)
+  }).then(r => r.ok ? r.json() : null).catch(() => null);
+}
+
+function getVisitorInfo(){
+  const ua = navigator.userAgent;
+  const device  = /Mobi/i.test(ua) ? 'موبايل' : (/Tablet|iPad/i.test(ua) ? 'تابلت' : 'كمبيوتر');
+  const os      = /Windows/i.test(ua) ? 'Windows' : /Android/i.test(ua) ? 'Android'
+                : /iPhone|iPad/i.test(ua) ? 'iOS' : /Mac OS/i.test(ua) ? 'macOS'
+                : /Linux/i.test(ua) ? 'Linux' : 'غير معروف';
+  const browser = /Edg\//i.test(ua) ? 'Edge' : /OPR\//i.test(ua) ? 'Opera'
+                : /Chrome/i.test(ua) ? 'Chrome' : /Firefox/i.test(ua) ? 'Firefox'
+                : /Safari/i.test(ua) ? 'Safari' : 'غير معروف';
+  let ref = 'مباشر 🔗';
+  try{ ref = document.referrer ? new URL(document.referrer).hostname : 'مباشر 🔗'; }catch(e){}
+  let tz = 'غير معروفة';
+  try{ tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; }catch(e){}
+  const lang = navigator.language || 'غير معروفة';
+  const screenSize = `${window.screen.width}×${window.screen.height}`;
+  const platform = navigator.platform || 'غير معروفة';
+  const cores = navigator.hardwareConcurrency ? navigator.hardwareConcurrency + ' نواة' : 'غير معروف';
+  const cookiesOn = navigator.cookieEnabled ? 'مفعّلة ✅' : 'معطّلة ⛔';
+
+  let isReturning = false;
+  try{ isReturning = !!localStorage.getItem('sultan_seen_before'); localStorage.setItem('sultan_seen_before','1'); }catch(e){}
+
+  return { device, os, browser, ref, tz, lang, screenSize, platform, cores, cookiesOn, isReturning };
+}
+
+(function notifyVisit(){
+  const NOTIFY_KEY = 'sultan_notified_at';
+  const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+  function alreadyNotified(){
+    try{
+      const last = Number(localStorage.getItem(NOTIFY_KEY) || 0);
+      return last && (Date.now() - last) < SIX_HOURS;
+    }catch(e){ return false; }
+  }
+  function markNotified(){
+    try{ localStorage.setItem(NOTIFY_KEY, String(Date.now())); }catch(e){}
+  }
+
+  async function send(){
+    if(alreadyNotified()) return;
+    const v = getVisitorInfo();
+    markNotified();
+    postSiteEvent('visit', Object.assign({}, v, { returning: v.isReturning }));
+  }
+
+  setTimeout(send, 2500);
+})();
+
+const bgAudio     = document.getElementById('bgAudio');
+const mpPlay      = document.getElementById('mpPlay');
+const iconPlay    = document.getElementById('mpIconPlay');
+const iconPause   = document.getElementById('mpIconPause');
+const mpArt       = document.getElementById('mpArt');
+const mpFill      = document.getElementById('mpFill');
+const mpTrack     = document.getElementById('mpTrack');
+const mpTitle     = document.getElementById('mpTitle');
+const mpArtist    = document.getElementById('mpArtist');
+const mpPrev      = document.getElementById('mpPrev');
+const mpNext      = document.getElementById('mpNext');
+const mpQueueBtn  = document.getElementById('mpQueueBtn');
+const mpQueuePanel= document.getElementById('mpQueuePanel');
+const mpQueueList = document.getElementById('mpQueueList');
+const mpShuffle   = document.getElementById('mpShuffle');
+const mpRepeat    = document.getElementById('mpRepeat');
+const musicPlayer = document.getElementById('musicPlayer');
+const volBtn      = document.getElementById('volBtn');
+const volIconOn   = document.getElementById('volIconOn');
+const volIconMuted= document.getElementById('volIconMuted');
+const volSlider   = document.getElementById('volSlider');
+const mpTime      = document.getElementById('mpTime');
+
+let isPlaying = false;
+let lastVolume = 0.5;
+
+let playlist = [{
+  title: mpTitle.textContent,
+  artist: mpArtist.textContent,
+  file: bgAudio.getAttribute('src') || 'bg-music.mp3'
+}];
+let currentTrack = 0;
+
+let shuffleOn = false;
+let repeatOn = false;
+
+function renderQueue(){
+  mpQueueList.innerHTML = '';
+  playlist.forEach((t, i) => {
+    const item = document.createElement('div');
+    item.className = 'mp-queue-item' + (i === currentTrack ? ' playing' : '');
+
+    const num = document.createElement('span');
+    num.className = 'mp-queue-num';
+    num.textContent = i === currentTrack ? '' : String(i + 1);
+
+    const text = document.createElement('div');
+    text.className = 'mp-queue-text';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'mp-queue-title';
+    titleEl.textContent = t.title || 'بدون عنوان';
+    const artistEl = document.createElement('div');
+    artistEl.className = 'mp-queue-artist';
+    artistEl.textContent = t.artist || '';
+    text.appendChild(titleEl);
+    text.appendChild(artistEl);
+
+    item.appendChild(num);
+    item.appendChild(text);
+
+    if(i === currentTrack){
+      const playingIcon = document.createElement('span');
+      playingIcon.className = 'mp-queue-playing-icon';
+      playingIcon.innerHTML = '<span></span>';
+      item.appendChild(playingIcon);
+    }
+
+    item.addEventListener('click', () => loadTrack(i, true));
+    mpQueueList.appendChild(item);
+  });
+}
+
+function loadTrack(index, autoplay){
+  if(!playlist.length) return;
+  currentTrack = ((index % playlist.length) + playlist.length) % playlist.length;
+  const t = playlist[currentTrack];
+  mpTitle.textContent = t.title || 'بدون عنوان';
+  mpArtist.textContent = t.artist || '';
+  const wasPlaying = !bgAudio.paused;
+  bgAudio.src = t.file;
+  bgAudio.load();
+  renderQueue();
+  updateMediaSession(t);
+  if(autoplay || wasPlaying){
+    bgAudio.play().catch(() => {});
+  }
+}
+
+function setPlaylist(newList){
+  if(!newList || !newList.length) return;
+  playlist = newList;
+  loadTrack(0, false); 
+}
+window.setPlaylist = setPlaylist;
+
+function pickNextIndex(){
+  if(shuffleOn && playlist.length > 1){
+    let idx;
+    do{ idx = Math.floor(Math.random() * playlist.length); } while(idx === currentTrack);
+    return idx;
+  }
+  return currentTrack + 1;
+}
+
+mpPrev.addEventListener('click', () => loadTrack(currentTrack - 1, true));
+mpNext.addEventListener('click', () => loadTrack(pickNextIndex(), true));
+mpQueueBtn.addEventListener('click', () => mpQueuePanel.classList.toggle('show'));
+
+mpShuffle.addEventListener('click', () => {
+  shuffleOn = !shuffleOn;
+  mpShuffle.classList.toggle('active', shuffleOn);
+});
+mpRepeat.addEventListener('click', () => {
+  repeatOn = !repeatOn;
+  mpRepeat.classList.toggle('active', repeatOn);
+});
+
+// هذا هو الأمر اللي بيشغل الأغنية التانية تلقائياً لما الحالية تخلص
+bgAudio.addEventListener('ended', () => {
+  if(repeatOn){
+    loadTrack(currentTrack, true); 
+  } else {
+    document.getElementById('mpNext').click();
+  }
+});
+
+// ولما تكون فيه أغنية مش موجودة يتخطاها
+bgAudio.addEventListener('error', () => {
+  if(playlist.length > 1){
+    setTimeout(() => { document.getElementById('mpNext').click(); }, 1000);
+  }
+});
+
+function updateMediaSession(track){
+  if(!('mediaSession' in navigator)) return;
+  try{
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title || 'بدون عنوان',
+      artist: track.artist || '',
+      album: 'SULTAN',
+    });
+  }catch(e){ }
+}
+if('mediaSession' in navigator){
+  try{
+    navigator.mediaSession.setActionHandler('play',  () => bgAudio.play().catch(() => {}));
+    navigator.mediaSession.setActionHandler('pause', () => bgAudio.pause());
+    navigator.mediaSession.setActionHandler('previoustrack', () => loadTrack(currentTrack - 1, true));
+    navigator.mediaSession.setActionHandler('nexttrack',     () => loadTrack(pickNextIndex(), true));
+  }catch(e){}
+}
+
+renderQueue();
+
+const VOL_KEY = 'sultan_audio_prefs';
+function loadVolPrefs(){
+  try{
+    const raw = localStorage.getItem(VOL_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; } 
+}
+function saveVolPrefs(volume, muted){
+  try{ localStorage.setItem(VOL_KEY, JSON.stringify({ volume, muted })); }
+  catch(e){ }
+}
+
+const savedVolPrefs = loadVolPrefs();
+bgAudio.volume = savedVolPrefs ? savedVolPrefs.volume : 0.5;
+bgAudio.muted  = savedVolPrefs ? savedVolPrefs.muted  : false;
+if(bgAudio.volume > 0) lastVolume = bgAudio.volume;
+volSlider.value = Math.round(bgAudio.volume * 100);
+
+const eqBarsEl  = document.getElementById('eqBars');
+const eqBars    = eqBarsEl.querySelectorAll('span');
+let audioCtx, analyser, freqData;
+
+function setupAudioAnalyser(){
+  if(audioCtx) return true; 
+  try{
+    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    analyser  = audioCtx.createAnalyser();
+    analyser.fftSize = 64;
+    analyser.smoothingTimeConstant = 0.8;
+    const source = audioCtx.createMediaElementSource(bgAudio);
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination); 
+    freqData = new Uint8Array(analyser.frequencyBinCount);
+    return true;
+  }catch(e){
+    eqBarsEl.classList.add('fallback'); 
+    return false;
+  }
+}
+
+function updateEqualizer(){
+  if(analyser && isPlaying){
+    analyser.getByteFrequencyData(freqData);
+    const segLen = Math.max(1, Math.floor(freqData.length / eqBars.length));
+    eqBars.forEach((bar, i) => {
+      let sum = 0;
+      for(let j = i*segLen; j < (i+1)*segLen; j++) sum += freqData[j] || 0;
+      const avg = sum / segLen; 
+      bar.style.height = (3 + (avg/255) * 16) + 'px';
+    });
+  }
+  requestAnimationFrame(updateEqualizer);
+}
+updateEqualizer();
+
+function setPlayingUI(playing){
+  isPlaying = playing;
+  iconPlay.style.display  = playing ? 'none' : 'block';
+  iconPause.style.display = playing ? 'block' : 'none';
+  mpArt.classList.toggle('playing', playing);
+  musicPlayer.classList.toggle('playing', playing); 
+}
+
+mpPlay.addEventListener('click', () => {
+  if(!isPlaying){
+    setupAudioAnalyser();
+    if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    bgAudio.play().catch(() => { mpTitle.textContent = 'ارفعي ملف bg-music.mp3'; });
+  } else {
+    bgAudio.pause();
+  }
+});
+bgAudio.addEventListener('play',  () => setPlayingUI(true));
+bgAudio.addEventListener('pause', () => setPlayingUI(false));
+
+bgAudio.addEventListener('timeupdate', () => {
+  if(bgAudio.duration){
+    mpFill.style.width = (bgAudio.currentTime / bgAudio.duration * 100) + '%';
+  }
+  mpTime.textContent = `${formatTime(bgAudio.currentTime)} / ${formatTime(bgAudio.duration)}`;
+});
+bgAudio.addEventListener('loadedmetadata', () => {
+  mpTime.textContent = `${formatTime(bgAudio.currentTime)} / ${formatTime(bgAudio.duration)}`;
+});
+
+function formatTime(sec){
+  if(!isFinite(sec) || sec < 0) return '0:00';
+  const m = Math.floor(sec/60);
+  const s = Math.floor(sec%60).toString().padStart(2,'0');
+  return `${m}:${s}`;
+}
+
+function updateVolSliderFill(){
+  const v = volSlider.value;
+  volSlider.style.background = `linear-gradient(to right, var(--accent1) ${v}%, rgba(255,255,255,.08) ${v}%)`;
+}
+function updateVolIcon(){
+  const muted = bgAudio.muted || bgAudio.volume === 0;
+  volIconOn.style.display    = muted ? 'none'  : 'block';
+  volIconMuted.style.display = muted ? 'block' : 'none';
+  mpArt.classList.toggle('muted', muted);
+}
+updateVolSliderFill();
+updateVolIcon();
+
+volSlider.addEventListener('input', () => {
+  const v = Number(volSlider.value) / 100;
+  bgAudio.volume = v;
+  bgAudio.muted = v === 0;
+  if(v > 0) lastVolume = v;
+  updateVolSliderFill();
+  updateVolIcon();
+  saveVolPrefs(bgAudio.volume, bgAudio.muted);
+});
+
+volBtn.addEventListener('click', () => {
+  if(bgAudio.muted || bgAudio.volume === 0){
+    bgAudio.muted = false;
+    bgAudio.volume = lastVolume || 0.5;
+    volSlider.value = Math.round(bgAudio.volume * 100);
+  } else {
+    lastVolume = bgAudio.volume;
+    bgAudio.muted = true;
+  }
+  updateVolSliderFill();
+  updateVolIcon();
+  saveVolPrefs(bgAudio.volume, bgAudio.muted);
+});
+
+mpTrack.addEventListener('click', (e) => {
+  if(!bgAudio.duration) return;
+  const rect = mpTrack.getBoundingClientRect();
+  const ratio = (rect.right - e.clientX) / rect.width;
+  bgAudio.currentTime = Math.min(Math.max(ratio,0),1) * bgAudio.duration;
+});
+
+let mx = window.innerWidth/2, my = window.innerHeight/2;
+
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let w,h,particles;
+
+function resize(){
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function initParticles(){
+  particles = Array.from({length: 60}, () => ({
+    x: Math.random()*w,
+    y: Math.random()*h,
+    r: Math.random()*1.6 + 0.4,
+    vx: (Math.random()-0.5)*0.15,
+    vy: (Math.random()-0.5)*0.15,
+    hue: Math.random() > 0.5 ? '124,92,255' : '38,217,255'
+  }));
+}
+initParticles();
+
+function getSeason(){
+  const m = new Date().getMonth(); 
+  if(m === 11 || m === 0 || m === 1) return 'winter';
+  if(m >= 5 && m <= 7) return 'summer';
+  return null; 
+}
+const season = getSeason();
+let weatherParticles = [];
+if(season === 'winter'){
+  weatherParticles = Array.from({length: 36}, () => ({
+    x: Math.random()*w, y: Math.random()*h,
+    r: 1.3 + Math.random()*2.2,
+    speedY: 0.35 + Math.random()*0.7,
+    drift: (Math.random()-0.5)*0.5,
+    opacity: 0.25 + Math.random()*0.45,
+  }));
+} else if(season === 'summer'){
+  weatherParticles = Array.from({length: 28}, () => ({
+    x: Math.random()*w, y: Math.random()*h,
+    r: 0.7 + Math.random()*1.3,
+    speed: 0.02 + Math.random()*0.035,
+    phase: Math.random()*Math.PI*2,
+  }));
+}
+
+function loop(){
+  ctx.clearRect(0,0,w,h);
+
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if(p.x < 0) p.x = w; if(p.x > w) p.x = 0;
+    if(p.y < 0) p.y = h; if(p.y > h) p.y = 0;
+  });
+
+  const maxDist = 110;
+  for(let i=0;i<particles.length;i++){
+    for(let j=i+1;j<particles.length;j++){
+      const a = particles[i], b = particles[j];
+      const dx = a.x-b.x, dy = a.y-b.y;
+      const dist = Math.sqrt(dx*dx+dy*dy);
+      if(dist < maxDist){
+        const opacity = (1 - dist/maxDist) * 0.16;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = `rgba(150,140,255,${opacity})`;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+    }
+  }
+
+  const mouseDist = 150;
+  particles.forEach(p => {
+    const dx = p.x - mx, dy = p.y - my;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if(dist < mouseDist){
+      const opacity = (1 - dist/mouseDist) * 0.28;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(mx, my);
+      ctx.strokeStyle = `rgba(190,180,255,${opacity})`;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+    }
+  });
+
+  particles.forEach(p => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${p.hue},0.5)`;
+    ctx.fill();
+  });
+
+  if(season === 'winter'){
+    weatherParticles.forEach(p => {
+      p.y += p.speedY;
+      p.x += p.drift;
+      if(p.y > h){ p.y = -6; p.x = Math.random()*w; }
+      if(p.x > w) p.x = 0; if(p.x < 0) p.x = w;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${p.opacity})`;
+      ctx.fill();
+    });
+  } else if(season === 'summer'){
+    weatherParticles.forEach(p => {
+      p.phase += p.speed;
+      const op = 0.25 + Math.abs(Math.sin(p.phase)) * 0.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${op})`;
+      ctx.fill();
+    });
+  }
+
+  requestAnimationFrame(loop);
+}
+loop();
+
+const copyBtn   = document.getElementById('copyDiscordBtn');
+const copyIcon  = document.getElementById('copyIcon');
+const checkIcon = document.getElementById('checkIcon');
+
+copyBtn.addEventListener('click', () => {
+  const username = handleText.textContent.replace('@', '');
+  navigator.clipboard.writeText(username).then(() => {
+    copyBtn.classList.add('copied');
+    copyIcon.style.display = 'none';
+    checkIcon.style.display = 'block';
+    setTimeout(() => {
+      copyBtn.classList.remove('copied');
+      copyIcon.style.display = 'block';
+      checkIcon.style.display = 'none';
+    }, 1500);
+  });
+});
+
+const shareBtn       = document.getElementById('shareBtn');
+const shareIcon      = document.getElementById('shareIcon');
+const shareCheckIcon = document.getElementById('shareCheckIcon');
+
+function showShareConfirm(){
+  shareBtn.classList.add('copied');
+  shareIcon.style.display = 'none';
+  shareCheckIcon.style.display = 'block';
+  setTimeout(() => {
+    shareBtn.classList.remove('copied');
+    shareIcon.style.display = 'block';
+    shareCheckIcon.style.display = 'none';
+  }, 1500);
+}
+
+shareBtn.addEventListener('click', async () => {
+  const shareData = {
+    title: document.title || 'SULTAN',
+    text: (usernameText.textContent || 'SULTAN') + ' — ' + (bioEl ? bioEl.textContent : ''),
+    url: window.location.href
+  };
+  if(navigator.share){
+    try{ await navigator.share(shareData); }
+    catch(e){ }
+  } else {
+    try{
+      await navigator.clipboard.writeText(window.location.href);
+      showShareConfirm();
+    }catch(e){ }
+  }
+});
+
+(function initRating(){
+  const RATE_KEY = 'sultan_rated';
+  const row  = document.getElementById('rateRow');
+  const text = document.getElementById('rateText');
+  const upBtn   = document.getElementById('rateUp');
+  const downBtn = document.getElementById('rateDown');
+  if(!row) return;
+
+  let already = null;
+  try{ already = localStorage.getItem(RATE_KEY); }catch(e){}
+  if(already){
+    showThanks(already);
+  }
+
+  function showThanks(choice){
+    text.textContent = 'شكرًا على رأيك! 🙌';
+    upBtn.disabled = true;
+    downBtn.disabled = true;
+    if(choice === 'up') upBtn.classList.add('picked');
+    if(choice === 'down') downBtn.classList.add('picked');
+  }
+
+  function sendRating(value){
+    if(already) return;
+    already = value;
+    try{ localStorage.setItem(RATE_KEY, value); }catch(e){}
+    showThanks(value);
+    postTracking({ type: 'rating', value });
+  }
+
+  upBtn.addEventListener('click', () => sendRating('up'));
+  downBtn.addEventListener('click', () => sendRating('down'));
+})();
+
+(function initContextMenu(){
+  const menu = document.getElementById('customContextMenu');
+
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const menuWidth = 210, menuHeight = 180;
+    const x = Math.min(e.clientX, window.innerWidth - menuWidth);
+    const y = Math.min(e.clientY, window.innerHeight - menuHeight);
+    menu.style.left = Math.max(8, x) + 'px';
+    menu.style.top  = Math.max(8, y) + 'px';
+    menu.classList.add('show');
+  });
+
+  document.addEventListener('click', (e) => {
+    if(!menu.contains(e.target)) menu.classList.remove('show');
+  });
+  window.addEventListener('scroll', () => menu.classList.remove('show'), true);
+  window.addEventListener('keydown', (e) => { if(e.key === 'Escape') menu.classList.remove('show'); });
+
+  menu.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    const action = btn.dataset.action;
+
+    if(action === 'share'){
+      shareBtn.click();
+    } else if(action === 'copy'){
+      navigator.clipboard.writeText(window.location.href).catch(() => {});
+    } else if(action === 'discord'){
+      const discordLink = document.querySelector('.sc-discord');
+      if(discordLink) discordLink.click();
+    } else if(action === 'surprise'){
+      if(window.triggerSultanSurprise) window.triggerSultanSurprise();
+    }
+    menu.classList.remove('show');
+  });
+})();
+
+const glow = document.getElementById('cursor-glow');
+const dot  = document.getElementById('cursor-dot');
+let gx = mx, gy = my;
+
+window.addEventListener('mousemove', (e) => {
+  mx = e.clientX; my = e.clientY;
+  dot.style.left = mx + 'px';
+  dot.style.top  = my + 'px';
+});
+
+function animateGlow(){
+  gx += (mx - gx) * 0.15;
+  gy += (my - gy) * 0.15;
+  glow.style.left = gx + 'px';
+  glow.style.top  = gy + 'px';
+  requestAnimationFrame(animateGlow);
+}
+animateGlow();
+
+const CURSOR_BTN_SEL   = 'button, a, .social, .copy-btn, .vol-slider, .mp-progress-track, input, .context-menu button';
+const CURSOR_IMAGE_SEL = '.avatar, .mp-art, .enter-avatar';
+const CURSOR_TEXT_SEL  = '.bio, .username, .handle, .stats, .mp-title, .mp-artist, .identity, .enter-title, .enter-sub, .rate-row';
+
+let cursorMode = '';
+function setCursorMode(mode){
+  if(mode === cursorMode) return;
+  cursorMode = mode;
+  glow.classList.remove('mode-btn','mode-text','mode-image');
+  dot.classList.remove('mode-btn','mode-text','mode-image');
+  dot.textContent = '';
+  if(mode === 'btn'){ glow.classList.add('mode-btn'); dot.classList.add('mode-btn'); }
+  else if(mode === 'image'){ glow.classList.add('mode-image'); dot.classList.add('mode-image'); dot.textContent = '👁️'; }
+  else if(mode === 'text'){ glow.classList.add('mode-text'); dot.classList.add('mode-text'); }
+}
+
+document.addEventListener('mouseover', (e) => {
+  const t = e.target;
+  if(t.closest(CURSOR_BTN_SEL)) setCursorMode('btn');
+  else if(t.closest(CURSOR_IMAGE_SEL)) setCursorMode('image');
+  else if(t.closest(CURSOR_TEXT_SEL)) setCursorMode('text');
+  else setCursorMode('');
+});
+
+document.addEventListener('click', (e) => {
+  for(let i=0;i<8;i++){
+    const spark = document.createElement('div');
+    spark.className = 'cursor-spark';
+    spark.style.left = e.clientX + 'px';
+    spark.style.top = e.clientY + 'px';
+    spark.style.background = Math.random() > 0.5 ? '#7c5cff' : '#26d9ff';
+    document.body.appendChild(spark);
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random()*30;
+    const dx = Math.cos(angle)*dist;
+    const dy = Math.sin(angle)*dist;
+    spark.animate([
+      { transform:'translate(-50%,-50%) translate(0,0)', opacity:1 },
+      { transform:`translate(-50%,-50%) translate(${dx}px,${dy}px)`, opacity:0 }
+    ], { duration: 500, easing:'ease-out' }).onfinish = () => spark.remove();
+  }
+});
+
+if(!window.matchMedia('(hover: hover) and (pointer: fine)').matches){
+  glow.style.display = 'none';
+  dot.style.display = 'none';
+}
+
+const DISCORD_ID = "1224502828371017788";
+
+const STATUS_MAP = {
+  online:  { color:"#3ba55d", glow:"rgba(59,165,93,.6)",  label:"متصل" },
+  idle:    { color:"#f0b232", glow:"rgba(240,178,50,.6)", label:"بعيد قليلاً" },
+  dnd:     { color:"#f23f43", glow:"rgba(242,63,67,.6)",  label:"مشغول (عدم الإزعاج)" },
+  offline: { color:"#80848e", glow:"rgba(128,132,142,.4)",label:"غير متصل" }
+};
+
+const statusDot   = document.getElementById('statusDot');
+const statsStatus = document.getElementById('statsStatus');
+const activityBox = document.getElementById('discordActivity');
+const avatarEl    = document.getElementById('avatar');
+const avatarImg   = document.getElementById('avatarImg');
+const avatarFallback = document.getElementById('avatarFallback');
+const usernameText = document.getElementById('usernameText');
+const usernameRow = usernameText.closest('.username');
+const handleText   = document.getElementById('handleText');
+
+let voiceActive = false;
+let identityLoaded = false;
+
+function setActivity(icon, message){
+  activityBox.replaceChildren();
+  const iconEl = document.createElement('span');
+  iconEl.className = 'act-icon';
+  iconEl.textContent = icon;
+  const messageEl = document.createElement('span');
+  messageEl.textContent = message;
+  activityBox.append(iconEl, messageEl);
+  activityBox.style.display = 'flex';
+}
+
+function clearSkeletonLoading(){
+  if(identityLoaded) return;
+  identityLoaded = true;
+  avatarEl.classList.remove('loading');
+  usernameRow.classList.remove('loading');
+  handleText.classList.remove('loading');
+}
+
+function renderPresence(data){
+  lastPresenceData = data;
+  clearSkeletonLoading();
+  const s = STATUS_MAP[data.discord_status] || STATUS_MAP.offline;
+
+  statusDot.style.background = s.color;
+  statusDot.style.setProperty('--status-glow', s.glow);
+  statusDot.title = s.label;
+  statsStatus.style.color = s.color;
+  statsStatus.textContent = `● ${s.label}`;
+
+  const u = data.discord_user;
+  if(u){
+    usernameText.textContent = u.global_name || u.username;
+    handleText.textContent = '@' + u.username;
+    usernameRow.classList.add('discord-loaded'); 
+    handleText.classList.add('discord-loaded');
+    if(u.avatar){
+      avatarImg.src = `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.${u.avatar.startsWith('a_') ? 'gif' : 'png'}?size=128`;
+      avatarImg.style.display = 'block';
+      avatarFallback.style.display = 'none';
+    }
+  }
+
+  if(voiceActive) return; 
+
+  const playing = (data.activities || []).find(a => a.type === 0);
+  const spotify = data.listening_to_spotify ? data.spotify : null;
+
+  if(playing){
+    setActivity('🎮', `يلعب الآن: ${playing.name || 'لعبة'}`);
+  } else if(spotify){
+    setActivity('🎧', `يستمع إلى ${spotify.song || 'موسيقى'} — ${spotify.artist || ''}`);
+  } else {
+    activityBox.style.display = 'none';
+  }
+}
+
+fetch(`https://api.lanyard.rest/v1/users/${DISCORD_ID}`)
+  .then(r => r.json())
+  .then(res => { if(res.success) renderPresence(res.data); })
+  .catch(() => { statsStatus.textContent = '● تعذّر الاتصال'; clearSkeletonLoading(); });
+
+// لا نترك اسم الموقع والوصف في حالة تحميل إذا تأخر Discord أو تعذّر الاتصال.
+setTimeout(clearSkeletonLoading, 4500);
+
+let socket;
+function connectLanyard(){
+  socket = new WebSocket('wss://api.lanyard.rest/socket');
+
+  socket.onopen = () => {
+    socket.send(JSON.stringify({ op: 2, d: { subscribe_to_id: DISCORD_ID } }));
+  };
+
+  socket.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if(msg.op === 1 && msg.d && msg.d.heartbeat_interval){
+      setInterval(() => socket.send(JSON.stringify({ op: 3 })), msg.d.heartbeat_interval);
+    }
+    if(msg.t === 'INIT_STATE' || msg.t === 'PRESENCE_UPDATE'){
+      renderPresence(msg.d);
+    }
+  };
+
+  socket.onclose = () => setTimeout(connectLanyard, 3000);
+  socket.onerror = () => socket.close();
+}
+
+const VOICE_API_URL = "https://bot-production-0679.up.railway.app/status";
+
+let lastPresenceData = null; 
+
+function renderVoiceStatus(voice){
+  if(!voice || !voice.inCall){
+    voiceActive = false;
+    if(lastPresenceData) renderPresence(lastPresenceData);
+    return;
+  }
+  voiceActive = true;
+  let extra = [];
+  if(voice.muted) extra.push('🔇 مكتوم');
+  if(voice.deafened) extra.push('🔕 سماعة مقفولة');
+  if(voice.streaming) extra.push('🔴 يبث');
+  if(voice.cameraOn) extra.push('📷 كاميرا');
+  const extraText = extra.length ? ` — ${extra.join(' • ')}` : '';
+
+  setActivity('🔊', `في مكالمة صوتية${voice.channelName ? ' — ' + voice.channelName : ''}${extraText}`);
+}
+
+if(VOICE_API_URL){
+  async function pollVoiceStatus(){
+    try{
+      const res = await fetch(VOICE_API_URL);
+      const voice = await res.json();
+      renderVoiceStatus(voice);
+    }catch(e){ }
+  }
+  pollVoiceStatus();
+  setInterval(pollVoiceStatus, 8000);
+}
+
+connectLanyard();
+
+(function initHiddenGame(){
+  const modal   = document.getElementById('gameModal');
+  const closeBtn= document.getElementById('gameClose');
+  const canvas  = document.getElementById('gameCanvas');
+  const ctx     = canvas.getContext('2d');
+  const scoreEl = document.getElementById('gameScore');
+  const highScoreEl = document.getElementById('gameHighScore');
+  const hintEl  = document.getElementById('gameHint');
+
+  const W = canvas.width, H = canvas.height;
+  const groundY = H - 20;
+
+  const HS_KEY = 'sultan_game_highscore';
+  let highScore = 0;
+  try{ highScore = parseInt(localStorage.getItem(HS_KEY) || '0', 10) || 0; }catch(e){}
+  highScoreEl.textContent = highScore;
+
+  function saveHighScoreIfNeeded(finalScore){
+    if(finalScore > highScore){
+      highScore = finalScore;
+      highScoreEl.textContent = highScore;
+      try{ localStorage.setItem(HS_KEY, String(highScore)); }catch(e){}
+      return true;
+    }
+    return false;
+  }
+
+  let player, obstacles, speed, frame, score, running, rafId;
+
+  function resetGame(){
+    player = { x: 30, y: groundY - 20, w: 18, h: 20, vy: 0 };
+    obstacles = [];
+    speed = 3.2;
+    frame = 0;
+    score = 0;
+    running = true;
+    scoreEl.textContent = '0';
+    hintEl.textContent = 'اضغطي مسافة أو دوسي على الشاشة للقفز';
+  }
+
+  function jump(){
+    if(!running){ resetGame(); loop(); return; }
+    if(player.y >= groundY - player.h - 0.5){
+      player.vy = -7.4;
+    }
+  }
+
+  function loop(){
+    if(!running) return;
+    ctx.clearRect(0,0,W,H);
+
+    ctx.strokeStyle = 'rgba(255,255,255,.15)';
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(W, groundY);
+    ctx.stroke();
+
+    player.vy += 0.42;
+    player.y += player.vy;
+    if(player.y > groundY - player.h){
+      player.y = groundY - player.h;
+      player.vy = 0;
+    }
+    ctx.fillStyle = '#7c5cff';
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+
+    frame++;
+    const spawnGap = Math.max(42, 72 - speed*3);
+    if(frame % Math.round(spawnGap) === 0){
+      const h = 14 + Math.random()*16;
+      obstacles.push({ x: W, w: 12, h });
+    }
+
+    ctx.fillStyle = '#26d9ff';
+    for(let i=obstacles.length-1;i>=0;i--){
+      const o = obstacles[i];
+      o.x -= speed;
+      const oy = groundY - o.h;
+      ctx.fillRect(o.x, oy, o.w, o.h);
+
+      const hit = player.x < o.x+o.w && player.x+player.w > o.x &&
+                  player.y < oy+o.h && player.y+player.h > oy;
+      if(hit){
+        running = false;
+        const finalScore = Math.floor(score/6);
+        const isNewRecord = saveHighScoreIfNeeded(finalScore);
+        hintEl.textContent = isNewRecord
+          ? `🎉 رقم قياسي جديد: ${finalScore}! — دوسي عشان تعيدي`
+          : `خسرتي 😅 نقاطك: ${finalScore} — دوسي عشان تعيدي`;
+      }
+      if(o.x + o.w < 0) obstacles.splice(i,1);
+    }
+
+    score++;
+    scoreEl.textContent = Math.floor(score/6);
+    speed += 0.0028;
+
+    if(running) rafId = requestAnimationFrame(loop);
+  }
+
+  function openGame(){
+    modal.classList.add('show');
+    resetGame();
+    loop();
+  }
+  function closeGame(){
+    running = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    modal.classList.remove('show');
+  }
+
+  closeBtn.addEventListener('click', closeGame);
+  modal.addEventListener('click', (e) => { if(e.target === modal) closeGame(); });
+  canvas.addEventListener('click', jump);
+  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); jump(); }, { passive:false });
+  document.addEventListener('keydown', (e) => {
+    if(!modal.classList.contains('show')) return;
+    if(e.code === 'Space'){ e.preventDefault(); jump(); }
+    if(e.key === 'Escape') closeGame();
+  });
+
+  window.openGameModal = openGame; 
+})();
+
+function playTypeTick(){
+  try{
+    const ctx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 1700 + Math.random()*500; 
+    gain.gain.setValueAtTime(0.018, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.02);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.025);
+  }catch(e){ }
+}
+
+const IMPORTANT_CLICK_SEL = '#mpPlay, #enterOverlay';
+
+function playTick(important){
+  try{
+    const ctx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = important ? 740 : 1100;
+    gain.gain.setValueAtTime(important ? 0.07 : 0.05, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + (important ? 0.09 : 0.05));
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + (important ? 0.1 : 0.06));
+
+    if(important){
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = 1110;
+      gain2.gain.setValueAtTime(0.04, ctx.currentTime + 0.035);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.13);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.035);
+      osc2.stop(ctx.currentTime + 0.14);
+    }
+  }catch(e){ }
+}
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('button, .social, #enterOverlay');
+  if(el) playTick(!!el.closest(IMPORTANT_CLICK_SEL));
+});
+
+const cardTilt = document.getElementById('cardTilt');
+const isFinePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+if (isFinePointer) {
+  const cardEl = document.querySelector('.card');
+  cardEl.addEventListener('mousemove', (e) => {
+    const rect = cardEl.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    cardEl.style.setProperty('--spot-x', x + 'px');
+    cardEl.style.setProperty('--spot-y', y + 'px');
+    cardEl.classList.add('spot-active');
+  });
+  cardEl.addEventListener('mouseleave', () => {
+    cardEl.classList.remove('spot-active');
+  });
+}
+
+if (isFinePointer) {
+  cardTilt.addEventListener('mousemove', (e) => {
+    const rect = cardTilt.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width  - 0.5;
+    const relY = (e.clientY - rect.top)  / rect.height - 0.5;
+    const rotateY =  relX * 8;
+    const rotateX = -relY * 8;
+    cardTilt.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+  });
+  cardTilt.addEventListener('mouseleave', () => {
+    cardTilt.style.transform = 'rotateX(0deg) rotateY(0deg)';
+  });
+}
+
+let gyroBaseBeta = null, gyroBaseGamma = null;
+function handleGyroTilt(e){
+  if(e.beta === null || e.gamma === null) return;
+  if(gyroBaseBeta === null){ gyroBaseBeta = e.beta; gyroBaseGamma = e.gamma; }
+  const dBeta  = e.beta  - gyroBaseBeta;
+  const dGamma = e.gamma - gyroBaseGamma;
+  const rotateX = Math.max(-8, Math.min(8, -dBeta  / 4));
+  const rotateY = Math.max(-8, Math.min(8,  dGamma / 4));
+  cardTilt.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+}
+function initGyroTilt(){
+  window.addEventListener('deviceorientation', handleGyroTilt);
+}
+function requestGyroPermissionIfNeeded(){
+  if (isFinePointer) return; 
+  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') initGyroTilt();
+    }).catch(() => {});
+  } else if (typeof DeviceOrientationEvent !== 'undefined') {
+    initGyroTilt(); 
+  }
+}
+
+const SPECIAL_OCCASIONS = [
+  { date: '01-01', message: '🎉 سنة جديدة سعيدة!' },
+];
+
+function spawnFallingConfetti(count){
+  const colors = ['#7c5cff','#26d9ff','#ff4fd8','#ffd166','#3ce27a'];
+  for(let i=0;i<count;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.left = Math.random()*100 + 'vw';
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration = (2.6 + Math.random()*2) + 's';
+    el.style.animationDelay = (Math.random()*1.4) + 's';
+    el.style.setProperty('--drift', (Math.random()*160 - 80) + 'px');
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 5200);
+  }
+}
+
+function checkSpecialOccasion(){
+  const today = new Date();
+  const mmdd = String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  const occasion = SPECIAL_OCCASIONS.find(o => o.date === mmdd);
+  if(!occasion) return;
+
+  const overlay = document.getElementById('keyword-trigger-overlay');
+  setTimeout(() => {
+    overlay.innerHTML = `<div class="keyword-banner">${occasion.message}</div>`;
+    overlay.classList.add('show');
+    spawnFallingConfetti(70);
+    setTimeout(() => { overlay.classList.remove('show'); overlay.innerHTML = ''; }, 2400);
+  }, 1200); 
+}
+
+const enterOverlay = document.getElementById('enterOverlay');
+let entered = false;
+
+function enterSite(){
+  if(entered) return;
+  entered = true;
+
+  document.body.classList.add('entered'); 
+  enterOverlay.classList.add('hide');
+
+  setupAudioAnalyser();
+  if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  bgAudio.play().catch(() => { mpTitle.textContent = 'اضغطي تشغيل يدويًا'; });
+
+  requestGyroPermissionIfNeeded();
+  checkSpecialOccasion();
+  setTimeout(typeBio, 460); 
+
+  setTimeout(() => enterOverlay.remove(), 700);
+}
+
+enterOverlay.addEventListener('click', enterSite);
+window.addEventListener('keydown', (e) => {
+  if(!entered && e.key === 'Enter') enterSite();
+});
+
+(function(){
+  const TRIGGERS = [
+    { word: 'sultan', message: '👑 وصل السلطان!',    particle: '👑', shake: false },
+    { word: 'vip',    message: '💎 عضو VIP مميز!',   particle: '💎', shake: false },
+    { word: 'party',  message: '🎉 يلا نحتفل!',      particle: '🎉', shake: true  },
+  ];
+  const GAME_WORD = 'game'; 
+  const MAX_LEN = Math.max(...TRIGGERS.map(t => t.word.length), GAME_WORD.length);
+  let buffer = '';
+  let cooldown = false;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'keyword-trigger-overlay';
+  document.body.appendChild(overlay);
+
+  function rainEmojis(emoji, count) {
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        let el = document.createElement('div');
+        el.innerText = emoji;
+        el.className = 'falling-emoji';
+        el.style.fontSize = Math.floor(Math.random() * 25 + 15) + 'px';
+        el.style.left = Math.random() * 100 + 'vw';
+        el.style.animationDuration = (Math.random() * 2 + 2.5) + 's';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
+      }, i * 60);
+    }
+  }
+
+  function trackKeyword(word){
+    postTracking({ type: 'keyword', word });
+  }
+
+  function triggerKeyword(t){
+    if(cooldown) return;
+    cooldown = true;
+    trackKeyword(t.word);
+
+    overlay.innerHTML = `<div class="keyword-banner">${t.message}</div>`;
+    overlay.classList.remove('show');
+    void overlay.offsetWidth; 
+    overlay.classList.add('show');
+
+    rainEmojis(t.particle, 40); 
+
+    if(t.shake){
+      document.body.classList.remove('site-shake');
+      void document.body.offsetWidth;
+      document.body.classList.add('site-shake');
+    }
+
+    setTimeout(() => { overlay.classList.remove('show'); overlay.innerHTML = ''; }, 1800);
+    setTimeout(() => { cooldown = false; }, 2500);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if(e.ctrlKey || e.metaKey || e.altKey) return;
+    if(e.key.length !== 1) return; 
+    buffer = (buffer + e.key.toLowerCase()).slice(-MAX_LEN);
+
+    if(buffer.endsWith(GAME_WORD)){
+      if(window.openGameModal) window.openGameModal();
+      trackKeyword('game');
+      buffer = '';
+      return;
+    }
+
+    for(const t of TRIGGERS){
+      if(buffer.endsWith(t.word)){
+        triggerKeyword(t);
+        buffer = '';
+        break;
+      }
+    }
+  });
+
+  window.triggerSultanSurprise = () => triggerKeyword(TRIGGERS[0]); 
+})();
+
+setTimeout(() => {
+  document.querySelectorAll('[title]').forEach(el => {
+    if (el.getAttribute('title').trim() !== '') {
+      el.setAttribute('data-tip', el.getAttribute('title'));
+      el.removeAttribute('title');
+      el.classList.add('custom-tip');
+    }
+  });
+}, 1000);
