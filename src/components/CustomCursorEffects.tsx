@@ -27,7 +27,7 @@ export const CustomCursorEffects: React.FC = () => {
       setPos({ x: targetX, y: targetY });
 
       const target = e.target as HTMLElement | null;
-      if (target?.closest('button, a, input, select, textarea, [role="button"], .cursor-pointer')) {
+      if (target?.closest('button, a, input, select, textarea, [role="button"], .cursor-pointer, [data-tooltip], [title]')) {
         setIsHoveringClickable(true);
       } else {
         setIsHoveringClickable(false);
@@ -38,10 +38,10 @@ export const CustomCursorEffects: React.FC = () => {
       setIsVisible(false);
     };
 
-    // Smooth trailing for the glow halo
+    // Smooth and responsive trailing for the glow halo (optimized lerp factor for low latency and eye comfort)
     const loop = () => {
-      currentGlowX += (targetX - currentGlowX) * 0.18;
-      currentGlowY += (targetY - currentGlowY) * 0.18;
+      currentGlowX += (targetX - currentGlowX) * 0.30;
+      currentGlowY += (targetY - currentGlowY) * 0.30;
       setGlowPos({ x: currentGlowX, y: currentGlowY });
       rafId = requestAnimationFrame(loop);
     };
@@ -57,6 +57,7 @@ export const CustomCursorEffects: React.FC = () => {
         spark.style.height = '4px';
         spark.style.borderRadius = '50%';
         spark.style.backgroundColor = Math.random() > 0.5 ? '#ef4444' : '#ffd700';
+        spark.style.boxShadow = '0 0 6px rgba(255, 215, 0, 0.8)';
         spark.style.pointerEvents = 'none';
         spark.style.zIndex = '99999';
         document.body.appendChild(spark);
@@ -97,30 +98,36 @@ export const CustomCursorEffects: React.FC = () => {
     <>
       {/* Outer Glow Follower */}
       <div
-        className="fixed pointer-events-none z-[9998] -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform duration-75 ease-out"
+        className="custom-cursor fixed pointer-events-none z-[9998] -translate-x-1/2 -translate-y-1/2 rounded-full transition-[width,height,background-color,border-color,box-shadow] duration-200 ease-out"
         style={{
           left: `${glowPos.x}px`,
           top: `${glowPos.y}px`,
-          width: isHoveringClickable ? '50px' : '36px',
-          height: isHoveringClickable ? '50px' : '36px',
+          width: isHoveringClickable ? '48px' : '34px',
+          height: isHoveringClickable ? '48px' : '34px',
           background: isHoveringClickable
-            ? 'radial-gradient(circle, rgba(239,68,68,0.35) 0%, rgba(255,215,0,0.15) 70%, transparent 100%)'
-            : 'radial-gradient(circle, rgba(239,68,68,0.25) 0%, transparent 70%)',
-          border: '1px solid rgba(239, 68, 68, 0.4)',
-          boxShadow: '0 0 15px rgba(239, 68, 68, 0.3)'
+            ? 'radial-gradient(circle, rgba(239,68,68,0.3) 0%, rgba(255,215,0,0.18) 60%, transparent 100%)'
+            : 'radial-gradient(circle, rgba(239,68,68,0.2) 0%, transparent 70%)',
+          border: isHoveringClickable
+            ? '1.5px solid rgba(245, 158, 11, 0.6)'
+            : '1px solid rgba(239, 68, 68, 0.4)',
+          boxShadow: isHoveringClickable
+            ? '0 0 20px rgba(245, 158, 11, 0.35), inset 0 0 10px rgba(239, 68, 68, 0.2)'
+            : '0 0 12px rgba(239, 68, 68, 0.25)'
         }}
       />
 
       {/* Center Precise Dot */}
       <div
-        className="fixed pointer-events-none z-[9999] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        className="custom-cursor fixed pointer-events-none z-[9999] -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform duration-100 ease-out"
         style={{
           left: `${pos.x}px`,
           top: `${pos.y}px`,
           width: isHoveringClickable ? '6px' : '5px',
           height: isHoveringClickable ? '6px' : '5px',
-          backgroundColor: '#ffd700',
-          boxShadow: '0 0 8px #ef4444'
+          backgroundColor: isHoveringClickable ? '#f59e0b' : '#ffd700',
+          boxShadow: isHoveringClickable
+            ? '0 0 10px #f59e0b, 0 0 4px #fff'
+            : '0 0 8px #ef4444'
         }}
       />
     </>

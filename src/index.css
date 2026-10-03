@@ -102,3 +102,54 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(38, 217, 255, 0.7);
 }
+
+/* Slow, silky-smooth float animations for Sultan Profile Card */
+@keyframes sultanCardLevitate {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-7px) rotate(-0.35deg);
+  }
+}
+
+@keyframes sultanCardHoverFloat {
+  0%, 100% {
+    transform: translateY(-10px) scale(1.012);
+  }
+  50% {
+    transform: translateY(-18px) scale(1.02);
+  }
+}
+
+@keyframes sultanFloorShadow {
+  0%, 100% {
+    transform: scale(0.92);
+    opacity: 0.35;
+    filter: blur(12px);
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.7;
+    filter: blur(20px);
+  }
+}
+
+.animate-sultan-float {
+  animation: sultanCardLevitate 6s ease-in-out infinite;
+}
+
+.animate-sultan-hover-float {
+  animation: sultanCardHoverFloat 4.5s ease-in-out infinite;
+}
+
+.animate-sultan-floor-shadow {
+  animation: sultanFloorShadow 6s ease-in-out infinite;
+}
+

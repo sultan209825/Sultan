@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { SongTrack } from '../types';
 import { audioEngine } from '../utils/audioEngine';
+import { recordSiteLog } from '../utils/siteLogger';
 import { SultanLogo } from './SultanLogo';
 
 interface AudioPlayerProps {
@@ -44,6 +45,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [showQueue, setShowQueue] = useState<boolean>(false);
   const [showLyrics, setShowLyrics] = useState<boolean>(false);
   const [autoScrollLyrics, setAutoScrollLyrics] = useState<boolean>(true);
+  const [lyricsOffset, setLyricsOffset] = useState<number>(0); // manual micro-offset in seconds (+/-)
   const [customTracks, setCustomTracks] = useState<SongTrack[]>(tracks);
   const [freqBars, setFreqBars] = useState<number[]>([15, 25, 45, 70, 50, 30, 20, 40]);
 
@@ -54,8 +56,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const activeTrack = customTracks[currentIdx] || customTracks[0];
 
-  // Parse lyrics into structured timed lines
+  // Parse lyrics into structured timed lines - prioritizing real timedLyrics from the audio
   const parsedLyrics = React.useMemo(() => {
+    if (activeTrack?.timedLyrics && activeTrack.timedLyrics.length > 0) {
+      return activeTrack.timedLyrics.map((item, idx) => ({
+        id: `timed-${idx}`,
+        text: item.text,
+        startTime: item.startTime,
+        endTime: item.endTime
+      }));
+    }
     if (!activeTrack?.lyrics) return [];
     const lines = activeTrack.lyrics
       .split('\n')
@@ -68,23 +78,38 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return lines.map((text, idx) => ({
       id: `line-${idx}`,
       text,
-      startTime: Math.floor(idx * interval),
-      endTime: Math.floor((idx + 1) * interval)
+      startTime: Number((idx * interval).toFixed(1)),
+      endTime: Number(((idx + 1) * interval).toFixed(1))
     }));
   }, [activeTrack]);
 
-  // Determine current active lyric line index based on playback time
+  // Determine current active lyric line index based on playback time with offset
+  const effectiveTime = Math.max(0, currentTime + lyricsOffset);
   const currentLyricIndex = React.useMemo(() => {
     if (parsedLyrics.length === 0) return 0;
-    const idx = parsedLyrics.findIndex(
-      (line) => currentTime >= line.startTime && currentTime < line.endTime
+    
+    // Check if directly inside a lyric interval
+    const matchIdx = parsedLyrics.findIndex(
+      (line) => effectiveTime >= line.startTime && effectiveTime <= line.endTime
     );
-    if (idx !== -1) return idx;
-    if (currentTime >= (parsedLyrics[parsedLyrics.length - 1]?.endTime || 0)) {
-      return parsedLyrics.length - 1;
+    if (matchIdx !== -1) return matchIdx;
+
+    // If before first line, highlight first line
+    if (effectiveTime < parsedLyrics[0].startTime) {
+      return 0;
     }
-    return 0;
-  }, [parsedLyrics, currentTime]);
+
+    // If in between lines or instrumental pause, stay on the last sung line
+    let lastSungIdx = 0;
+    for (let i = 0; i < parsedLyrics.length; i++) {
+      if (effectiveTime >= parsedLyrics[i].startTime) {
+        lastSungIdx = i;
+      } else {
+        break;
+      }
+    }
+    return lastSungIdx;
+  }, [parsedLyrics, effectiveTime]);
 
   // Smoothly auto-scroll current active lyric line into center of viewport
   useEffect(() => {
@@ -146,7 +171,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [isPlaying]);
 
-  // Progress timer tracking (supports both real audio file and synthetic beats with 150ms precision)
+  // Progress timer tracking (supports both real audio file and synthetic beats with 50ms precision)
   useEffect(() => {
     if (isPlaying) {
       progressTimerRef.current = window.setInterval(() => {
@@ -159,10 +184,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               handleNextTrack();
               return 0;
             }
-            return prev + 0.2;
+            return prev + 0.05;
           });
         }
-      }, 150);
+      }, 50);
     } else {
       if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     }
@@ -187,8 +212,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     try {
       const savedPlays = localStorage.getItem('sultan_song_plays');
       const counts: Record<string, number> = savedPlays ? JSON.parse(savedPlays) : {};
-      counts[track.id] = (counts[track.id] || 0) + 1;
+      const newPlayCount = (counts[track.id] || 0) + 1;
+      counts[track.id] = newPlayCount;
       localStorage.setItem('sultan_song_plays', JSON.stringify(counts));
+      recordSiteLog('تشغيل تراك 🎵', `تشغيل: ${track.title}`, { details: `النوع: ${track.genre} | السرعة: ${track.tempo} BPM` });
     } catch {}
 
     if (track.file && (track.file.startsWith('blob:') || track.file.startsWith('http') || track.file.startsWith('/'))) {
@@ -221,6 +248,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audioEngine.pause();
       setIsPlaying(false);
       if (onPlayStateChange) onPlayStateChange(false);
+      recordSiteLog('إيقاف مؤقت ⏸️', `إيقاف التراك: ${activeTrack?.title || 'الصوت'}`);
     } else {
       // Resume if already paused in middle of track, otherwise play from start
       const audioElement = audioEngine.getAudioElement();
@@ -228,6 +256,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         audioEngine.resume();
         setIsPlaying(true);
         if (onPlayStateChange) onPlayStateChange(true, activeTrack?.tempo);
+        recordSiteLog('استئناف التشغيل ▶️', `استئناف: ${activeTrack?.title || 'الصوت'}`);
       } else {
         playTrack(currentIdx);
       }
@@ -236,6 +265,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handleNextTrack = () => {
     audioEngine.playClickSound();
+    recordSiteLog('التالي في المشغل ⏭️', 'الانتقال إلى التراك التالي');
     if (isRepeat) {
       playTrack(currentIdx);
       return;
@@ -254,6 +284,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const handlePrevTrack = () => {
     audioEngine.playClickSound();
+    recordSiteLog('السابق في المشغل ⏮️', 'الرجوع للتراك السابق');
     let prevIdx = currentIdx - 1;
     if (prevIdx < 0) prevIdx = customTracks.length - 1;
     playTrack(prevIdx);
@@ -271,6 +302,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     audioEngine.playClickSound();
     const muted = audioEngine.toggleMute();
     setIsMuted(muted);
+    recordSiteLog('كتم الصوت 🔇', muted ? 'تفعيل كتم الصوت' : 'إلغاء كتم الصوت');
   };
 
   const handleCustomAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -291,6 +323,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       isCustomUpload: true
     };
 
+    recordSiteLog('رفع ملف صوتي 🎙️', `رفع ملف: ${file.name}`);
     const updated = [newTrack, ...customTracks];
     setCustomTracks(updated);
     setCurrentIdx(0);
@@ -416,8 +449,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         <div
           onClick={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
-            const ratio = (e.clientX - rect.left) / rect.width;
-            setCurrentTime(Math.floor(ratio * (activeTrack?.duration || 120)));
+            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const newTime = ratio * (activeTrack?.duration || 120);
+            setCurrentTime(newTime);
+            audioEngine.seek(newTime);
           }}
           className="relative w-full h-1.5 bg-white/10 hover:h-2 rounded-full cursor-pointer transition-all overflow-hidden"
         >
@@ -582,7 +617,45 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Timing micro-adjustment calibration */}
+              <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-1.5 py-0.5" title="معايرة دقيقة لتزامن الصوت مع الكلمات">
+                <span className="text-[9px] text-zinc-400 font-mono-custom hidden sm:inline">تزامن:</span>
+                <button
+                  type="button"
+                  onClick={() => setLyricsOffset((prev) => Math.max(-5, Number((prev - 0.2).toFixed(1))))}
+                  className="px-1 text-[10px] text-zinc-400 hover:text-white font-mono-custom hover:bg-white/10 rounded"
+                  title="تقديم الكلمات 0.2 ثانية"
+                >
+                  -0.2s
+                </button>
+                <span
+                  className={`text-[10px] font-mono-custom px-1 ${
+                    lyricsOffset === 0 ? 'text-zinc-500' : lyricsOffset > 0 ? 'text-amber-400 font-bold' : 'text-cyan-400 font-bold'
+                  }`}
+                >
+                  {lyricsOffset > 0 ? `+${lyricsOffset.toFixed(1)}s` : `${lyricsOffset.toFixed(1)}s`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLyricsOffset((prev) => Math.min(5, Number((prev + 0.2).toFixed(1))))}
+                  className="px-1 text-[10px] text-zinc-400 hover:text-white font-mono-custom hover:bg-white/10 rounded"
+                  title="تأخير الكلمات 0.2 ثانية"
+                >
+                  +0.2s
+                </button>
+                {lyricsOffset !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setLyricsOffset(0)}
+                    className="text-[9px] text-red-400 hover:underline px-0.5"
+                    title="إعادة ضبط التزامن إلى الافتراضي"
+                  >
+                    إعادة
+                  </button>
+                )}
+              </div>
+
               {/* Auto Scroll Toggle */}
               <button
                 type="button"
@@ -590,7 +663,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   audioEngine.playClickSound();
                   setAutoScrollLyrics(!autoScrollLyrics);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
+                className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
                   autoScrollLyrics
                     ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
                     : 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
@@ -598,7 +671,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 title={autoScrollLyrics ? 'إيقاف التمرير التلقائي' : 'تشغيل التمرير التلقائي'}
               >
                 <Sparkles size={11} className={autoScrollLyrics ? 'text-emerald-400 animate-spin' : ''} />
-                <span>{autoScrollLyrics ? 'تمرير تلقائي: مفعّل' : 'تمرير تلقائي: معطّل'}</span>
+                <span className="hidden sm:inline">{autoScrollLyrics ? 'تمرير تلقائي: مفعّل' : 'تمرير تلقائي: معطّل'}</span>
               </button>
 
               <button
@@ -624,6 +697,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               parsedLyrics.map((line, idx) => {
                 const isActive = idx === currentLyricIndex;
                 const isPast = idx < currentLyricIndex;
+                const lineDuration = Math.max(0.4, line.endTime - line.startTime);
+                const lineProgress = isActive
+                  ? Math.min(100, Math.max(0, ((effectiveTime - line.startTime) / lineDuration) * 100))
+                  : 0;
 
                 return (
                   <div
@@ -633,20 +710,37 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       audioEngine.playClickSound();
                       setCurrentTime(line.startTime);
                       audioEngine.seek(line.startTime);
+                      if (!isPlaying) {
+                        playTrack(currentIdx);
+                        setTimeout(() => {
+                          audioEngine.seek(line.startTime);
+                          setCurrentTime(line.startTime);
+                        }, 50);
+                      }
                     }}
-                    className={`group/line p-2.5 sm:p-3 rounded-xl transition-all duration-300 cursor-pointer flex items-center justify-between gap-3 text-right ${
+                    className={`relative overflow-hidden group/line p-2.5 sm:p-3 rounded-xl transition-all duration-300 cursor-pointer flex items-center justify-between gap-3 text-right ${
                       isActive
-                        ? 'bg-gradient-to-r from-red-600/25 via-amber-500/15 to-transparent border-r-4 border-r-amber-400 text-white font-bold scale-[1.01] shadow-lg shadow-black/40'
+                        ? 'bg-gradient-to-r from-red-600/30 via-amber-500/20 to-transparent border-r-4 border-r-amber-400 text-white font-bold scale-[1.01] shadow-lg shadow-black/40 ring-1 ring-amber-400/30'
                         : isPast
                         ? 'text-zinc-400 hover:text-zinc-200 hover:bg-white/5 opacity-85'
                         : 'text-zinc-400/80 hover:text-white hover:bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Live Line Progress Karaoke Fill Bar */}
+                    {isActive && (
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-amber-500/20 pointer-events-none overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-red-500 via-amber-400 to-yellow-300 transition-all duration-75"
+                          style={{ width: `${lineProgress}%` }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2.5 min-w-0 relative z-10">
                       <span
                         className={`text-[10px] font-mono-custom w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
                           isActive
-                            ? 'bg-amber-500 text-black font-black'
+                            ? 'bg-amber-500 text-black font-black shadow-sm shadow-amber-500/50'
                             : 'bg-white/5 text-zinc-500 group-hover/line:text-zinc-300'
                         }`}
                       >
@@ -663,7 +757,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5 opacity-60 group-hover/line:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1.5 opacity-60 group-hover/line:opacity-100 transition-opacity relative z-10">
                       <span className="text-[10px] font-mono-custom text-zinc-400">
                         {formatSec(line.startTime)}
                       </span>

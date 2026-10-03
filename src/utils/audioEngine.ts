@@ -248,9 +248,173 @@ class AudioEngine {
     osc.stop(time + duration);
   }
 
+  private isCalmPlaying: boolean = false;
+  private calmChordTimer: number | null = null;
+  private calmNoiseNode: AudioNode | null = null;
+  private calmNoiseGain: GainNode | null = null;
+
+  public playCalmLoFiAmbience(onStateChange?: (playing: boolean) => void) {
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+
+    if (this.isCalmPlaying) return;
+    this.isCalmPlaying = true;
+    this.isPlaying = true;
+    if (onStateChange) onStateChange(true);
+
+    // Deep Majestic Sultan Chill Aesthetic Ambience
+    // Very gentle, peaceful, relaxing chords (Dm9 -> Bbmaj7 -> Fmaj7 -> Csus4)
+    const calmRoyalChords = [
+      {
+        bass: 73.42, // D2 (Warm Deep Bass)
+        pad: [220.0, 261.63, 329.63, 440.0], // A3, C4, E4, A4 (Dm9)
+        melody: [440.0, 392.0, 329.63, 261.63] // A4, G4, E4, C4
+      },
+      {
+        bass: 58.27, // Bb1 (Soft Low Bass)
+        pad: [233.08, 293.66, 349.23, 440.0], // Bb3, D4, F4, A4 (Bbmaj7)
+        melody: [349.23, 440.0, 523.25, 440.0] // F4, A4, C5, A4
+      },
+      {
+        bass: 87.31, // F2 (Peaceful Base)
+        pad: [220.0, 261.63, 349.23, 392.0], // A3, C4, F4, G4 (Fmaj7/9)
+        melody: [392.0, 349.23, 329.63, 261.63] // G4, F4, E4, C4
+      },
+      {
+        bass: 65.41, // C2 (Smooth Resolution)
+        pad: [196.0, 261.63, 293.66, 392.0], // G3, C4, D4, G4 (Csus2)
+        melody: [392.0, 329.63, 293.66, 261.63] // G4, E4, D4, C4
+      }
+    ];
+
+    let chordIdx = 0;
+
+    const playRoyalAmbientStep = () => {
+      if (!this.ctx || !this.isCalmPlaying) return;
+      const current = calmRoyalChords[chordIdx % calmRoyalChords.length];
+      chordIdx++;
+      const now = this.ctx.currentTime;
+      const duration = 4.8;
+
+      // 1. Warm Soft Bass (Low sine wave with smooth envelope)
+      const bassOsc = this.ctx.createOscillator();
+      const bassGain = this.ctx.createGain();
+      const bassFilter = this.ctx.createBiquadFilter();
+
+      bassOsc.type = 'sine';
+      bassOsc.frequency.setValueAtTime(current.bass, now);
+      bassFilter.type = 'lowpass';
+      bassFilter.frequency.setValueAtTime(140, now);
+
+      const bassVol = 0.08 * (this.isMuted ? 0 : 1);
+      bassGain.gain.setValueAtTime(0.0001, now);
+      bassGain.gain.exponentialRampToValueAtTime(bassVol, now + 0.8);
+      bassGain.gain.setValueAtTime(bassVol * 0.9, now + duration - 0.9);
+      bassGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+      bassOsc.connect(bassFilter);
+      bassFilter.connect(bassGain);
+      if (this.analyser) bassGain.connect(this.analyser);
+      else if (this.masterGain) bassGain.connect(this.masterGain);
+
+      bassOsc.start(now);
+      bassOsc.stop(now + duration + 0.1);
+
+      // 2. Gentle Breathing Velvet Pad (Smooth sine + triangle)
+      current.pad.forEach((freq, idx) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.type = idx % 2 === 0 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(450, now);
+        filter.frequency.exponentialRampToValueAtTime(320, now + duration);
+
+        const padVol = (0.035 / current.pad.length) * (this.isMuted ? 0 : 1);
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(padVol, now + 1.2);
+        gain.gain.setValueAtTime(padVol * 0.8, now + duration - 1.2);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        if (this.analyser) gain.connect(this.analyser);
+        else if (this.masterGain) gain.connect(this.masterGain);
+
+        osc.start(now);
+        osc.stop(now + duration + 0.1);
+      });
+
+      // 3. Delicate Starry Keys (Gentle arpeggiated piano-like plucks)
+      current.melody.forEach((noteFreq, idx) => {
+        if (!this.ctx) return;
+        const noteTime = now + 0.6 + idx * 0.95;
+        const keyOsc = this.ctx.createOscillator();
+        const keyGain = this.ctx.createGain();
+        const keyFilter = this.ctx.createBiquadFilter();
+
+        keyOsc.type = 'sine';
+        keyOsc.frequency.setValueAtTime(noteFreq, noteTime);
+
+        keyFilter.type = 'lowpass';
+        keyFilter.frequency.setValueAtTime(900, noteTime);
+        keyFilter.frequency.exponentialRampToValueAtTime(300, noteTime + 1.4);
+
+        const keyVol = 0.018 * (this.isMuted ? 0 : 1);
+        keyGain.gain.setValueAtTime(0.0001, noteTime);
+        keyGain.gain.linearRampToValueAtTime(keyVol, noteTime + 0.08);
+        keyGain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 1.5);
+
+        keyOsc.connect(keyFilter);
+        keyFilter.connect(keyGain);
+        if (this.analyser) keyGain.connect(this.analyser);
+        else if (this.masterGain) keyGain.connect(this.masterGain);
+
+        keyOsc.start(noteTime);
+        keyOsc.stop(noteTime + 1.6);
+      });
+    };
+
+    // Trigger immediately and repeat peacefully
+    playRoyalAmbientStep();
+    this.calmChordTimer = window.setInterval(playRoyalAmbientStep, 4800);
+  }
+
+  public stopCalmLoFiAmbience(onStateChange?: (playing: boolean) => void) {
+    this.isCalmPlaying = false;
+    this.isPlaying = false;
+    if (this.calmChordTimer) {
+      clearInterval(this.calmChordTimer);
+      this.calmChordTimer = null;
+    }
+    if (onStateChange) onStateChange(false);
+  }
+
+  public toggleCalmLoFi(onStateChange?: (playing: boolean) => void): boolean {
+    if (this.isCalmPlaying) {
+      this.stopCalmLoFiAmbience(onStateChange);
+      return false;
+    } else {
+      this.playCalmLoFiAmbience(onStateChange);
+      return true;
+    }
+  }
+
+  public getIsCalmPlaying(): boolean {
+    return this.isCalmPlaying;
+  }
+
   public stop() {
     this.isPlaying = false;
     this.currentTrackId = null;
+    this.stopCalmLoFiAmbience();
 
     if (this.beatInterval) {
       clearInterval(this.beatInterval);
@@ -393,6 +557,124 @@ class AudioEngine {
 
     osc.start();
     osc.stop(this.ctx.currentTime + 0.26);
+  }
+
+  // --- SUBTLE HIGH-END ADMIN UI SOUNDS (مؤثرات صوتية خفيفة للوحة التحكم) ---
+  public playAdminClick() {
+    this.init();
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1050, now);
+    osc.frequency.exponentialRampToValueAtTime(420, now + 0.022);
+
+    gain.gain.setValueAtTime(0.045, now);
+    gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.022);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.025);
+  }
+
+  public playAdminTab() {
+    this.init();
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(480, now);
+    osc.frequency.exponentialRampToValueAtTime(740, now + 0.04);
+
+    gain.gain.setValueAtTime(0.04, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
+  public playAdminToggle(enabled?: boolean) {
+    this.init();
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    if (enabled !== false) {
+      // Upward subtle pleasant blip
+      osc.frequency.setValueAtTime(520, now);
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.035);
+    } else {
+      // Downward subtle blip
+      osc.frequency.setValueAtTime(780, now);
+      osc.frequency.exponentialRampToValueAtTime(480, now + 0.035);
+    }
+
+    gain.gain.setValueAtTime(0.05, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.045);
+  }
+
+  public playAdminSave() {
+    this.init();
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    
+    // Double crystal harmony chime
+    [659.25, 987.77].forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const start = now + idx * 0.045;
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0.055, start);
+      gain.gain.exponentialRampToValueAtTime(0.0005, start + 0.14);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + 0.15);
+    });
+  }
+
+  public playAdminDanger() {
+    this.init();
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(140, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.07);
+
+    gain.gain.setValueAtTime(0.07, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.08);
   }
 }
 

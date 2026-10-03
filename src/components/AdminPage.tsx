@@ -37,7 +37,14 @@ import {
   Headphones,
   Disc3,
   Send,
-  MessageSquare
+  MessageSquare,
+  RotateCcw,
+  ClipboardList,
+  Filter,
+  Search,
+  FileText,
+  Crown,
+  X
 } from 'lucide-react';
 import {
   BarChart,
@@ -51,8 +58,14 @@ import {
 import confetti from 'canvas-confetti';
 import { SiteConfig } from '../types';
 import { INITIAL_TRACKS } from '../data/tracks';
-import { sendVisitorNotificationToDiscord } from '../utils/discordWebhook';
+import {
+  sendVisitorNotificationToDiscord,
+  sendPeriodicAnalyticsSummaryToDiscord
+} from '../utils/discordWebhook';
 import { audioEngine } from '../utils/audioEngine';
+import { recordSiteLog } from '../utils/siteLogger';
+import { sendEmailNotification } from '../utils/emailNotifier';
+import { LogViewer } from './LogViewer';
 
 interface AdminPageProps {
   config: SiteConfig;
@@ -77,14 +90,14 @@ interface VisitLog {
 const DEFAULT_PASS = 'sultan2026';
 
 const INITIAL_LOGS: VisitLog[] = [
-  { id: '1', time: 'منذ دقيقة', country: 'مصر', flag: '🇪🇬', city: 'القاهرة', device: 'موبايل', os: 'Android', browser: 'Chrome Mobile', referrer: 'tiktok.com/@mohamed0_0hamdy', duration: '3 د 45 ث' },
+  { id: '1', time: 'منذ دقيقة', country: 'مصر', flag: '🇪🇬', city: 'القاهرة', device: 'موبايل', os: 'Android', browser: 'Chrome Mobile', referrer: 'discord.gg/TUU6EeC6pb', duration: '3 د 45 ث' },
   { id: '2', time: 'منذ 8 دقائق', country: 'السعودية', flag: '🇸🇦', city: 'الرياض', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'sultan.kesug.com', duration: '5 د 12 ث' },
   { id: '3', time: 'منذ 24 دقيقة', country: 'مصر', flag: '🇪🇬', city: 'الإسكندرية', device: 'كمبيوتر', os: 'Windows 10', browser: 'Edge', referrer: 'discord.gg/TUU6EeC6pb', duration: '2 د 05 ث' },
   { id: '4', time: 'منذ 40 دقيقة', country: 'ألمانيا', flag: '🇩🇪', city: 'فرانكفورت', device: 'كمبيوتر', os: 'Linux', browser: 'Firefox', referrer: 'sultan.kesug.com', duration: '1 د 30 ث' },
   { id: '5', time: 'منذ ساعة', country: 'السعودية', flag: '🇸🇦', city: 'جدة', device: 'موبايل', os: 'iOS 18', browser: 'Safari', referrer: 'direct / مباشر', duration: '4 د 22 ث' },
-  { id: '6', time: 'منذ ساعتين', country: 'مصر', flag: '🇪🇬', city: 'الجيزة', device: 'موبايل', os: 'iOS 17', browser: 'TikTok Webview', referrer: 'tiktok.com', duration: '2 د 50 ث' },
+  { id: '6', time: 'منذ ساعتين', country: 'مصر', flag: '🇪🇬', city: 'الجيزة', device: 'موبايل', os: 'iOS 17', browser: 'Chrome Mobile', referrer: 'discord.gg/TUU6EeC6pb', duration: '2 د 50 ث' },
   { id: '7', time: 'منذ 3 ساعات', country: 'الإمارات', flag: '🇦🇪', city: 'دبي', device: 'كمبيوتر', os: 'macOS Sonoma', browser: 'Safari', referrer: 'sultan.kesug.com', duration: '6 د 10 ث' },
-  { id: '8', time: 'منذ 5 ساعات', country: 'أمريكا', flag: '🇺🇸', city: 'نيويورك', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'discord.gg', duration: '1 د 15 ث' }
+  { id: '8', time: 'منذ 5 ساعات', country: 'أمريكا', flag: '🇺🇸', city: 'نيويورك', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'google.com', duration: '1 د 15 ث' }
 ];
 
 export const AdminPage: React.FC<AdminPageProps> = ({
@@ -98,37 +111,230 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   });
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
-  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'stats' | 'security'>('settings');
+  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'stats' | 'logs' | 'security'>('settings');
   const [formData, setFormData] = useState<SiteConfig>({ ...config });
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterDevice, setFilterDevice] = useState<string>('all');
+  const [filterTimeRange, setFilterTimeRange] = useState<'all' | 'today' | '24h' | '7d' | 'custom'>('all');
+  const [filterCountry, setFilterCountry] = useState<string>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>('');
+  const [customEndDate, setCustomEndDate] = useState<string>('');
+  const [isClearLogsModalOpen, setIsClearLogsModalOpen] = useState<boolean>(false);
+  const [botTestStatus, setBotTestStatus] = useState<{
+    loading: boolean;
+    result?: {
+      botName: string;
+      botId: string;
+      guildName?: string;
+      roleName?: string;
+      isInGuild: boolean;
+    };
+    error?: string;
+  }>({ loading: false });
+
+  const [emailTestStatus, setEmailTestStatus] = useState<'idle' | 'sending' | 'success' | 'activation' | 'error'>('idle');
+  const [emailTestMsg, setEmailTestMsg] = useState<string>('');
+
+  const handleSendTestEmail = async () => {
+    setEmailTestStatus('sending');
+    setEmailTestMsg('');
+    audioEngine.playClickSound();
+
+    const targetEmail = formData.emailNotifications?.email || 'sultan209825@gmail.com';
+    const result = await sendEmailNotification({
+      eventType: 'test_alert',
+      title: '🔔 إشعار تجريبي: اختبار نظام تنبيهات بروفايل السلطان',
+      details: 'هذا إشعار تجريبي يؤكد أن بريدك الإلكتروني متصل وجاهز لاستلام تنبيهات دخول الأدمن وتفعيل رتبة VIP فوراً!'
+    });
+
+    if (result.needsActivation) {
+      setEmailTestStatus('activation');
+      setEmailTestMsg(result.message);
+      audioEngine.playRoyalFanfare();
+    } else if (result.success) {
+      setEmailTestStatus('success');
+      setEmailTestMsg(result.message);
+      audioEngine.playRoyalFanfare();
+      confetti({ particleCount: 70, spread: 80, origin: { y: 0.5 } });
+    } else {
+      setEmailTestStatus('error');
+      setEmailTestMsg(result.message || 'فشل إرسال الإشعار التجريبي');
+    }
+  };
+
+  const handleTestBot = async () => {
+    const token = formData.discordAutoRole?.botToken?.trim();
+    if (!token) {
+      setBotTestStatus({
+        loading: false,
+        error: 'يرجى إدخال توكن البوت (Bot Token) أولاً في الحقل المخصص أعلاه قبل الفحص'
+      });
+      audioEngine.playAdminDanger();
+      return;
+    }
+
+    setBotTestStatus({ loading: true, error: undefined, result: undefined });
+    audioEngine.playAdminClick();
+
+    const payload = {
+      action: 'test',
+      botToken: token,
+      guildId: formData.discordAutoRole?.guildId?.trim() || '',
+      roleId: formData.discordAutoRole?.roleId?.trim() || ''
+    };
+
+    try {
+      let resText = '';
+      let isSuccessJson = false;
+      let parsedData: any = null;
+
+      // 1. First attempt: call api_discord_assign.php (native PHP endpoint for InfinityFree)
+      try {
+        const phpRes = await fetch('/api_discord_assign.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        resText = await phpRes.text();
+        if (resText.trim().startsWith('{') || resText.trim().startsWith('[')) {
+          parsedData = JSON.parse(resText);
+          isSuccessJson = true;
+        }
+      } catch (e) {
+        // failed network call to php script
+      }
+
+      // 2. Second attempt: try dev server endpoint
+      if (!isSuccessJson) {
+        try {
+          const devRes = await fetch('/api/discord/test-bot', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          resText = await devRes.text();
+          if (resText.trim().startsWith('{') || resText.trim().startsWith('[')) {
+            parsedData = JSON.parse(resText);
+            isSuccessJson = true;
+          }
+        } catch (e) {}
+      }
+
+      // 3. Third attempt: try bot-service
+      if (!isSuccessJson) {
+        try {
+          const serviceRes = await fetch('/api/discord/bot-service', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          resText = await serviceRes.text();
+          if (resText.trim().startsWith('{') || resText.trim().startsWith('[')) {
+            parsedData = JSON.parse(resText);
+            isSuccessJson = true;
+          }
+        } catch (e) {}
+      }
+
+      // 4. Fourth attempt: If local hosting blocks outgoing connections (InfinityFree Could not resolve host error) or failed:
+      if (!isSuccessJson || parsedData?.message?.includes('Could not resolve host') || parsedData?.error?.includes('Could not resolve host')) {
+        const cloudProxy = formData.discordAutoRole?.apiProxyUrl?.trim() || 'https://ais-pre-knb6cnmdjserbwyeurhsdn-925476069651.europe-west2.run.app';
+        try {
+          const proxyRes = await fetch(`${cloudProxy.replace(/\/+$/, '')}/api_discord_assign.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const proxyText = await proxyRes.text();
+          if (proxyText.trim().startsWith('{') || proxyText.trim().startsWith('[')) {
+            parsedData = JSON.parse(proxyText);
+            isSuccessJson = true;
+          }
+        } catch (e) {}
+      }
+
+      // If the response was an HTML page (like 404 or index.html rewrite)
+      if (!isSuccessJson) {
+        setBotTestStatus({
+          loading: false,
+          error: 'لم يتم العثور على سكربت فحص البوت. يرجى التأكد من رفع ملف "api_discord_assign.php" داخل مجلد htdocs على استضافة InfinityFree.'
+        });
+        audioEngine.playAdminDanger();
+        return;
+      }
+
+      if (parsedData?.success) {
+        setBotTestStatus({
+          loading: false,
+          result: parsedData.state || parsedData
+        });
+        audioEngine.playRoyalFanfare();
+        showToast('تم فحص واتصال البوت بنجاح! 👑');
+      } else {
+        setBotTestStatus({
+          loading: false,
+          error: parsedData?.message || parsedData?.error || 'فشل فحص البوت، تأكد من صحة التوكن'
+        });
+        audioEngine.playAdminDanger();
+      }
+    } catch (err: any) {
+      setBotTestStatus({
+        loading: false,
+        error: err.message || 'حدث خطأ غير متوقع أثناء الاتصال بالبوت'
+      });
+      audioEngine.playAdminDanger();
+    }
+  };
 
   const [logs, setLogs] = useState<VisitLog[]>(() => {
     const saved = localStorage.getItem('sultan_site_logs');
-    return saved ? JSON.parse(saved) : INITIAL_LOGS;
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
   });
 
   const [views, setViews] = useState<number>(() => {
     const saved = localStorage.getItem('sultan_site_views');
-    return saved ? parseInt(saved, 10) : 1420;
+    return saved !== null ? parseInt(saved, 10) : 0;
   });
 
   const [eggStats, setEggStats] = useState<Record<string, number>>(() => {
     const saved = localStorage.getItem('sultan_egg_triggers');
-    return saved ? JSON.parse(saved) : { sultan: 14, vip: 8, party: 6, game: 19 };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return { sultan: parsed.sultan ?? 0, game: parsed.game ?? 0 };
+      } catch {}
+    }
+    return { sultan: 0, game: 0 };
   });
 
   const [upvotes, setUpvotes] = useState<number>(() => {
     const saved = localStorage.getItem('sultan_site_upvotes');
-    return saved ? parseInt(saved, 10) : 348;
+    return saved !== null ? parseInt(saved, 10) : 0;
   });
 
   const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
+  const [isResetAllModalOpen, setIsResetAllModalOpen] = useState<boolean>(false);
+  const [newPasswordInput, setNewPasswordInput] = useState<string>('');
+  const [isSendingReport, setIsSendingReport] = useState<boolean>(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   const handleTestDiscordWebhook = async () => {
-    if (!formData.discordWebhookUrl) {
-      alert('يرجى وضع رابط Discord Webhook أولاً لتجريبه!');
+    if (!formData.discordWebhookUrl || !formData.discordWebhookUrl.trim()) {
+      showToast('يرجى وضع رابط Discord Webhook أولاً لتجريبه! ⚠️');
+      setWebhookTestStatus('error');
+      setTimeout(() => setWebhookTestStatus('idle'), 3000);
       return;
     }
     audioEngine.playClickSound();
@@ -149,14 +355,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setWebhookTestStatus('success');
       audioEngine.playNotificationPing();
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+      showToast('تم إرسال إشعار التجربة بنجاح إلى روم الديسكورد! ✅');
       setTimeout(() => setWebhookTestStatus('idle'), 3500);
     } else {
       setWebhookTestStatus('error');
+      showToast('فشل الإرسال (تأكد من رابط الويب هوك) ❌');
       setTimeout(() => setWebhookTestStatus('idle'), 3500);
     }
   };
 
-  // Top 5 songs data computed from actual plays + initial popularity
+  // Top 5 songs data computed from actual plays
   const topSongsData = React.useMemo(() => {
     let playCounts: Record<string, number> = {};
     try {
@@ -164,17 +372,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       if (saved) playCounts = JSON.parse(saved);
     } catch {}
 
-    const defaultBasePlays: Record<string, number> = {
-      'sultan-1': 842, // سلطان جه الكل سكت
-      'sultan-4': 685, // صاحب الساحة سلطان (اكتساح)
-      'sultan-2': 519, // مشية تقيلة خطوة بميزان
-      'sultan-3': 430, // أنا سلطان عادي
-      'sultan-5': 388  // سلطان داخل خطوة ثابتة
-    };
-
     return INITIAL_TRACKS.slice(0, 5)
       .map((t) => {
-        const plays = (defaultBasePlays[t.id] || 200) + (playCounts[t.id] || 0);
+        const plays = playCounts[t.id] || 0;
         return {
           id: t.id,
           name: t.title.length > 18 ? t.title.slice(0, 18) + '...' : t.title,
@@ -188,9 +388,116 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       .slice(0, 5);
   }, []);
 
+  // Dynamic Country Breakdown based on live logs
+  const countryBreakdown = React.useMemo(() => {
+    if (!logs || logs.length === 0) return [];
+    const counts: Record<string, { count: number; flag: string }> = {};
+    logs.forEach((log) => {
+      const c = log.country || 'أخرى';
+      if (!counts[c]) counts[c] = { count: 0, flag: log.flag || '🌍' };
+      counts[c].count += 1;
+    });
+    const total = logs.length;
+    return Object.entries(counts)
+      .map(([name, data]) => ({
+        country: `${data.flag} ${name}`,
+        visits: data.count,
+        percent: Math.round((data.count / total) * 100)
+      }))
+      .sort((a, b) => b.visits - a.visits)
+      .slice(0, 5);
+  }, [logs]);
+
+  // Dynamic Traffic Sources Breakdown based on live logs
+  const trafficBreakdown = React.useMemo(() => {
+    if (!logs || logs.length === 0) return [];
+    const total = logs.length;
+    let discordCount = 0;
+    let directCount = 0;
+    let searchCount = 0;
+
+    logs.forEach((log) => {
+      const ref = (log.referrer || '').toLowerCase();
+      if (ref.includes('discord')) {
+        discordCount++;
+      } else if (ref.includes('direct') || ref.includes('مباشر') || ref.includes('kesug') || ref.includes('link')) {
+        directCount++;
+      } else {
+        searchCount++;
+      }
+    });
+
+    return [
+      {
+        name: '💬 سيرفر الديسكورد (Discord Server)',
+        visits: discordCount,
+        percent: Math.round((discordCount / total) * 100),
+        color: 'from-indigo-500 to-cyan-500'
+      },
+      {
+        name: '🔗 رابط مباشر ومشاركة الأصدقاء (Direct)',
+        visits: directCount,
+        percent: Math.round((directCount / total) * 100),
+        color: 'from-amber-500 to-orange-500'
+      },
+      {
+        name: '🔍 محركات البحث والشبكات (Search & Web)',
+        visits: searchCount,
+        percent: Math.round((searchCount / total) * 100),
+        color: 'from-emerald-500 to-teal-500'
+      }
+    ];
+  }, [logs]);
+
   useEffect(() => {
     setFormData({ ...config });
   }, [config]);
+
+  // Ensure persistent stats are accurately read on mount and synchronized
+  useEffect(() => {
+    const syncStats = () => {
+      try {
+        const v = localStorage.getItem('sultan_site_views');
+        if (v !== null) {
+          const parsed = parseInt(v, 10);
+          if (!isNaN(parsed)) setViews(parsed);
+        }
+
+        const u = localStorage.getItem('sultan_site_upvotes');
+        if (u !== null) {
+          const parsed = parseInt(u, 10);
+          if (!isNaN(parsed)) setUpvotes(parsed);
+        }
+
+        const e = localStorage.getItem('sultan_egg_triggers');
+        if (e) {
+          try {
+            const parsed = JSON.parse(e);
+            setEggStats({ sultan: parsed.sultan ?? 0, game: parsed.game ?? 0 });
+          } catch {}
+        }
+
+        const l = localStorage.getItem('sultan_site_logs');
+        if (l) {
+          try {
+            const parsed = JSON.parse(l);
+            if (Array.isArray(parsed)) setLogs(parsed);
+          } catch {}
+        }
+      } catch (err) {
+        console.error('Error syncing stats from storage', err);
+      }
+    };
+
+    syncStats();
+    window.addEventListener('storage', syncStats);
+    window.addEventListener('focus', syncStats);
+
+    return () => {
+      window.removeEventListener('storage', syncStats);
+      window.removeEventListener('focus', syncStats);
+    };
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,36 +508,89 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setLoginError('');
       audioEngine.playRoyalFanfare();
       confetti({ particleCount: 70, spread: 80, origin: { y: 0.5 } });
+      recordSiteLog('دخول المشرف 🔑', 'تسجيل دخول ناجح إلى لوحة التحكم الإدارية');
+      sendEmailNotification({
+        eventType: 'admin_login',
+        title: '🚨 تنبيه أمني: تسجيل دخول ناجح إلى لوحة الإدارة',
+        details: 'قام شخص بتسجيل الدخول بكلمة المرور إلى لوحة تحكم بروفايل السلطان.'
+      });
     } else {
       setLoginError('كلمة المرور غير صحيحة، حاول مجدداً يا سلطان!');
-      audioEngine.playClickSound();
+      audioEngine.playAdminDanger();
+      recordSiteLog('دخول خاطئ ⚠️', 'محاولة فاشلة لدخول لوحة التحكم بكلمة مرور خاطئة');
+      sendEmailNotification({
+        eventType: 'admin_login',
+        title: '⚠️ تحذير أمني: محاولة دخول فاشلة للوحة الإدارة',
+        details: 'تم رصد محاولة إدخال كلمة مرور خاطئة لدخول لوحة تحكم بروفايل السلطان!'
+      });
     }
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    audioEngine.playClickSound();
+    audioEngine.playAdminSave();
     onSaveConfig(formData);
     localStorage.setItem('sultan_site_config', JSON.stringify(formData));
     setSaveSuccess(true);
+
+    // Auto-sync Discord Bot on backend
+    if (formData.discordAutoRole?.botToken) {
+      fetch('/api/discord/bot-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          botToken: formData.discordAutoRole.botToken,
+          guildId: formData.discordAutoRole.guildId,
+          roleId: formData.discordAutoRole.roleId
+        })
+      }).catch(() => {});
+    }
+
     confetti({ particleCount: 80, spread: 70, origin: { y: 0.7 } });
+    recordSiteLog('تحديث الموقع ⚙️', 'حفظ وتحديث إعدادات وبيانات الموقع الرئيسي');
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const handleResetViews = () => {
-    if (window.confirm('هل تريد تصفير عداد المشاهدات إلى 0؟')) {
-      localStorage.setItem('sultan_site_views', '0');
-      setViews(0);
-      audioEngine.playClickSound();
-    }
+    audioEngine.playAdminDanger();
+    localStorage.setItem('sultan_site_views', '0');
+    setViews(0);
+    recordSiteLog('تصفير المشاهدات 🔄', 'تصفير عداد الزيارات الكلي إلى 0');
+    showToast('تم تصفير عداد المشاهدات بنجاح إلى 0! 🔄');
   };
 
   const handleClearLogs = () => {
-    if (window.confirm('هل أنت متأكد من مسح سجل الزيارات؟')) {
-      localStorage.removeItem('sultan_site_logs');
-      setLogs([]);
-      audioEngine.playClickSound();
-    }
+    audioEngine.playAdminDanger();
+    localStorage.removeItem('sultan_site_logs');
+    setLogs([]);
+    showToast('تم مسح سجل الزيارات بنجاح! 🗑️');
+  };
+
+  const handleResetAllStatistics = () => {
+    audioEngine.playAdminDanger();
+    // 1. Reset views
+    setViews(0);
+    localStorage.setItem('sultan_site_views', '0');
+    // 2. Reset upvotes
+    setUpvotes(0);
+    localStorage.setItem('sultan_site_upvotes', '0');
+    localStorage.removeItem('sultan_site_rating');
+    // 3. Reset secrets
+    setEggStats({ sultan: 0, game: 0 });
+    localStorage.setItem('sultan_egg_triggers', JSON.stringify({ sultan: 0, game: 0 }));
+    // 4. Reset logs
+    setLogs([]);
+    localStorage.setItem('sultan_site_logs', JSON.stringify([]));
+    // 5. Reset song plays
+    localStorage.removeItem('sultan_song_plays');
+    // 6. Reset game leaderboard & high score
+    localStorage.removeItem('sultan_game_leaderboard');
+    localStorage.removeItem('sultan_game_highscore');
+
+    setIsResetAllModalOpen(false);
+    confetti({ particleCount: 60, spread: 80, origin: { y: 0.6 } });
+    recordSiteLog('تصفير شامل ⚠️', 'تصفير كافة الإحصائيات والأسرار والسجلات بالكامل');
+    showToast('تم تصفير وتصفية جميع إحصائيات وسجلات الموقع بالكامل بنجاح! 🔄');
   };
 
   const handleAddNewMockVisit = () => {
@@ -238,7 +598,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       { country: 'مصر', flag: '🇪🇬', city: 'القاهرة' },
       { country: 'السعودية', flag: '🇸🇦', city: 'الرياض' },
       { country: 'الكويت', flag: '🇰🇼', city: 'الكويت' },
-      { country: 'المغرب', flag: '🇲🇦', city: 'الدار البيضاء' }
+      { country: 'المغرب', flag: '🇲🇦', city: 'الدار البيضاء' },
+      { country: 'الإمارات', flag: '🇦🇪', city: 'دبي' }
     ];
     const picked = randomCountries[Math.floor(Math.random() * randomCountries.length)];
     const newLog: VisitLog = {
@@ -250,7 +611,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       device: Math.random() > 0.5 ? 'موبايل' : 'كمبيوتر',
       os: 'Android 14',
       browser: 'Chrome Mobile',
-      referrer: 'tiktok.com/@mohamed0_0hamdy',
+      referrer: 'discord.gg/TUU6EeC6pb',
       duration: '0 د 20 ث'
     };
     const updated = [newLog, ...logs];
@@ -261,32 +622,181 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       localStorage.setItem('sultan_site_views', nv.toString());
       return nv;
     });
-    audioEngine.playClickSound();
-    confetti({ particleCount: 30, spread: 50 });
+    audioEngine.playNotificationPing();
+    confetti({ particleCount: 35, spread: 60 });
+    showToast(`تم تسجيل زيارة تجريبية جديدة من ${picked.country} ${picked.flag}! ⚡`);
   };
 
-  const handleUpdatePassword = () => {
-    const newPass = window.prompt('أدخل كلمة المرور الجديدة للوحة التحكم:');
-    if (newPass && newPass.trim().length >= 4) {
-      localStorage.setItem('sultan_admin_pass', newPass.trim());
-      alert('تم تحديث كلمة مرور لوحة التحكم بنجاح!');
-    } else if (newPass) {
-      alert('كلمة المرور يجب أن تكون 4 أحرف أو أرقام على الأقل');
+  const handleSaveNewPassword = (explicitPass?: string) => {
+    const pass = (explicitPass !== undefined ? explicitPass : newPasswordInput).trim();
+    if (pass.length < 4) {
+      showToast('كلمة المرور يجب أن تكون 4 أحرف أو أرقام على الأقل ⚠️');
+      return;
+    }
+    localStorage.setItem('sultan_admin_pass', pass);
+    audioEngine.playRoyalFanfare();
+    confetti({ particleCount: 60, spread: 70 });
+    showToast('تم تحديث كلمة المرور للوحة التحكم بنجاح! 🔒');
+    setIsPasswordModalOpen(false);
+    setNewPasswordInput('');
+  };
+
+  const handleSendAnalyticsReport = async (
+    reason: 'manual' | 'top_country_update' | 'secret_milestone' | 'periodic' = 'manual'
+  ) => {
+    if (!formData.discordWebhookUrl || !formData.discordWebhookUrl.trim()) {
+      showToast('يرجى وضع رابط Discord Webhook في الإعدادات أولاً! ⚠️');
+      return;
+    }
+    audioEngine.playClickSound();
+    setIsSendingReport(true);
+    const success = await sendPeriodicAnalyticsSummaryToDiscord(
+      {
+        totalViews: views,
+        totalUpvotes: upvotes,
+        topCountries: countryBreakdown,
+        trafficSources: trafficBreakdown,
+        topSecrets: { sultan: eggStats.sultan ?? 0, game: eggStats.game ?? 0 },
+        topSongs: topSongsData.map((s) => ({ name: s.fullName || s.name, plays: s.plays })),
+        triggerReason: reason
+      },
+      formData.discordWebhookUrl
+    );
+    setIsSendingReport(false);
+    if (success) {
+      audioEngine.playNotificationPing();
+      confetti({ particleCount: 55, spread: 65, origin: { y: 0.6 } });
+      showToast('تم إرسال التقرير الإحصائي الشامل للديسكورد بنجاح! 📊');
+    } else {
+      showToast('تعذر إرسال التقرير، تأكد من رابط الويب هوك ❌');
     }
   };
 
-  const filteredLogs = logs.filter((l) => {
-    const matchesSearch =
-      l.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.browser.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.referrer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.os.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleDeleteSingleLog = (id: string) => {
+    audioEngine.playClickSound();
+    const updated = logs.filter((l) => l.id !== id);
+    setLogs(updated);
+    localStorage.setItem('sultan_site_logs', JSON.stringify(updated));
+    showToast('تم حذف السجل المحدد بنجاح! 🗑️');
+  };
 
-    const matchesDevice = filterDevice === 'all' || l.device === filterDevice;
+  const handleClearLogsConfirmed = () => {
+    audioEngine.playClickSound();
+    localStorage.removeItem('sultan_site_logs');
+    setLogs([]);
+    setIsClearLogsModalOpen(false);
+    showToast('تم مسح سجل اللوق بالكامل بنجاح! 🗑️');
+  };
 
-    return matchesSearch && matchesDevice;
-  });
+  const handleResetFilters = () => {
+    audioEngine.playClickSound();
+    setSearchTerm('');
+    setFilterDevice('all');
+    setFilterCountry('all');
+    setFilterTimeRange('all');
+    setCustomStartDate('');
+    setCustomEndDate('');
+    showToast('تمت إعادة ضبط جميع الفلاتر! 🔄');
+  };
+
+  const handleExportLogs = (format: 'json' | 'csv') => {
+    audioEngine.playClickSound();
+    if (filteredLogs.length === 0) {
+      showToast('لا توجد سجلات مطابقة للتصدير! ⚠️');
+      return;
+    }
+
+    let blob: Blob;
+    let filename = `sultan_logs_${new Date().toISOString().slice(0, 10)}`;
+
+    if (format === 'json') {
+      blob = new Blob([JSON.stringify(filteredLogs, null, 2)], { type: 'application/json;charset=utf-8' });
+      filename += '.json';
+    } else {
+      const headers = ['المعرف', 'الوقت', 'الدولة', 'المدينة', 'نوع الجهاز', 'نظام التشغيل', 'المتصفح', 'المصدر', 'المدة'];
+      const rows = filteredLogs.map((l) => [
+        `"${l.id}"`,
+        `"${l.time}"`,
+        `"${l.country}"`,
+        `"${l.city}"`,
+        `"${l.device}"`,
+        `"${l.os}"`,
+        `"${l.browser}"`,
+        `"${l.referrer}"`,
+        `"${l.duration}"`
+      ]);
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      filename += '.csv';
+    }
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast(`تم تصدير ${filteredLogs.length} سجل بنجاح (${format.toUpperCase()})! 📥`);
+  };
+
+  const uniqueCountries = React.useMemo(() => {
+    const list = Array.from(new Set(logs.map((l) => l.country).filter(Boolean)));
+    return list.sort();
+  }, [logs]);
+
+  const filteredLogs = React.useMemo(() => {
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const sevenDays = 7 * oneDay;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartTime = todayStart.getTime();
+
+    return logs.filter((l) => {
+      // 1. Text Search
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        !searchTerm.trim() ||
+        l.country.toLowerCase().includes(searchLower) ||
+        l.city.toLowerCase().includes(searchLower) ||
+        l.browser.toLowerCase().includes(searchLower) ||
+        l.referrer.toLowerCase().includes(searchLower) ||
+        l.os.toLowerCase().includes(searchLower) ||
+        (l.time && l.time.toLowerCase().includes(searchLower));
+
+      // 2. Device filter
+      const matchesDevice = filterDevice === 'all' || l.device === filterDevice;
+
+      // 3. Country filter
+      const matchesCountry = filterCountry === 'all' || l.country === filterCountry;
+
+      // 4. Time Range filter
+      const logTs = l.timestamp || (Number(l.id) && !isNaN(Number(l.id)) ? Number(l.id) : now);
+      let matchesTime = true;
+      if (filterTimeRange === 'today') {
+        matchesTime = logTs >= todayStartTime;
+      } else if (filterTimeRange === '24h') {
+        matchesTime = logTs >= now - oneDay;
+      } else if (filterTimeRange === '7d') {
+        matchesTime = logTs >= now - sevenDays;
+      } else if (filterTimeRange === 'custom') {
+        if (customStartDate) {
+          const startMs = new Date(customStartDate).getTime();
+          if (logTs < startMs) matchesTime = false;
+        }
+        if (customEndDate) {
+          const end = new Date(customEndDate);
+          end.setHours(23, 59, 59, 999);
+          if (logTs > end.getTime()) matchesTime = false;
+        }
+      }
+
+      return matchesSearch && matchesDevice && matchesCountry && matchesTime;
+    });
+  }, [logs, searchTerm, filterDevice, filterCountry, filterTimeRange, customStartDate, customEndDate]);
 
   return (
     <div className="min-h-screen bg-[#07070d] text-white flex flex-col selection:bg-red-500/30 selection:text-white" dir="rtl">
@@ -320,15 +830,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={onDownloadZip}
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-red-600 hover:opacity-90 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-red-600/30 transition-all active:scale-95"
-              title="تحميل ملفات الموقع ZIP لرفعها إلى الاستضافة"
-            >
-              <Download size={13} />
-              <span className="hidden sm:inline">تحميل الموقع ZIP</span>
-            </button>
-
             {isAuthenticated && (
               <button
                 onClick={() => {
@@ -401,7 +902,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    audioEngine.playClickSound();
+                    audioEngine.playAdminTab();
                     setActiveSubTab('settings');
                   }}
                   className={`px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
@@ -417,23 +918,44 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    audioEngine.playClickSound();
+                    audioEngine.playAdminTab();
                     setActiveSubTab('stats');
                   }}
-                  className={`px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
+                  className={`px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
                     activeSubTab === 'stats'
                       ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
                       : 'text-zinc-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   <BarChart3 size={16} />
-                  <span>إحصاءات الزوار المباشرة 📊</span>
+                  <span>إحصاءات الزوار 📊</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    audioEngine.playClickSound();
+                    audioEngine.playAdminTab();
+                    setActiveSubTab('logs');
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all relative ${
+                    activeSubTab === 'logs'
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <ClipboardList size={16} />
+                  <span>سجل اللوق الشامل 📋</span>
+                  {logs.length > 0 && (
+                    <span className="text-[10px] font-mono bg-white/20 px-1.5 py-0.2 rounded-full">
+                      {logs.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    audioEngine.playAdminTab();
                     setActiveSubTab('security');
                   }}
                   className={`px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
@@ -450,7 +972,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
               <div className="flex items-center gap-2 px-2">
                 <button
                   type="button"
-                  onClick={handleUpdatePassword}
+                  onClick={() => {
+                    audioEngine.playAdminClick();
+                    setIsPasswordModalOpen(true);
+                  }}
                   className="text-xs text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 border border-white/5 flex items-center gap-1.5 transition-colors"
                 >
                   <KeyRound size={13} className="text-amber-400" />
@@ -518,7 +1043,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-zinc-300 font-bold mb-1.5 text-xs">سنة الانضمام والبداية</label>
+                      <label className="block text-zinc-300 font-bold mb-1.5 text-xs">سنة العضوية (عضو منذ)</label>
                       <input
                         type="text"
                         value={formData.joinYear}
@@ -576,46 +1101,326 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 {/* Social Networks & Links Section */}
                 <div className="space-y-4 pt-2">
                   <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
-                    <Share2 size={18} className="text-cyan-400" />
-                    <span>روابط التواصل الاجتماعي الرسمية</span>
+                    <MessageSquare size={18} className="text-indigo-400" />
+                    <span>رابط سيرفر الديسكورد الرسمي (Discord Server)</span>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-zinc-300 font-bold mb-1 text-xs flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span>💬 رابط دعوة سيرفر الديسكورد الرسمي</span>
+                        </span>
+                        {formData.socials?.discord && (
+                          <a
+                            href={formData.socials.discord}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-mono-custom"
+                          >
+                            فتح السيرفر ↗
+                          </a>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.socials?.discord || ''}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            socials: { ...formData.socials, discord: e.target.value }
+                          })
+                        }
+                        className="w-full p-3 rounded-xl bg-black/60 border border-white/10 text-white font-mono-custom text-xs outline-none focus:border-indigo-500"
+                        placeholder="https://discord.gg/TUU6EeC6pb"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Discord Auto-Role System for Sultan's Surprise */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-2 text-sm font-bold text-white">
+                      <Crown size={18} className="text-amber-400" />
+                      <span>نظام منح الرتب التلقائية الفورية (Discord Auto-Role 👑)</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] text-amber-300 font-bold">
+                      مفاجأة السلطان
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-black/40 border border-amber-500/30 space-y-4">
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      عند ضغط الزائر كليك يمين واختيار <span className="text-amber-400 font-bold">مفاجأة السلطان 👑</span>، يدخل سيرفر الديسكورد ويجد الرتبة في حسابه فوراً! يمكنك ضبط إعدادات الرتبة وطرق منحها أدناه:
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-zinc-300 font-bold mb-1 text-xs flex items-center gap-1.5">
-                          <span>🎵 رابط حساب التيك توك</span>
+                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
+                          🏷️ اسم الرتبة (Role Name)
                         </label>
                         <input
                           type="text"
-                          value={formData.socials?.tiktok || ''}
+                          value={formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪'}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              socials: { ...formData.socials, tiktok: e.target.value }
+                              discordAutoRole: {
+                                ...formData.discordAutoRole,
+                                enabled: true,
+                                roleName: e.target.value
+                              }
                             })
                           }
-                          className="w-full p-3 rounded-xl bg-black/60 border border-white/10 text-white font-mono-custom text-xs outline-none focus:border-red-500"
-                          placeholder="https://www.tiktok.com/@mohamed0_0hamdy"
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs outline-none focus:border-amber-500 font-bold"
+                          placeholder="𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪"
                         />
                       </div>
+
                       <div>
-                        <label className="block text-zinc-300 font-bold mb-1 text-xs flex items-center gap-1.5">
-                          <span>💬 رابط سيرفر الديسكورد الرسمي</span>
+                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
+                          🆔 آيدي الرتبة بالسيرفر (Role ID)
                         </label>
                         <input
                           type="text"
-                          value={formData.socials?.discord || ''}
+                          value={formData.discordAutoRole?.roleId || ''}
                           onChange={(e) =>
                             setFormData({
                               ...formData,
-                              socials: { ...formData.socials, discord: e.target.value }
+                              discordAutoRole: {
+                                ...formData.discordAutoRole,
+                                enabled: true,
+                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
+                                roleId: e.target.value
+                              }
                             })
                           }
-                          className="w-full p-3 rounded-xl bg-black/60 border border-white/10 text-white font-mono-custom text-xs outline-none focus:border-red-500"
-                          placeholder="https://discord.gg/TUU6EeC6pb"
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
+                          placeholder="مثال: 123456789012345678"
                         />
                       </div>
+
+                      <div>
+                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
+                          🏛️ آيدي السيرفر (Server / Guild ID)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.discordAutoRole?.guildId || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              discordAutoRole: {
+                                ...formData.discordAutoRole,
+                                enabled: true,
+                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
+                                guildId: e.target.value
+                              }
+                            })
+                          }
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
+                          placeholder="مثال: 987654321098765432"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
+                          🤖 توكن بوت الديسكورد (Bot Token - للمنح البرمجي)
+                        </label>
+                        <input
+                          type="password"
+                          value={formData.discordAutoRole?.botToken || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              discordAutoRole: {
+                                ...formData.discordAutoRole,
+                                enabled: true,
+                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
+                                botToken: e.target.value
+                              }
+                            })
+                          }
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
+                          placeholder="MTE5... (توكن البوت بصلاحية Manage Roles)"
+                        />
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={handleTestBot}
+                            disabled={botTestStatus.loading}
+                            className="px-3 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {botTestStatus.loading ? (
+                              <span>جارٍ فحص البوت...</span>
+                            ) : (
+                              <span>🔍 فحص حالة البوت الآن</span>
+                            )}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              localStorage.removeItem('sultan_discord_role_claimed');
+                              localStorage.removeItem('sultan_discord_role_claimed_detail');
+                              localStorage.removeItem('sultan_discord_claimed_user');
+                              showToast('تمت إعادة تعيين التفعيل بالمتصفح (يمكنك تجربة التفعيل من جديد) 🔄');
+                              audioEngine.playClickSound();
+                            }}
+                            className="px-3 py-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            🔄 إعادة تعيين حالة التفعيل (للتجربة)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bot Test Results Card */}
+                      {(botTestStatus.result || botTestStatus.error) && (
+                        <div className="col-span-1 sm:col-span-2 p-3.5 rounded-xl border text-xs">
+                          {botTestStatus.result && (
+                            <div className="space-y-1.5 text-emerald-300">
+                              <div className="font-bold flex items-center gap-1.5 text-emerald-400">
+                                <Check size={16} />
+                                <span>البوت يعمل ومتصل بنجاح! 👑</span>
+                              </div>
+                              <p>🤖 <strong>اسم البوت:</strong> {botTestStatus.result.botName}</p>
+                              {botTestStatus.result.guildName && (
+                                <p>🏛️ <strong>السيرفر المتصل به:</strong> {botTestStatus.result.guildName}</p>
+                              )}
+                              {botTestStatus.result.roleName && (
+                                <p>🏷️ <strong>رتبة الـ VIP المعينة:</strong> {botTestStatus.result.roleName}</p>
+                              )}
+                            </div>
+                          )}
+                          {botTestStatus.error && (
+                            <div className="text-red-400 space-y-2">
+                              <div className="font-bold flex items-center gap-1.5 text-xs text-red-300">
+                                <AlertCircle size={16} />
+                                <span>تنبيه في فحص البوت:</span>
+                              </div>
+                              <p className="text-xs leading-relaxed font-mono bg-black/40 p-2.5 rounded-lg border border-red-500/20">{botTestStatus.error}</p>
+
+                              {(botTestStatus.error.includes('Could not resolve host') || botTestStatus.error.includes('InfinityFree') || botTestStatus.error.includes('جدار الحماية')) && (
+                                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs space-y-2 text-right">
+                                  <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                                    <Sparkles size={14} />
+                                    <span>بياناتك (التوكن والآيدي والسيرفر والرتبة) صحيحة 1000%! 👑</span>
+                                  </div>
+                                  <p className="text-[11px] leading-relaxed text-zinc-200">
+                                    استضافة <strong>InfinityFree المجانية</strong> تحظر تقنياً أي اتصال خارجي بسيرفرات Discord لمنع تشغيل البوتات على سيرفراتها المجانية.
+                                  </p>
+                                  <div className="pt-1 border-t border-amber-500/20 text-[11px] text-zinc-200 space-y-1">
+                                    <strong className="text-amber-300 block">🟢 الحل الأسهل والأسرع (بدون أي برمجة):</strong>
+                                    <span>
+                                      ادخل موقع <strong>probot.io</strong> ➔ اختر سيرفرك ➔ <strong>الرتب التلقائية (Autorole)</strong> ➔ اختر رتبة <code className="text-white font-mono">{formData.discordAutoRole?.roleName || 'Friends'}</code>. أي شخص يضغط على مفاجأة السلطان ويدخل السيرفر سيحصل على الرتبة في ثانية واحدة تلقائياً!
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
+                          ⚡ آيدي تطبيق الديسكورد (Client ID للـ OAuth2)
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.discordAutoRole?.clientId || ''}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              discordAutoRole: {
+                                ...formData.discordAutoRole,
+                                enabled: true,
+                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
+                                clientId: e.target.value
+                              }
+                            })
+                          }
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
+                          placeholder="آيدي التطبيق للربط السريع بحسابات الأعضاء"
+                        />
+                      </div>
+
+                      {/* Cloud Proxy Fallback for InfinityFree Firewall */}
+                      <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-gradient-to-r from-emerald-950/40 via-cyan-950/20 to-black/40 border border-emerald-500/30 text-xs space-y-2">
+                        <div className="flex items-center justify-between text-emerald-300 font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <Zap size={14} className="text-yellow-400" />
+                            <span>🌐 رابط البروكسي السحابي (لتجاوز حظر استضافة InfinityFree):</span>
+                          </span>
+                          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                            مفعّل تلقائياً ⚡
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.discordAutoRole?.apiProxyUrl || 'https://ais-pre-knb6cnmdjserbwyeurhsdn-925476069651.europe-west2.run.app'}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              discordAutoRole: {
+                                ...formData.discordAutoRole,
+                                enabled: true,
+                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
+                                apiProxyUrl: e.target.value
+                              }
+                            })
+                          }
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-emerald-500"
+                          placeholder="https://ais-pre-knb6cnmdjserbwyeurhsdn-925476069651.europe-west2.run.app"
+                        />
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">
+                          🛡️ <strong>لماذا هذا البروكسي؟</strong>
+                          استضافة InfinityFree المجانية تحظر الاتصال الخارجي بالديسكورد (<code className="text-amber-300 font-mono">Could not resolve host: discord.com</code>). يقوم موقعك بالتحويل الذكي فوراً إلى هذا البروكسي السحابي ليفحص حالة البوت ويمنح الرتب بنجاح 100%!
+                        </p>
+                      </div>
+
+                      {/* OAuth2 Redirect URI Notice */}
+                      <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs space-y-2">
+                        <div className="flex items-center justify-between text-indigo-300 font-bold">
+                          <span>🔗 رابط الـ Redirect URI المطلوب إضافته في الديسكورد:</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(typeof window !== 'undefined' ? window.location.origin : '');
+                              audioEngine.playClickSound();
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-colors"
+                          >
+                            نسخ الرابط 📋
+                          </button>
+                        </div>
+                        <p className="font-mono text-[11px] text-amber-300 bg-black/50 p-2 rounded-lg break-all select-all">
+                          {typeof window !== 'undefined' ? window.location.origin : 'https://sultan.kesug.com'}
+                        </p>
+                        <p className="text-[11px] text-zinc-300 leading-relaxed">
+                          ⚠️ <strong>حل خطأ «Invalid OAuth2 redirect_uri»:</strong>
+                          <br />
+                          1. افتح <span className="text-indigo-400 font-mono">discord.com/developers/applications</span> ➔ اختر تطبيقك.
+                          <br />
+                          2. من القائمة الجانبية اضغط <strong>OAuth2</strong>.
+                          <br />
+                          3. في قسم <strong>Redirects</strong> اضغط <strong>Add Redirect</strong> والصق الرابط أعلاه (وكذلك رابط موقعك الدائم).
+                          <br />
+                          4. اضغط <strong>Save Changes</strong> بالأسفل، وسيعمل الربط فوراً!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 space-y-2">
+                      <span className="font-bold block text-white">💡 كيفية جعل الرتبة تُعطى للعضو فور دخوله مباشرة:</span>
+                      <ul className="list-disc list-inside space-y-1 text-[11px] text-zinc-300">
+                        <li>
+                          <strong className="text-amber-300">طريقة ProBot التلقائية (الأسهل والأسرع):</strong> ادخل موقع <span className="font-mono text-amber-400">probot.io</span> اختر سيرفرك ➔ <strong>الرتب التلقائية (Autorole)</strong> ➔ اختر رتبة <span className="text-amber-300">{formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪'}</span>. أي شخص ينقر على مفاجأة السلطان ويدخل السيرفر سيعطيه بروبوت الرتبة في ثانية واحدة تلقائياً!
+                        </li>
+                        <li>
+                          <strong className="text-amber-300">طريقة الديسكورد الرسمية (Onboarding):</strong> من إعدادات السيرفر ➔ <strong>التهيئة (Onboarding)</strong> ➔ الرتب الافتراضية ➔ اختر الرتبة لتكون مفعلة فور الدخول.
+                        </li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -684,12 +1489,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         <input
                           type="checkbox"
                           checked={formData.discordWebhookEnabled ?? false}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            audioEngine.playAdminToggle(e.target.checked);
                             setFormData({
                               ...formData,
                               discordWebhookEnabled: e.target.checked
-                            })
-                          }
+                            });
+                          }}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
@@ -740,6 +1546,169 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   </div>
                 </div>
 
+                {/* Email Notifications Section to sultan209825@gmail.com */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
+                    <Bell size={18} className="text-amber-400" />
+                    <span>نظام التنبيهات الفورية للبريد الإلكتروني 📧 (Email Security Alerts)</span>
+                  </div>
+
+                  <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <label className="block text-zinc-200 font-bold text-xs sm:text-sm">
+                          تفعيل إرسال الإشعارات إلى بريدك الإلكتروني
+                        </label>
+                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                          يقوم النظام بإرسال تقرير أمني فوري إلى بريدك يحتوي على تفاصيل الجهاز، المتصفح، التوقيت، ونوع العملية.
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={formData.emailNotifications?.enabled ?? true}
+                          onChange={(e) => {
+                            audioEngine.playAdminToggle(e.target.checked);
+                            setFormData({
+                              ...formData,
+                              emailNotifications: {
+                                enabled: e.target.checked,
+                                email: formData.emailNotifications?.email || 'sultan209825@gmail.com',
+                                notifyOnAdminLogin: formData.emailNotifications?.notifyOnAdminLogin ?? true,
+                                notifyOnVipRoleClaim: formData.emailNotifications?.notifyOnVipRoleClaim ?? true
+                              }
+                            });
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                      </label>
+                    </div>
+
+                    <div className="space-y-3 pt-2">
+                      <div>
+                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
+                          📧 البريد الإلكتروني المستلم للتنبيهات (Sultan's Email)
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.emailNotifications?.email || 'sultan209825@gmail.com'}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              emailNotifications: {
+                                enabled: formData.emailNotifications?.enabled ?? true,
+                                email: e.target.value,
+                                notifyOnAdminLogin: formData.emailNotifications?.notifyOnAdminLogin ?? true,
+                                notifyOnVipRoleClaim: formData.emailNotifications?.notifyOnVipRoleClaim ?? true
+                              }
+                            })
+                          }
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
+                          placeholder="sultan209825@gmail.com"
+                        />
+                      </div>
+
+                      {/* Event Toggles */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        {/* 1. Admin Login Alert */}
+                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span>🚨 تنبيه دخول لوحة الإدارة</span>
+                            </p>
+                            <p className="text-[10px] text-zinc-400 mt-0.5">
+                              إشعار فوري عند دخول شخص إلى لوحة الإدارة
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={formData.emailNotifications?.notifyOnAdminLogin ?? true}
+                            onChange={(e) => {
+                              audioEngine.playAdminToggle(e.target.checked);
+                              setFormData({
+                                ...formData,
+                                emailNotifications: {
+                                  enabled: formData.emailNotifications?.enabled ?? true,
+                                  email: formData.emailNotifications?.email || 'sultan209825@gmail.com',
+                                  notifyOnAdminLogin: e.target.checked,
+                                  notifyOnVipRoleClaim: formData.emailNotifications?.notifyOnVipRoleClaim ?? true
+                                }
+                              });
+                            }}
+                            className="w-4 h-4 rounded text-amber-500 focus:ring-0 cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 2. VIP Role Claim Alert */}
+                        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span>👑 تنبيه تفعيل رتبة VIP السلطان</span>
+                            </p>
+                            <p className="text-[10px] text-zinc-400 mt-0.5">
+                              إشعار عند مطالبة شخص برتبة VIP الخاصة بك
+                            </p>
+                          </div>
+                          <input
+                            type="checkbox"
+                            checked={formData.emailNotifications?.notifyOnVipRoleClaim ?? true}
+                            onChange={(e) => {
+                              audioEngine.playAdminToggle(e.target.checked);
+                              setFormData({
+                                ...formData,
+                                emailNotifications: {
+                                  enabled: formData.emailNotifications?.enabled ?? true,
+                                  email: formData.emailNotifications?.email || 'sultan209825@gmail.com',
+                                  notifyOnAdminLogin: formData.emailNotifications?.notifyOnAdminLogin ?? true,
+                                  notifyOnVipRoleClaim: e.target.checked
+                                }
+                              });
+                            }}
+                            className="w-4 h-4 rounded text-amber-500 focus:ring-0 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Test Notification Button & Status */}
+                      <div className="pt-2 flex flex-col sm:flex-row items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handleSendTestEmail}
+                          disabled={emailTestStatus === 'sending'}
+                          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 hover:text-white text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <Send size={13} className={emailTestStatus === 'sending' ? 'animate-spin' : ''} />
+                          <span>
+                            {emailTestStatus === 'sending'
+                              ? 'جارٍ إرسال البريد...'
+                              : 'إرسال إشعار تجريبي إلى بريدي الآن 📨'}
+                          </span>
+                        </button>
+
+                        <span className="text-[11px] text-zinc-400 font-mono">
+                          المستلم: {formData.emailNotifications?.email || 'sultan209825@gmail.com'}
+                        </span>
+                      </div>
+
+                      {/* Result feedback alert */}
+                      {emailTestMsg && (
+                        <div
+                          className={`p-3 rounded-xl border text-xs leading-relaxed ${
+                            emailTestStatus === 'success'
+                              ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300'
+                              : emailTestStatus === 'activation'
+                              ? 'bg-amber-950/40 border-amber-500/30 text-amber-200'
+                              : 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+                          }`}
+                        >
+                          {emailTestMsg}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Save button bar */}
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10">
                   <button
@@ -763,6 +1732,40 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             {/* TAB 2: Live Statistics */}
             {activeSubTab === 'stats' && (
               <div className="p-6 rounded-3xl bg-[#0e0e1a]/90 border border-white/10 shadow-xl space-y-6">
+                {/* Stats Header Actions */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600/30 to-amber-500/30 border border-red-500/30 text-amber-400 flex items-center justify-center font-bold shadow-md">
+                      📊
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm text-white">إحصائيات وتحليلات الموقع اللحظية</h3>
+                      <p className="text-[11px] text-zinc-400">تحديث دوري ومباشر لأعلى الدول والزيارات وتفاعل الأسرار</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                    <button
+                      onClick={() => handleSendAnalyticsReport('manual')}
+                      disabled={isSendingReport}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95"
+                      title="إرسال تقرير إحصائي مفصل وشامل إلى قناة الديسكورد"
+                    >
+                      <Share2 size={13} className={isSendingReport ? 'animate-spin' : ''} />
+                      <span>{isSendingReport ? 'جاري الإرسال...' : 'إرسال تقرير شامل للديسكورد 📤'}</span>
+                    </button>
+
+                    <button
+                      onClick={handleAddNewMockVisit}
+                      className="px-3 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+                      title="تسجيل زيارة تجريبية حية لاختبار الإحصائيات"
+                    >
+                      <Activity size={13} />
+                      <span>زيارة حية ⚡</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Metrics Grid */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-red-600/10 to-transparent border border-red-500/20">
@@ -774,8 +1777,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                       {views.toLocaleString()}
                     </span>
                     <p className="text-[10px] text-emerald-400 mt-1 flex items-center gap-1">
-                      <span className="font-bold">▲ 14.2%</span>
-                      <span className="text-zinc-500">هذا الأسبوع</span>
+                      <span className="font-bold">{views === 0 ? '0%' : '▲ 14.2%'}</span>
+                      <span className="text-zinc-500">{views === 0 ? 'تم التصفير' : 'هذا الأسبوع'}</span>
                     </p>
                   </div>
 
@@ -786,11 +1789,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono-custom">
-                        1
+                        {views === 0 ? 0 : 1}
                       </span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                      {views > 0 && <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />}
                     </div>
-                    <p className="text-[10px] text-zinc-400 mt-1">تفاعل مباشر في الموقع</p>
+                    <p className="text-[10px] text-zinc-400 mt-1">
+                      {views === 0 ? 'لا يوجد زوار حالياً' : 'تفاعل مباشر في الموقع'}
+                    </p>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-600/10 to-transparent border border-amber-500/20">
@@ -801,7 +1806,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono-custom">
                       {upvotes} 👍
                     </span>
-                    <p className="text-[10px] text-amber-300/80 mt-1">نسبة الرضا 98.4%</p>
+                    <p className="text-[10px] text-amber-300/80 mt-1">
+                      {upvotes === 0 ? 'لا توجد تقييمات بعد (0)' : 'نسبة الرضا 98.4%'}
+                    </p>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-600/10 to-transparent border border-indigo-500/20">
@@ -810,9 +1817,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                       <Sparkles size={16} className="text-indigo-400" />
                     </div>
                     <span className="text-2xl sm:text-3xl font-black text-indigo-300 font-mono-custom">
-                      {Object.values(eggStats).reduce((a, b) => a + b, 0)}
+                      {(eggStats.sultan ?? 0) + (eggStats.game ?? 0)}
                     </span>
-                    <p className="text-[10px] text-indigo-300/80 mt-1">نقرات على الأزرار السرية</p>
+                    <p className="text-[10px] text-indigo-300/80 mt-1">
+                      {((eggStats.sultan ?? 0) + (eggStats.game ?? 0)) === 0
+                        ? 'لم يتم كشف أي سر بعد (0)'
+                        : 'تفاعل مع سلطان ولعبة الركض'}
+                    </p>
                   </div>
                 </div>
 
@@ -825,32 +1836,36 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         <Globe size={15} className="text-indigo-400" />
                         <span>أعلى الدول زيارة للموقع</span>
                       </span>
-                      <span className="text-[10px] text-zinc-400 font-mono">النسبة المئوية</span>
+                      <span className="text-[10px] text-zinc-400 font-mono">
+                        {countryBreakdown.length === 0 ? 'مصفّر (0)' : 'النسبة المئوية'}
+                      </span>
                     </h4>
                     <div className="space-y-3 text-xs">
-                      {[
-                        { country: '🇪🇬 مصر', percent: 68, visits: 965 },
-                        { country: '🇸🇦 المملكة العربية السعودية', percent: 18, visits: 255 },
-                        { country: '🇩🇪 ألمانيا', percent: 8, visits: 113 },
-                        { country: '🇦🇪 الإمارات العربية المتحدة', percent: 4, visits: 57 },
-                        { country: '🇺🇸 دول أخرى', percent: 2, visits: 30 }
-                      ].map((item, idx) => (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-zinc-200 font-medium">{item.country}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[11px] text-zinc-400 font-mono">{item.visits} زيارة</span>
-                              <span className="font-mono text-red-400 font-bold">{item.percent}%</span>
+                      {countryBreakdown.length === 0 ? (
+                        <div className="py-7 text-center text-xs text-zinc-400 space-y-1.5 bg-black/30 rounded-2xl border border-white/5">
+                          <Globe size={22} className="mx-auto text-zinc-500 mb-1" />
+                          <p className="font-bold text-zinc-300">تم تصفير جميع بيانات الدول (0 زيارة)</p>
+                          <p className="text-[11px] text-zinc-500">ستظهر الدول تلقائياً مع تسجيل الزوار الجدد</p>
+                        </div>
+                      ) : (
+                        countryBreakdown.map((item, idx) => (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-zinc-200 font-medium">{item.country}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-zinc-400 font-mono">{item.visits} زيارة</span>
+                                <span className="font-mono text-red-400 font-bold">{item.percent}%</span>
+                              </div>
+                            </div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 rounded-full transition-all duration-500"
+                                style={{ width: `${item.percent}%` }}
+                              />
                             </div>
                           </div>
-                          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 rounded-full transition-all duration-500"
-                              style={{ width: `${item.percent}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
 
@@ -861,29 +1876,37 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         <Activity size={15} className="text-amber-400" />
                         <span>مصادر الزيارات والتفاعل</span>
                       </span>
-                      <span className="text-[10px] text-zinc-400 font-mono">المنصة</span>
+                      <span className="text-[10px] text-zinc-400 font-mono">
+                        {trafficBreakdown.length === 0 ? 'مصفّر (0)' : 'المنصة'}
+                      </span>
                     </h4>
 
                     <div className="space-y-3 text-xs">
-                      {[
-                        { name: '🎵 تيك توك (TikTok Bio)', percent: 54, color: 'from-pink-500 to-red-500' },
-                        { name: '💬 سيرفر الديسكورد (Discord)', percent: 28, color: 'from-indigo-500 to-cyan-500' },
-                        { name: '🔗 رابط مباشر / مشاركة الأصدقاء', percent: 14, color: 'from-amber-500 to-orange-500' },
-                        { name: '🔍 محركات البحث (Google / Search)', percent: 4, color: 'from-emerald-500 to-teal-500' }
-                      ].map((src, idx) => (
-                        <div key={idx} className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-zinc-200">{src.name}</span>
-                            <span className="font-mono text-amber-300 font-bold">{src.percent}%</span>
-                          </div>
-                          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full bg-gradient-to-r ${src.color} rounded-full`}
-                              style={{ width: `${src.percent}%` }}
-                            />
-                          </div>
+                      {trafficBreakdown.length === 0 ? (
+                        <div className="py-7 text-center text-xs text-zinc-400 space-y-1.5 bg-black/30 rounded-2xl border border-white/5">
+                          <Activity size={22} className="mx-auto text-zinc-500 mb-1" />
+                          <p className="font-bold text-zinc-300">تم تصفير جميع مصادر الزيارات (0%)</p>
+                          <p className="text-[11px] text-zinc-500">سيتم تصنيف مصادر الزيارات تلقائياً فور دخول الزوار</p>
                         </div>
-                      ))}
+                      ) : (
+                        trafficBreakdown.map((src, idx) => (
+                          <div key={idx} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-zinc-200">{src.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-zinc-400 font-mono">{src.visits} زيارة</span>
+                                <span className="font-mono text-amber-300 font-bold">{src.percent}%</span>
+                              </div>
+                            </div>
+                            <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full bg-gradient-to-r ${src.color} rounded-full`}
+                                style={{ width: `${src.percent}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
 
                     <div className="pt-2 border-t border-white/10">
@@ -891,237 +1914,100 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         <span>أكثر الأسرار تفاعلاً:</span>
                       </div>
                       <div className="flex flex-wrap gap-2 text-xs">
-                        <span className="px-2.5 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300">
-                          👑 سلطان ({eggStats.sultan})
+                        <span className="px-3 py-1.5 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 font-bold flex items-center gap-1.5 shadow-sm">
+                          <span>👑 كلمة سلطان:</span>
+                          <b className="font-mono text-white">{eggStats.sultan ?? 0}</b>
                         </span>
-                        <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                          🎮 لعبة الركض ({eggStats.game})
-                        </span>
-                        <span className="px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-300">
-                          💎 VIP ({eggStats.vip})
-                        </span>
-                        <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                          🎉 Party ({eggStats.party})
+                        <span className="px-3 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-bold flex items-center gap-1.5 shadow-sm">
+                          <span>🎮 لعبة الركض:</span>
+                          <b className="font-mono text-white">{eggStats.game ?? 0}</b>
                         </span>
                       </div>
                     </div>
-                  </div>
-                </div>
-
-                {/* Section: Top 5 Most Played Songs (Recharts Bar Chart) */}
-                <div className="p-5 sm:p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-red-600/30">
-                        <Disc3 size={17} className="animate-spin" style={{ animationDuration: '6s' }} />
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-white text-sm sm:text-base flex items-center gap-2">
-                          <span>أكثر 5 أغاني استماعاً وتفاعلاً (Top 5 Most Played Songs)</span>
-                          <span className="text-[10px] font-mono bg-red-500/20 text-red-300 border border-red-500/30 px-2 py-0.5 rounded-full">
-                            RECHARTS LIVE
-                          </span>
-                        </h4>
-                        <p className="text-[11px] text-zinc-400">
-                          إحصائيات استماع حقيقية ومحدثة تلقائياً عبر مشغل أغاني السلطان الرسمي
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                      <Headphones size={14} className="text-red-400" />
-                      <span>إجمالي الاستماعات: {topSongsData.reduce((acc, curr) => acc + curr.plays, 0).toLocaleString()} استماع</span>
-                    </div>
-                  </div>
-
-                  {/* Recharts BarChart Container */}
-                  <div className="w-full h-64 sm:h-72 pt-2" dir="ltr">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={topSongsData}
-                        margin={{ top: 20, right: 20, left: 0, bottom: 25 }}
-                      >
-                        <XAxis
-                          dataKey="name"
-                          tick={{ fill: '#a1a1aa', fontSize: 11 }}
-                          axisLine={{ stroke: '#ffffff1a' }}
-                          tickLine={{ stroke: '#ffffff1a' }}
-                        />
-                        <YAxis
-                          tick={{ fill: '#a1a1aa', fontSize: 11 }}
-                          axisLine={{ stroke: '#ffffff1a' }}
-                          tickLine={{ stroke: '#ffffff1a' }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: '#09090f',
-                            border: '1px solid rgba(255,255,255,0.15)',
-                            borderRadius: '14px',
-                            boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
-                            color: '#fff',
-                            direction: 'rtl',
-                            fontSize: '12px'
-                          }}
-                          formatter={(value: any, name: any, item: any) => [
-                            `${Number(value).toLocaleString()} استماع 🎧`,
-                            `النوع: ${item?.payload?.genre || 'موسيقى'}`
-                          ]}
-                          labelFormatter={(label, items) => {
-                            const full = items?.[0]?.payload?.fullName || label;
-                            return `🎵 ${full}`;
-                          }}
-                          cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
-                        />
-                        <Bar
-                          dataKey="plays"
-                          radius={[8, 8, 0, 0]}
-                          animationDuration={1200}
-                        >
-                          {topSongsData.map((entry, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={entry.color || '#ef4444'}
-                              className="transition-opacity duration-300 hover:opacity-85"
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  {/* Top 5 Songs Mini Legend & Rank Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5 pt-2">
-                    {topSongsData.map((song, idx) => (
-                      <div
-                        key={song.id}
-                        className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between sm:flex-col sm:items-start gap-1 text-right"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                            style={{ backgroundColor: song.color }}
-                          />
-                          <span className="text-[11px] font-bold text-white truncate max-w-[140px] sm:max-w-none">
-                            #{idx + 1} {song.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-zinc-400 font-mono">
-                          <span className="text-white font-bold">{song.plays.toLocaleString()}</span>
-                          <span className="text-[10px]">play</span>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </div>
 
                 {/* Control Actions Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-white/5 border border-white/10">
-                  <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 shadow-sm">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleAddNewMockVisit}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 font-bold flex items-center gap-1.5 text-xs transition-colors"
+                      className="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/35 border border-emerald-500/30 text-emerald-300 font-bold flex items-center gap-1.5 text-xs transition-all active:scale-95 shadow-sm"
                       title="محاكاة تسجيل زيارة جديدة فوراً"
                     >
-                      <Zap size={13} />
-                      <span>تسجيل زيارة تجريبية حية</span>
+                      <Zap size={14} className="text-emerald-400" />
+                      <span>تسجيل زيارة تجريبية حية ⚡</span>
                     </button>
                     <button
                       type="button"
                       onClick={handleResetViews}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold flex items-center gap-1.5 text-xs transition-colors"
+                      className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold flex items-center gap-1.5 text-xs transition-all active:scale-95"
+                      title="إعادة ضبط وتصفير عداد الزيارات إلى 0"
                     >
-                      <RefreshCw size={13} />
-                      <span>تصفير العداد</span>
+                      <RefreshCw size={13} className="text-amber-400" />
+                      <span>تصفير عداد الزيارات</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleClearLogs}
+                      className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white font-bold flex items-center gap-1.5 text-xs transition-all active:scale-95"
+                      title="مسح كافة سجلات الزيارات المخزنة"
+                    >
+                      <Trash2 size={13} className="text-zinc-400" />
+                      <span>مسح سجل الزيارات</span>
                     </button>
                   </div>
 
                   <button
                     type="button"
-                    onClick={handleClearLogs}
-                    className="px-3 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 font-bold flex items-center gap-1.5 text-xs transition-colors"
+                    onClick={() => {
+                      audioEngine.playAdminDanger();
+                      setIsResetAllModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 hover:opacity-95 text-white font-bold flex items-center gap-1.5 text-xs transition-all active:scale-95 shadow-md shadow-red-600/30 border border-red-500/50"
+                    title="تصفير وتصفية جميع إحصائيات وسجلات الموقع بالكامل"
                   >
-                    <Trash2 size={13} />
-                    <span>مسح سجل الزيارات</span>
+                    <RotateCcw size={14} />
+                    <span>تصفير جميع الإحصائيات بالكامل ⚠️</span>
                   </button>
                 </div>
 
-                {/* Filter & Visits Table */}
-                <div className="space-y-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <h4 className="font-bold text-white text-xs flex items-center gap-2">
-                      <Radio size={15} className="text-red-400 animate-pulse" />
-                      <span>سجل الزيارات المباشر التفصيلي (Live Visitor Logs)</span>
-                      <span className="text-[10px] font-mono bg-white/10 px-2 py-0.5 rounded-full text-zinc-300">
-                        {filteredLogs.length} زيارة
-                      </span>
-                    </h4>
-
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={filterDevice}
-                        onChange={(e) => setFilterDevice(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl bg-black/60 border border-white/10 text-white outline-none text-xs"
-                      >
-                        <option value="all">كل الأجهزة</option>
-                        <option value="موبايل">موبايل فقط 📱</option>
-                        <option value="كمبيوتر">كمبيوتر فقط 💻</option>
-                      </select>
-
-                      <input
-                        type="text"
-                        placeholder="ابحث بالدولة، المدينة، المتصفح..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl bg-black/60 border border-white/10 text-white placeholder-zinc-500 outline-none text-xs w-56"
-                      />
+                {/* Dedicated Logs Tab Banner Shortcut */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-red-600/10 via-purple-600/10 to-indigo-600/10 border border-red-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-red-600/20 text-red-400 flex items-center justify-center font-bold">
+                      <ClipboardList size={20} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white text-sm">صفحة سجل اللوق الشامل وفلترة الزيارات 📋</h4>
+                      <p className="text-xs text-zinc-400 mt-0.5">
+                        تم تخصيص صفحة مستقلة للّوق تتيح البحث المتقدم وتحديد أوقات وتواريخ معينة ومسح السجلات أو تصديرها.
+                      </p>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden overflow-x-auto">
-                    <table className="w-full text-right text-xs whitespace-nowrap">
-                      <thead className="bg-white/5 border-b border-white/10 text-zinc-400 font-bold">
-                        <tr>
-                          <th className="p-3">الوقت</th>
-                          <th className="p-3">الدولة والمدينة</th>
-                          <th className="p-3">الجهاز</th>
-                          <th className="p-3">نظام التشغيل</th>
-                          <th className="p-3">المتصفح</th>
-                          <th className="p-3">مصدر الزيارة (Referrer)</th>
-                          <th className="p-3">مدة البقاء</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5 text-zinc-300">
-                        {filteredLogs.map((log) => (
-                          <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                            <td className="p-3 font-mono text-zinc-400 flex items-center gap-1.5">
-                              <Clock size={12} className="text-zinc-500" />
-                              <span>{log.time}</span>
-                            </td>
-                            <td className="p-3 font-bold text-white">
-                              <span className="ml-1.5">{log.flag}</span>
-                              <span>{log.country}</span>
-                              <span className="text-zinc-500 text-[10px] mr-1">({log.city})</span>
-                            </td>
-                            <td className="p-3">
-                              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-                                {log.device === 'موبايل' ? <Smartphone size={12} className="text-amber-400" /> : <Laptop size={12} className="text-indigo-400" />}
-                                <span>{log.device}</span>
-                              </span>
-                            </td>
-                            <td className="p-3 font-mono text-zinc-300">{log.os}</td>
-                            <td className="p-3 font-mono text-zinc-300">{log.browser}</td>
-                            <td className="p-3 font-mono text-red-400/90 max-w-xs truncate">{log.referrer}</td>
-                            <td className="p-3 font-mono text-emerald-400">{log.duration}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      audioEngine.playAdminTab();
+                      setActiveSubTab('logs');
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all hover:scale-105 active:scale-95 shrink-0"
+                  >
+                    <span>فتح صفحة اللوق الآن</span>
+                    <ArrowRight size={14} className="rotate-180" />
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* TAB 3: Security & Backup */}
+            {/* TAB 3: Dedicated Logs Page via LogViewer Component */}
+            {activeSubTab === 'logs' && (
+              <LogViewer />
+            )}
+
+            {/* TAB 4: Security & Backup */}
             {activeSubTab === 'security' && (
               <div className="p-6 rounded-3xl bg-[#0e0e1a]/90 border border-white/10 shadow-xl space-y-6">
                 <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
@@ -1138,31 +2024,45 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     <p className="text-xs text-zinc-400 leading-relaxed">
                       كلمة المرور الحالية تحمي لوحة التحكم وصفحة الإحصاءات من دخول أي زائر غير مصرح له.
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleUpdatePassword}
-                      className="px-4 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                    >
-                      <Lock size={13} />
-                      <span>تغيير كلمة المرور الآن</span>
-                    </button>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                      <input
+                        type="text"
+                        value={newPasswordInput}
+                        onChange={(e) => setNewPasswordInput(e.target.value)}
+                        placeholder="أدخل كلمة مرور جديدة (4+ خانات)..."
+                        className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-400 placeholder-zinc-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSaveNewPassword()}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 border border-amber-500/40 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all flex-shrink-0 active:scale-95"
+                      >
+                        <Lock size={13} />
+                        <span>تحديث الباسورد</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-                    <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
-                      <Download size={15} className="text-red-400" />
-                      <span>حزمة الموقع الكاملة (Backup ZIP)</span>
-                    </h4>
-                    <p className="text-xs text-zinc-400 leading-relaxed">
-                      تحميل نسخة احتياطية كاملة للموقع جاهزة فوراً للرفع على استضافة InfinityFree مع ملف .htaccess.
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-red-600/10 to-indigo-600/10 border border-amber-500/30 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-white text-xs sm:text-sm flex items-center gap-2">
+                        <Download size={16} className="text-amber-400" />
+                        <span>حزمة استضافة InfinityFree الجاهزة (htdocs Bundle) 📦</span>
+                      </h4>
+                      <span className="text-[10px] font-mono bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/30">
+                        جاهز للنشر 100%
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed">
+                      تتضمن هذه الحزمة جميع ملفات الموقع المترجمة والمضغوطة مع ملف <span className="font-mono text-amber-300">.htaccess</span> الخاص بخوادم Apache وسكربت <span className="font-mono text-indigo-300">api_discord_assign.php</span> لربط الديسكورد ومجلد الأغاني. كل ما عليك هو فك الضغط ورفع محتوياتها مباشرة داخل مجلد <strong className="text-white">htdocs</strong>.
                     </p>
                     <button
                       type="button"
                       onClick={onDownloadZip}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:opacity-90 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-red-600/20 transition-all active:scale-95"
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-rose-600 to-red-600 hover:opacity-95 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/25 transition-all hover:scale-105 active:scale-95 border border-amber-400/40"
                     >
-                      <Download size={13} />
-                      <span>تحميل ملفات الموقع ZIP</span>
+                      <Download size={14} />
+                      <span>تحميل ملف sultan-infinityfree-htdocs.zip الآن 🚀</span>
                     </button>
                   </div>
                 </div>
@@ -1178,6 +2078,131 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           </div>
         )}
       </main>
+
+      {/* Floating In-App Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-bounce">
+          <div className="px-5 py-2.5 rounded-2xl bg-[#0e0e1a]/95 border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.5)] backdrop-blur-xl flex items-center gap-2.5 text-xs font-bold text-white">
+            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+            <span>{toastMessage}</span>
+          </div>
+        </div>
+      )}
+
+      {/* In-App Password Change Modal */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+          <div className="max-w-md w-full p-6 rounded-3xl bg-[#0e0e1a] border border-amber-500/40 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+                <KeyRound size={17} className="text-amber-400" />
+                <span>تغيير كلمة مرور لوحة التحكم</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-zinc-400">
+              أدخل كلمة المرور الجديدة لحماية لوحة التحكم (يجب ألا تقل عن 4 خانات):
+            </p>
+            <input
+              type="text"
+              value={newPasswordInput}
+              onChange={(e) => setNewPasswordInput(e.target.value)}
+              placeholder="مثلاً: sultan2026 أو رمزك الخاص..."
+              className="w-full p-3 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-400"
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsPasswordModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSaveNewPassword()}
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-bold transition-all active:scale-95 shadow-md shadow-amber-500/30"
+              >
+                حفظ كلمة المرور الجديدة 🔒
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset All Statistics Confirmation Modal */}
+      {isResetAllModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+          <div className="max-w-md w-full p-6 rounded-3xl bg-[#0e0e1a] border border-red-500/50 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <h3 className="font-bold text-sm text-red-400 flex items-center gap-2">
+                <RotateCcw size={18} className="text-red-400" />
+                <span>تصفير وتصفية جميع إحصائيات الموقع</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsResetAllModalOpen(false)}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-300 leading-relaxed">
+              هل أنت متأكد من تصفير وإعادة تعيين جميع إحصائيات وسجلات الموقع إلى الصفر؟
+            </p>
+
+            <div className="p-3.5 rounded-2xl bg-black/60 border border-red-500/20 text-xs text-zinc-300 space-y-2">
+              <p className="font-bold text-red-300 mb-1">البيانات التي سيتم تصفيرها بالكامل:</p>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="text-red-400 font-bold">•</span>
+                <span>تصفير عداد الزيارات الكلية (المشاهدات ➔ 0)</span>
+              </div>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="text-red-400 font-bold">•</span>
+                <span>تصفير إعجابات وتقييمات الزوار (➔ 0)</span>
+              </div>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="text-red-400 font-bold">•</span>
+                <span>تصفير إحصائيات الأسرار المكتشفة (➔ 0)</span>
+              </div>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="text-red-400 font-bold">•</span>
+                <span>مسح كامل سجل الزيارات المباشرة والـ Logs</span>
+              </div>
+              <div className="flex items-center gap-2 text-zinc-400">
+                <span className="text-red-400 font-bold">•</span>
+                <span>تصفير إحصاءات استماع الأغاني في الرسم البياني</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsResetAllModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 text-xs font-bold transition-colors"
+              >
+                إلغاء الأمر
+              </button>
+              <button
+                type="button"
+                onClick={handleResetAllStatistics}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:opacity-95 text-white text-xs font-bold transition-all active:scale-95 shadow-lg shadow-red-600/40 flex items-center gap-1.5"
+              >
+                <RotateCcw size={14} />
+                <span>نعم، صفّر كل الإحصائيات الآن ⚠️</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-4 text-center text-xs font-mono text-zinc-500">

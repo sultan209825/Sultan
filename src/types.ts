@@ -33,8 +33,24 @@ export interface SiteConfig {
   countdownLabel: string;
   discordWebhookUrl?: string;
   discordWebhookEnabled?: boolean;
+  discordAutoRole?: {
+    enabled: boolean;
+    roleName: string;
+    roleId?: string;
+    guildId?: string;
+    botToken?: string;
+    clientId?: string;
+    inviteUrl?: string;
+    apiProxyUrl?: string;
+  };
   socials: Record<string, string>;
   socialsEnabled: Record<string, boolean>;
+  emailNotifications?: {
+    enabled: boolean;
+    email: string;
+    notifyOnAdminLogin: boolean;
+    notifyOnVipRoleClaim: boolean;
+  };
 }
 
 export interface LanyardData {
@@ -44,6 +60,24 @@ export interface LanyardData {
     avatar: string | null;
     discriminator: string;
     global_name?: string;
+    avatar_decoration_data?: {
+      asset: string;
+      sku_id?: string;
+      expires_at?: number | null;
+    } | null;
+    collectibles?: {
+      nameplate?: {
+        asset: string;
+        label?: string;
+        palette?: string;
+        sku_id?: string;
+        expires_at?: number | null;
+      } | null;
+    } | null;
+    profile_effect?: {
+      id: string;
+      expires_at?: number | null;
+    } | null;
   };
   discord_status: 'online' | 'idle' | 'dnd' | 'offline';
   activities: Array<{

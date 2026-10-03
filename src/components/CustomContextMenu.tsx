@@ -1,18 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Share2, Copy, MessageSquare, Sparkles, Check, Settings } from 'lucide-react';
+import { Share2, Copy, MessageSquare, Check, Gamepad2 } from 'lucide-react';
 import { audioEngine } from '../utils/audioEngine';
 
 interface CustomContextMenuProps {
-  onOpenSurprise: () => void;
   onShare: () => void;
-  onOpenAdmin?: () => void;
+  onOpenGame?: () => void;
   discordUrl?: string;
 }
 
 export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
-  onOpenSurprise,
   onShare,
-  onOpenAdmin,
+  onOpenGame,
   discordUrl = 'https://discord.gg/TUU6EeC6pb'
 }) => {
   const [visible, setVisible] = useState(false);
@@ -27,7 +25,7 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
 
       e.preventDefault();
       const menuWidth = 220;
-      const menuHeight = 210;
+      const menuHeight = 180;
       const x = Math.min(e.clientX, window.innerWidth - menuWidth - 10);
       const y = Math.min(e.clientY, window.innerHeight - menuHeight - 10);
 
@@ -80,8 +78,8 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
       dir="rtl"
     >
       <div className="px-3 py-1.5 text-[10px] font-bold text-zinc-400 border-b border-white/5 flex items-center justify-between">
-        <span>قائمة السلطان السريعة</span>
-        <span className="text-red-400 font-mono">👑 5susu</span>
+        <span>قائمة خيارات الموقع</span>
+        <span className="text-red-400 font-mono">𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪</span>
       </div>
 
       <div className="py-1 space-y-0.5 text-xs text-zinc-300">
@@ -126,33 +124,19 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
           <span className="text-[10px] text-indigo-400/80">Discord</span>
         </a>
 
-        <button
-          onClick={() => {
-            onOpenSurprise();
-            setVisible(false);
-          }}
-          className="w-full px-3 py-2 rounded-xl flex items-center justify-between bg-red-600/10 hover:bg-red-600/20 text-red-300 hover:text-white transition-colors font-bold"
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles size={14} className="text-red-400 animate-spin" />
-            <span>مفاجأة السلطان 👑</span>
-          </div>
-          <span className="text-[10px] text-red-400">VIP</span>
-        </button>
-
-        {onOpenAdmin && (
+        {onOpenGame && (
           <button
             onClick={() => {
-              onOpenAdmin();
+              onOpenGame();
               setVisible(false);
             }}
-            className="w-full px-3 py-2 rounded-xl flex items-center justify-between hover:bg-white/10 hover:text-white transition-colors text-zinc-400"
+            className="w-full px-3 py-2 rounded-xl flex items-center justify-between hover:bg-indigo-600/20 hover:text-indigo-300 transition-colors text-indigo-300 font-medium"
           >
             <div className="flex items-center gap-2">
-              <Settings size={14} className="text-zinc-400" />
-              <span>صفحة الإدارة</span>
+              <Gamepad2 size={14} className="text-indigo-400" />
+              <span>لعبة الركض (Sultan Runner)</span>
             </div>
-            <span className="text-[10px] text-zinc-500">Admin</span>
+            <span className="text-[10px] text-indigo-400/80">Play 🎮</span>
           </button>
         )}
       </div>

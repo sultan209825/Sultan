@@ -18,10 +18,14 @@ import {
   Trash2,
   Radio,
   Globe,
-  Monitor
+  Monitor,
+  Download,
+  Package
 } from 'lucide-react';
 import { SiteConfig } from '../types';
 import { audioEngine } from '../utils/audioEngine';
+import { sendEmailNotification } from '../utils/emailNotifier';
+import { generateFullApplicationSourceZip } from '../utils/exactAppBuilder';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -104,14 +108,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setIsAuthenticated(true);
       sessionStorage.setItem('sultan_admin_logged', 'true');
       setLoginError('');
+      audioEngine.playRoyalFanfare();
+      sendEmailNotification({
+        eventType: 'admin_login',
+        title: '🚨 تنبيه أمني: تسجيل دخول ناجح إلى لوحة الإدارة',
+        details: 'قام شخص بتسجيل الدخول بكلمة المرور إلى لوحة تحكم بروفايل السلطان.'
+      });
     } else {
+      audioEngine.playAdminDanger();
       setLoginError('كلمة المرور غير صحيحة! هذه اللوحة مخصصة لسلطان فقط.');
+      sendEmailNotification({
+        eventType: 'admin_login',
+        title: '⚠️ تحذير أمني: محاولة دخول فاشلة للوحة الإدارة',
+        details: 'تم رصد محاولة إدخال كلمة مرور خاطئة لدخول لوحة تحكم بروفايل السلطان!'
+      });
     }
   };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    audioEngine.playClickSound();
+    audioEngine.playAdminSave();
     onSaveConfig(formData);
     localStorage.setItem('sultan_site_config', JSON.stringify(formData));
     setSavedToast(true);
@@ -129,6 +145,28 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     if (confirm('هل تريد مسح سجل الزيارات بالكامل؟')) {
       localStorage.setItem('sultan_visits_log', '[]');
       setLogs([]);
+    }
+  };
+
+  const [isDownloading, setIsDownloading] = useState(false);
+  const handleDownloadZip = async () => {
+    try {
+      setIsDownloading(true);
+      audioEngine.playAdminSave();
+      const zipBlob = await generateFullApplicationSourceZip();
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sultan-infinityfree-htdocs.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      audioEngine.playRoyalFanfare();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -236,7 +274,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    audioEngine.playClickSound();
+                    audioEngine.playAdminTab();
                     setActiveSubTab('settings');
                   }}
                   className={`px-4 py-2 text-xs font-bold rounded-t-xl flex items-center gap-1.5 transition-all ${
@@ -252,7 +290,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    audioEngine.playClickSound();
+                    audioEngine.playAdminTab();
                     setActiveSubTab('stats');
                   }}
                   className={`px-4 py-2 text-xs font-bold rounded-t-xl flex items-center gap-1.5 transition-all ${
@@ -266,13 +304,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={handleUpdatePassword}
-                className="text-[11px] text-zinc-400 hover:text-white pb-2 flex items-center gap-1"
-              >
-                <span>تغيير الباسورد</span>
-              </button>
+              <div className="flex items-center gap-2 pb-2">
+                <button
+                  type="button"
+                  onClick={handleUpdatePassword}
+                  className="text-[11px] text-zinc-400 hover:text-white px-2.5 py-1 rounded-lg hover:bg-white/5 flex items-center gap-1.5 transition-colors border border-white/5"
+                >
+                  <KeyRound size={12} className="text-amber-400" />
+                  <span>تغيير الباسورد</span>
+                </button>
+              </div>
             </div>
 
             {/* TAB 1: Settings Form */}

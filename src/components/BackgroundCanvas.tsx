@@ -69,6 +69,21 @@ export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
       phase: Math.random() * Math.PI * 2
     }));
 
+    // Royal Golden Embers & Luxury Sparkles for Sultan Identity
+    const emberCount = width < 768 ? 24 : 45;
+    const embers = Array.from({ length: emberCount }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: -Math.random() * 0.55 - 0.2, // drifting gently upward
+      size: Math.random() * 2.2 + 0.8,
+      alpha: Math.random() * 0.7 + 0.2,
+      maxAlpha: Math.random() * 0.6 + 0.3,
+      pulse: Math.random() * Math.PI * 2,
+      pulseSpeed: Math.random() * 0.04 + 0.02,
+      color: Math.random() > 0.4 ? '#f59e0b' : Math.random() > 0.5 ? '#ef4444' : '#ffd700'
+    }));
+
     // Rain drops pool
     const rainCount = width < 768 ? 60 : 120;
     const rainDrops: RainDrop[] = Array.from({ length: rainCount }, () => ({
@@ -339,6 +354,42 @@ export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
           }
         });
       }
+
+      // --- Royal Sultan Golden Embers & Sparkles Overlay Layer ---
+      embers.forEach((em) => {
+        em.y += em.vy;
+        em.x += em.vx + Math.sin(em.pulse) * 0.25;
+        em.pulse += em.pulseSpeed;
+
+        if (em.y < -10) {
+          em.y = height + 10;
+          em.x = Math.random() * width;
+        }
+        if (em.x < -10) em.x = width + 10;
+        if (em.x > width + 10) em.x = -10;
+
+        const currentAlpha = Math.max(0.1, em.maxAlpha * (0.5 + Math.sin(em.pulse) * 0.5));
+
+        // Soft royal aura glow
+        const grad = ctx.createRadialGradient(em.x, em.y, 0, em.x, em.y, em.size * 3.5);
+        grad.addColorStop(0, em.color);
+        grad.addColorStop(0.4, `${em.color}80`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+        ctx.save();
+        ctx.globalAlpha = currentAlpha;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(em.x, em.y, em.size * 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Sharp bright center spark
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(em.x, em.y, em.size * 0.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
 
       animId = requestAnimationFrame(render);
     };

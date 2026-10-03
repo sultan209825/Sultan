@@ -6,9 +6,10 @@ import { audioEngine } from '../utils/audioEngine';
 
 interface DiscordCardProps {
   onCopySuccess?: () => void;
+  joinYear?: string;
 }
 
-export const DiscordCard: React.FC<DiscordCardProps> = ({ onCopySuccess }) => {
+export const DiscordCard: React.FC<DiscordCardProps> = ({ onCopySuccess, joinYear }) => {
   const [lanyard, setLanyard] = useState<LanyardData | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
@@ -70,14 +71,26 @@ export const DiscordCard: React.FC<DiscordCardProps> = ({ onCopySuccess }) => {
     };
   }, []);
 
-  const handleCopyDiscord = () => {
+  const handleCopyDiscord = async () => {
     audioEngine.playClickSound();
     const username = lanyard?.discord_user.username || '5susu';
-    navigator.clipboard.writeText(username).then(() => {
-      setCopied(true);
-      if (onCopySuccess) onCopySuccess();
-      setTimeout(() => setCopied(false), 2000);
-    });
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(username);
+      } else {
+        throw new Error('Clipboard API not available');
+      }
+    } catch {
+      const input = document.createElement('input');
+      input.value = username;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+    setCopied(true);
+    if (onCopySuccess) onCopySuccess();
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const status = lanyard?.discord_status || 'online';
@@ -173,6 +186,12 @@ export const DiscordCard: React.FC<DiscordCardProps> = ({ onCopySuccess }) => {
                 <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.color}`} />
                 {statusConfig.label}
               </span>
+              {joinYear && (
+                <span className="text-[10px] text-zinc-300 bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono-custom inline-flex items-center gap-1">
+                  <span>عضو منذ</span>
+                  <b className="text-white font-bold">{joinYear}</b>
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -225,7 +244,7 @@ export const DiscordCard: React.FC<DiscordCardProps> = ({ onCopySuccess }) => {
           </div>
         </div>
 
-        <div className="text-[11px] font-mono-custom text-zinc-400">
+        <div className="flex items-center gap-2 text-[11px] font-mono-custom text-zinc-400">
           <span>{totalMembers} عضو</span>
         </div>
       </div>

@@ -1,47 +1,54 @@
 import JSZip from 'jszip';
 
 export async function generateFullApplicationSourceZip(): Promise<Blob> {
+  // 1. First attempt: fetch pristine build archive directly from backend
+  try {
+    const apiRes = await fetch('/api/download-infinityfree-zip');
+    if (apiRes.ok) {
+      const blob = await apiRes.blob();
+      if (blob.size > 1000) {
+        return blob;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend ZIP endpoint unreachable, using client-side generator', err);
+  }
+
+  // 2. Client-side generator fallback
   const zip = new JSZip();
 
-  // 1. Fetch exact built index.html from dist-package
-  const resHtml = await fetch('/dist-package/index.html');
-  let rawHtml = await resHtml.text();
+  // Try fetching index.html
+  let indexHtml = '';
+  try {
+    const resHtml = await fetch('/index.html');
+    indexHtml = await resHtml.text();
+  } catch {
+    indexHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sultan Site</title></head><body><div id="root"></div></body></html>';
+  }
 
-  // Adjust asset paths to be local relative so they open on any domain or subdirectory
-  const indexHtml = rawHtml
+  // Ensure relative paths for any directory on InfinityFree
+  const cleanIndexHtml = indexHtml
     .replace(/src="\/assets\//g, 'src="./assets/')
-    .replace(/href="\/assets\//g, 'href="./assets/');
+    .replace(/href="\/assets\//g, 'href="./assets/')
+    .replace(/src="\/songs\//g, 'src="./songs/')
+    .replace(/src="\/og-image\.png"/g, 'src="./og-image.png"');
 
-  zip.file('index.html', indexHtml);
+  zip.file('index.html', cleanIndexHtml);
 
-  // 2. Fetch the compiled JS and CSS from public/dist-package
+  // Add InfinityFree PHP Bot API endpoint
   try {
-    const jsRes = await fetch('/dist-package/assets/index-DzFKD-Ao.js');
-    const jsData = await jsRes.text();
-    zip.file('assets/index-DzFKD-Ao.js', jsData);
-  } catch (err) {
-    console.error('Failed to load bundle js', err);
-  }
+    const phpRes = await fetch('/api_discord_assign.php');
+    if (phpRes.ok) {
+      zip.file('api_discord_assign.php', await phpRes.text());
+    }
+  } catch {}
 
-  try {
-    const cssRes = await fetch('/dist-package/assets/index-CpvqZQ8D.css');
-    const cssData = await cssRes.text();
-    zip.file('assets/index-CpvqZQ8D.css', cssData);
-  } catch (err) {
-    console.error('Failed to load bundle css', err);
-  }
-
-  // 3. Add og-image.png so the emblem renders offline and everywhere
-  try {
-    const imgRes = await fetch('/og-image.png');
-    const imgBlob = await imgRes.blob();
-    zip.file('og-image.png', imgBlob);
-  } catch (err) {
-    console.error('Failed to bundle og-image.png', err);
-  }
-
-  // 4. .htaccess routing for InfinityFree so all routes, modals, and assets load properly
-  const htaccess = `Options -Indexes
+  // Add .htaccess for InfinityFree
+  const htaccess = `# ========================================================================
+# 👑 ملف ضبط استضافة InfinityFree لسيرفر وموقع السلطان (htdocs)
+# ========================================================================
+Options -Indexes
+DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
@@ -56,34 +63,60 @@ export async function generateFullApplicationSourceZip(): Promise<Blob> {
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType audio/mpeg "access plus 1 month"
+</IfModule>
 `;
   zip.file('.htaccess', htaccess);
 
-  // 5. Instructions
-  const readme = `========================================================================
-👑 موقع السلطان الرسمي والشخصي - دليل تشغيل ملفات الـ MP3 الخاصة بك
+  // Add Songs from public/songs
+  const songFiles = ['sultan-1.mp3', 'sultan-2.mp3', 'sultan-3.mp3', 'sultan-4.mp3', 'sultan-5.mp3'];
+  for (const sf of songFiles) {
+    try {
+      const sRes = await fetch(`/songs/${sf}`);
+      if (sRes.ok) {
+        zip.file(`songs/${sf}`, await sRes.blob());
+      }
+    } catch {}
+  }
+
+  // Add og-image.png
+  try {
+    const imgRes = await fetch('/og-image.png');
+    if (imgRes.ok) {
+      zip.file('og-image.png', await imgRes.blob());
+    }
+  } catch {}
+
+  // Add Clear instructions in Arabic for InfinityFree
+  const instructions = `========================================================================
+👑 موقع السلطان الرسمي - طريقة رفع الملفات على استضافة InfinityFree
 ========================================================================
 
-كيف تضع الأغاني الحقيقية بصوتك على الموقع؟
-يوجد طريقتان سهلتان جداً:
+الخطوات البسيطة جداً لتشغيل موقعك 100%:
 
-الطريقة 1 (من داخل الموقع مباشرة في أي وقت):
-- افتح الموقع واضغط على زر "إضافة أغاني 📂" الموجود في شريط مشغل الموسيقى بجانب قائمة التراكات.
-- يمكنك رفع أي ملف صوتي MP3 مباشرة من جهازك أو هاتفك وسيشتغل فوراً!
-- أو يمكنك وضع رابط مباشر للملف الصوتي لكل تراك وسيتم حفظه تلقائياً في جهازك.
+1. فك الضغط عن هذا الملف (sultan-exact-studio-app.zip) على جهازك أو هاتفك.
+2. ادخل على لوحة تحكم InfinityFree الخاصة بك:
+   - افتح File Manager (مدير الملفات).
+   - ادخل إلى مجلد: htdocs
+   - احذف أي ملف افتراضي قديم بالداخل (مثل default2.html إن وجد).
+3. ارفع جميع محتويات هذا المجلد مباشرة داخل htdocs:
+   - index.html
+   - .htaccess
+   - مجلد assets
+   - مجلد songs
+   - og-image.png
+   - api_discord_assign.php (يقوم بتفعيل رتب الديسكورد تلقائياً على InfinityFree!)
 
-الطريقة 2 (عند الرفع على استضافة InfinityFree):
-1. داخل مجلد htdocs، أنشئ مجلداً جديداً اسمه songs
-2. ضع فيه ملفات الـ MP3 الخاصة بك بالأسماء التالية:
-   - sultan-1.mp3
-   - sultan-2.mp3
-   - sultan-3.mp3
-   - sultan-4.mp3
-   - sultan-5.mp3
-3. من داخل نافذة "إضافة أغاني" بالموقع، اكتب الرابط أمام الأغنية: /songs/sultan-1.mp3 وهكذا!
-
+4. مبروك! افتح رابط موقعك (sultan.kesug.com) وستجد الموقع يعمل بالكامل بأقصى سرعة!
 ========================================================================`;
-  zip.file('طريقة_تشغيل_الأغاني.txt', readme);
+  zip.file('طريقة_الرفع_علي_InfinityFree.txt', instructions);
 
   return await zip.generateAsync({ type: 'blob' });
 }
