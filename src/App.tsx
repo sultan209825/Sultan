@@ -41,6 +41,12 @@ import { audioEngine } from './utils/audioEngine';
 import { generateFullApplicationSourceZip } from './utils/exactAppBuilder';
 import { recordSiteLog } from './utils/siteLogger';
 import { sendEmailNotification } from './utils/emailNotifier';
+import {
+  subscribeToGlobalConfig,
+  saveGlobalConfigToCloud,
+  incrementGlobalViews,
+  incrementGlobalUpvotes
+} from './services/firebase';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(() => {
@@ -98,6 +104,32 @@ export default function App() {
   const [isDiscordRoleClaimed, setIsDiscordRoleClaimed] = useState<boolean>(() => {
     return getRoleClaimStatus().isClaimed;
   });
+
+  // Real-time synchronization with Cloud Firestore
+  // When Sultan updates anything in Admin, it updates for everyone in real time!
+  useEffect(() => {
+    const unsubscribe = subscribeToGlobalConfig((cloudConfig) => {
+      if (cloudConfig && typeof cloudConfig === 'object') {
+        setConfig((prev) => {
+          const merged = { ...prev, ...cloudConfig };
+          try {
+            localStorage.setItem('sultan_site_config', JSON.stringify(merged));
+          } catch {}
+          return merged;
+        });
+      }
+    });
+
+    // Increment global live views once per visitor session
+    if (!sessionStorage.getItem('sultan_view_logged')) {
+      sessionStorage.setItem('sultan_view_logged', 'true');
+      incrementGlobalViews();
+    }
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   // Periodically check 1-hour expiration so button reactivates on the hour
   useEffect(() => {
@@ -393,6 +425,7 @@ export default function App() {
       recordSiteLog('تقييم إيجابي 👍', 'تصويت إيجابي وإبداء الإعجاب بالموقع الملكي');
       audioEngine.playNotificationPing();
       confetti({ particleCount: 60, spread: 75, origin: { y: 0.8 } });
+      incrementGlobalUpvotes();
       try {
         const currentUpvotes = parseInt(localStorage.getItem('sultan_site_upvotes') || '0', 10);
         localStorage.setItem('sultan_site_upvotes', (currentUpvotes + 1).toString());
@@ -472,6 +505,10 @@ export default function App() {
         config={config}
         onSaveConfig={(newCfg) => {
           setConfig(newCfg);
+          try {
+            localStorage.setItem('sultan_site_config', JSON.stringify(newCfg));
+          } catch {}
+          saveGlobalConfigToCloud(newCfg);
         }}
         onBackToHome={() => {
           window.location.hash = '';

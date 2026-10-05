@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "SiteConfig": {
+      "title": "SiteConfig",
+      "description": "Global Sultan Bio and Portfolio Configuration shared across all visitors in real-time",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Sultan display name",
+          "maxLength": 100
+        },
+        "handle": {
+          "type": "string",
+          "description": "Sultan unique handle",
+          "maxLength": 50
+        },
+        "bio": {
+          "type": "string",
+          "description": "Bio description text",
+          "maxLength": 500
+        },
+        "joinYear": {
+          "type": "string",
+          "description": "Join year",
+          "maxLength": 20
+        },
+        "footerDomain": {
+          "type": "string",
+          "description": "Domain displayed in footer",
+          "maxLength": 100
+        },
+        "theme": {
+          "type": "string",
+          "description": "Active site theme ID",
+          "maxLength": 50
+        },
+        "bgEffect": {
+          "type": "string",
+          "description": "Background effect mode",
+          "maxLength": 50
+        },
+        "countdownDate": {
+          "type": "string",
+          "description": "Target countdown date ISO string",
+          "maxLength": 50
+        },
+        "countdownLabel": {
+          "type": "string",
+          "description": "Countdown banner title",
+          "maxLength": 200
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update",
+          "maxLength": 50
+        }
+      },
+      "required": ["username", "handle", "bio", "footerDomain", "theme"]
+    },
+    "SiteStats": {
+      "title": "SiteStats",
+      "description": "Live visitor and interaction metrics for Sultan Bio",
+      "type": "object",
+      "properties": {
+        "views": {
+          "type": "number",
+          "description": "Total live site views"
+        },
+        "upvotes": {
+          "type": "number",
+          "description": "Total thumbs up ratings"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp",
+          "maxLength": 50
+        }
+      },
+      "required": ["views"]
+    }
+  },
+  "firestore": {
+    "/config/{configId}": {
+      "schema": "SiteConfig",
+      "description": "Global application configuration document synced live across all visitors"
+    },
+    "/stats/{statId}": {
+      "schema": "SiteStats",
+      "description": "Public aggregated site counters and interactions"
+    }
+  }
+}

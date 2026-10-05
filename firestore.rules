@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global helper primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation helper for SiteConfig
+    function isValidSiteConfig(data) {
+      return data is map &&
+        data.keys().hasAll(['username', 'handle', 'bio', 'footerDomain', 'theme']) &&
+        data.username is string && data.username.size() > 0 && data.username.size() <= 100 &&
+        data.handle is string && data.handle.size() > 0 && data.handle.size() <= 50 &&
+        data.bio is string && data.bio.size() <= 500 &&
+        data.footerDomain is string && data.footerDomain.size() <= 100 &&
+        data.theme is string && data.theme.size() <= 50;
+    }
+
+    // Validation helper for SiteStats
+    function isValidSiteStats(data) {
+      return data is map &&
+        data.keys().hasAll(['views']) &&
+        data.views is number && data.views >= 0;
+    }
+
+    // Catch-all default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Site Configuration: readable by all visitors in real-time
+    match /config/{configId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(configId) && isValidSiteConfig(incoming());
+      allow delete: if false;
+    }
+
+    // Public Live Stats & Interactions: readable and incrementable
+    match /stats/{statId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(statId) && isValidSiteStats(incoming());
+      allow delete: if false;
+    }
+  }
+}

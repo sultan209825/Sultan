@@ -74,6 +74,7 @@ import {
 import { audioEngine } from '../utils/audioEngine';
 import { recordSiteLog } from '../utils/siteLogger';
 import { sendEmailNotification } from '../utils/emailNotifier';
+import { saveGlobalConfigToCloud } from '../services/firebase';
 import { LogViewer } from './LogViewer';
 
 interface AdminPageProps {
@@ -657,6 +658,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     audioEngine.playAdminSave();
     onSaveConfig(formData);
     localStorage.setItem('sultan_site_config', JSON.stringify(formData));
+    saveGlobalConfigToCloud(formData);
     setSaveSuccess(true);
 
     // Auto-sync Discord Bot on backend
