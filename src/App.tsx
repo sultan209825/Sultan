@@ -31,6 +31,11 @@ import { CustomContextMenu } from './components/CustomContextMenu';
 import { CustomCursorEffects } from './components/CustomCursorEffects';
 import { GlobalCustomTooltip } from './components/GlobalCustomTooltip';
 import { LoadingScreen } from './components/LoadingScreen';
+import { GamerHub } from './components/GamerHub';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
+import { defaultGamerHub } from './data/defaultGamerHub';
+import { getTheme } from './utils/themeSystem';
+import { ThemeId } from './types';
 import { setupMidnightReportTimer } from './utils/discordWebhook';
 import { audioEngine } from './utils/audioEngine';
 import { generateFullApplicationSourceZip } from './utils/exactAppBuilder';
@@ -44,9 +49,20 @@ export default function App() {
   });
   const [config, setConfig] = useState<SiteConfig>(() => {
     const saved = localStorage.getItem('sultan_site_config');
+    const localTheme = (localStorage.getItem('sultan_theme') as ThemeId) || null;
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed.footerDomain === 'sultan.kesug.com') {
+          parsed.footerDomain = 'sultansusu.vercel.app';
+        }
+        if (!parsed.gamerHub) {
+          parsed.gamerHub = defaultGamerHub;
+        }
+        if (localTheme) {
+          parsed.theme = localTheme;
+        }
+        return parsed;
       } catch {}
     }
     return {
@@ -54,8 +70,9 @@ export default function App() {
       handle: '5susu',
       bio: '3 ثانوي 📖 + GYM 🦾',
       joinYear: '2020',
-      footerDomain: 'sultan.kesug.com',
-      theme: 'royal',
+      footerDomain: 'sultansusu.vercel.app',
+      theme: localTheme || 'blood_royal',
+      gamerHub: defaultGamerHub,
       bgEffect: 'auto',
       bgStyle: (localStorage.getItem('sultan_bg_style') as 'particle' | 'static' | 'glow') || 'particle',
       countdownDate: '2027-08-25T00:00',
@@ -445,7 +462,8 @@ export default function App() {
     }
   };
 
-  const themeAccent = '#ef4444';
+  const activeTheme = getTheme(config.theme);
+  const themeAccent = activeTheme.accentHex;
 
   // Standalone dedicated page for Settings & Analytics
   if (currentPage === 'admin') {
@@ -471,27 +489,39 @@ export default function App() {
 
       {/* Ambient background glows */}
       <div
-        className="fixed top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[130px] opacity-25 pointer-events-none z-0"
+        className="fixed top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[130px] opacity-25 pointer-events-none z-0 transition-colors duration-700"
         style={{ background: themeAccent }}
       />
       <div
-        className="fixed bottom-[-10%] left-[-10%] w-[45vw] h-[45vw] rounded-full blur-[140px] opacity-20 pointer-events-none z-0"
-        style={{ background: '#26d9ff' }}
+        className="fixed bottom-[-10%] left-[-10%] w-[45vw] h-[45vw] rounded-full blur-[140px] opacity-20 pointer-events-none z-0 transition-colors duration-700"
+        style={{ background: activeTheme.secondaryHex }}
       />
 
-      {/* Top Banner: Elegant Sultan Branding */}
+      {/* Top Banner: Elegant Sultan Branding with Theme Switcher */}
       <header className="relative z-20 w-full border-b border-white/5 bg-black/60 backdrop-blur-md px-4 py-2.5">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2 text-zinc-300">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="font-bold text-white hidden sm:inline">سلطان • SULTAN</span>
             <span className="text-zinc-400">|</span>
-            <span className="text-zinc-300 font-mono-custom truncate">sultan.kesug.com</span>
+            <span className="text-zinc-300 font-mono-custom truncate">{config.footerDomain || 'sultansusu.vercel.app'}</span>
           </div>
 
-          <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
-            <span className="text-zinc-300 font-bold">𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪</span>
+          <div className="flex items-center gap-2.5">
+            <ThemeSwitcher
+              currentTheme={config.theme}
+              onThemeChange={(newTh) => {
+                setConfig((prev) => {
+                  const updated = { ...prev, theme: newTh };
+                  localStorage.setItem('sultan_site_config', JSON.stringify(updated));
+                  return updated;
+                });
+              }}
+            />
+            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
+              <span className="text-zinc-300 font-bold">𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪</span>
+            </div>
           </div>
         </div>
       </header>
@@ -510,7 +540,7 @@ export default function App() {
       )}
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 max-w-xl mx-auto w-full px-4 py-6 sm:py-8 flex flex-col items-center justify-center">
+      <main className="relative z-10 flex-1 max-w-xl mx-auto w-full px-4 py-6 sm:py-8 flex flex-col items-center justify-center gap-6">
         <DiscordProfileCard
           config={config}
           typedBio={typedBio}
@@ -527,6 +557,9 @@ export default function App() {
           onMouseLeave={handleCardMouseLeave}
           cardRef={cardRef}
         />
+
+        {/* Gamer Showcase Card (Feature 5) */}
+        <GamerHub config={config.gamerHub || defaultGamerHub} theme={activeTheme} />
       </main>
 
       {/* Floating Corner Music Player (Dedicated in corner, perfectly styled) */}

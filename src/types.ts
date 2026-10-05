@@ -20,17 +20,40 @@ export interface SongTrack {
   coverImage?: string;
 }
 
+export type ThemeId = 'blood_royal' | 'imperial_gold' | 'cyber_neon' | 'stealth_black' | 'emerald_dynasty' | 'royal' | 'default' | 'emerald' | 'rose';
+
+export interface GamerAccount {
+  id: string;
+  game: 'valorant' | 'steam' | 'pubg' | 'discord' | 'epic' | 'playstation' | 'xbox' | 'league' | 'roblox';
+  title: string;
+  ign: string;
+  tagOrCode?: string;
+  rank?: string;
+  extraInfo?: string; // e.g. Agent: Reyna, Level 150
+  profileUrl?: string;
+  icon?: string;
+  enabled: boolean;
+}
+
+export interface GamerHubConfig {
+  enabled: boolean;
+  statusText: string;
+  isLookingForGroup: boolean;
+  accounts: GamerAccount[];
+}
+
 export interface SiteConfig {
   username: string;
   handle: string;
   bio: string;
   joinYear: string;
   footerDomain: string;
-  theme: 'default' | 'royal' | 'emerald' | 'rose';
+  theme: ThemeId;
   bgEffect: 'auto' | 'winter' | 'summer' | 'cyber' | 'rain' | 'none';
   bgStyle?: 'particle' | 'static' | 'glow';
   countdownDate: string;
   countdownLabel: string;
+  gamerHub?: GamerHubConfig;
   discordWebhookUrl?: string;
   discordWebhookEnabled?: boolean;
   discordAutoRole?: {

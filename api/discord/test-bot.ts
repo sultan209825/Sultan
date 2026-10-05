@@ -24,7 +24,7 @@ export default async function handler(req: any, res: any) {
     const userRes = await fetch('https://discord.com/api/v10/users/@me', {
       headers: {
         Authorization: `Bot ${botToken}`,
-        'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+        'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
       }
     });
 
@@ -40,7 +40,7 @@ export default async function handler(req: any, res: any) {
       const guildRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}`, {
         headers: {
           Authorization: `Bot ${botToken}`,
-          'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+          'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
         }
       });
       if (guildRes.ok) {
@@ -51,7 +51,7 @@ export default async function handler(req: any, res: any) {
         const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
           headers: {
             Authorization: `Bot ${botToken}`,
-            'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+            'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
           }
         });
         if (rolesRes.ok) {

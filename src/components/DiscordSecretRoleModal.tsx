@@ -125,31 +125,31 @@ export const DiscordSecretRoleModal: React.FC<DiscordSecretRoleModalProps> = ({
       let isSuccessJson = false;
       let resData: any = null;
 
-      // 1. First attempt: call api_discord_assign.php (works on InfinityFree)
+      // 1. First attempt: Vercel Serverless / dev server endpoint (/api/discord/assign-role)
       try {
-        const phpResponse = await fetch('/api_discord_assign.php', {
+        const devResponse = await fetch('/api/discord/assign-role', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        resText = await phpResponse.text();
+        resText = await devResponse.text();
         if (resText.trim().startsWith('{') || resText.trim().startsWith('[')) {
           resData = JSON.parse(resText);
           isSuccessJson = true;
         }
       } catch (e) {}
 
-      // 2. Second attempt: dev server endpoint
-      if (!isSuccessJson) {
+      // 2. Second attempt: call api_discord_assign.php (works on InfinityFree)
+      if (!isSuccessJson || resData?.message?.includes('Could not resolve host') || resData?.error?.includes('Could not resolve host')) {
         try {
-          const devResponse = await fetch('/api/discord/assign-role', {
+          const phpResponse = await fetch('/api_discord_assign.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          resText = await devResponse.text();
-          if (resText.trim().startsWith('{') || resText.trim().startsWith('[')) {
-            resData = JSON.parse(resText);
+          const phpText = await phpResponse.text();
+          if (phpText.trim().startsWith('{') || phpText.trim().startsWith('[')) {
+            resData = JSON.parse(phpText);
             isSuccessJson = true;
           }
         } catch (e) {}

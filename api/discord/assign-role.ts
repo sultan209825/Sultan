@@ -29,7 +29,7 @@ export default async function handler(req: any, res: any) {
         {
           headers: {
             Authorization: `Bot ${botToken}`,
-            'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+            'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
           }
         }
       );
@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
     const memberRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${targetUserId}`, {
       headers: {
         Authorization: `Bot ${botToken}`,
-        'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+        'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
       }
     });
 
@@ -82,7 +82,7 @@ export default async function handler(req: any, res: any) {
         method: 'DELETE',
         headers: {
           Authorization: `Bot ${botToken}`,
-          'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+          'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
         }
       });
 
@@ -105,7 +105,7 @@ export default async function handler(req: any, res: any) {
       method: 'PUT',
       headers: {
         Authorization: `Bot ${botToken}`,
-        'User-Agent': 'DiscordBot (https://sultan.vercel.app, 1.0.0)'
+        'User-Agent': 'DiscordBot (https://sultansusu.vercel.app, 1.0.0)'
       }
     });
 

@@ -22,6 +22,7 @@ import {
 import { LanyardData, SiteConfig } from '../types';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from '../utils/lanyard';
 import { audioEngine } from '../utils/audioEngine';
+import { getTheme } from '../utils/themeSystem';
 
 interface DiscordProfileCardProps {
   config: SiteConfig;
@@ -217,6 +218,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
     sku_id: '1541458062701895761'
   };
 
+  const activeTheme = getTheme(config.theme);
   const displayName = lanyard?.discord_user?.global_name || config.username || '! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪';
   const username = lanyard?.discord_user?.username || config.handle || '5susu';
   const [isCardHovered, setIsCardHovered] = useState<boolean>(false);
@@ -227,9 +229,12 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
       <div
         className={`absolute -bottom-2 inset-x-8 h-8 rounded-full pointer-events-none transition-all duration-700 ${
           isCardHovered
-            ? 'bg-gradient-to-r from-red-600/35 via-purple-600/40 to-amber-600/35 blur-2xl scale-105 opacity-85'
-            : 'bg-gradient-to-r from-red-600/20 via-purple-600/25 to-amber-600/20 blur-xl animate-sultan-floor-shadow'
+            ? 'blur-2xl scale-105 opacity-85'
+            : 'blur-xl animate-sultan-floor-shadow opacity-50'
         }`}
+        style={{
+          background: `radial-gradient(circle, ${activeTheme.accentHex} 0%, ${activeTheme.secondaryHex} 60%, transparent 100%)`
+        }}
       />
 
       {/* Floating Levitation Outer Container */}
@@ -268,7 +273,12 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
       </div>
 
       {/* Top Laser Border Glow */}
-      <div className="absolute -top-[1px] left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-85 z-20" />
+      <div
+        className="absolute -top-[1px] left-8 right-8 h-[2px] opacity-85 z-20 transition-all duration-700"
+        style={{
+          background: `linear-gradient(to right, transparent, ${activeTheme.accentHex}, transparent)`
+        }}
+      />
 
       {/* 1. Discord Profile Custom Banner */}
       <div className="relative h-28 sm:h-32 w-full bg-gradient-to-r from-[#17132e] via-[#321844] to-[#0f0c1f] overflow-hidden border-b border-white/5">

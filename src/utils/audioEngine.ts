@@ -518,6 +518,27 @@ class AudioEngine {
     });
   }
 
+  public playPowerUpSound() {
+    this.init();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const noteTime = now + idx * 0.055;
+      osc.frequency.setValueAtTime(freq, noteTime);
+      gain.gain.setValueAtTime(0.12, noteTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.28);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(noteTime);
+      osc.stop(noteTime + 0.3);
+    });
+  }
+
   public playNotificationPing() {
     this.init();
     if (!this.ctx) return;
