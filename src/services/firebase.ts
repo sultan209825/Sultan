@@ -154,6 +154,8 @@ export async function saveGlobalConfigToCloud(config: SiteConfig): Promise<{ suc
       socials: config.socials || {},
       socialsEnabled: config.socialsEnabled || {},
       gamerHub: config.gamerHub || null,
+      dailyStory: config.dailyStory || null,
+      discordRadar: config.discordRadar || null,
       discordWebhookUrl: config.discordWebhookUrl || '',
       discordWebhookEnabled: !!config.discordWebhookEnabled,
       discordAutoRole: config.discordAutoRole || null,

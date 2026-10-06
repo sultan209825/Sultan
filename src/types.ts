@@ -42,6 +42,24 @@ export interface GamerHubConfig {
   accounts: GamerAccount[];
 }
 
+export interface DailyStory {
+  enabled: boolean;
+  text: string;
+  moodEmoji: string;
+  category: string;
+  createdAt: string;
+  likesCount?: number;
+  reactions?: Record<string, number>;
+}
+
+export interface DiscordRadarConfig {
+  enabled: boolean;
+  customStatusText?: string;
+  customStatusEmoji?: string;
+  voiceChannelName?: string;
+  allowDirectMessage?: boolean;
+}
+
 export interface SiteConfig {
   username: string;
   handle: string;
@@ -57,6 +75,8 @@ export interface SiteConfig {
   defaultVolume?: number;
   tracks?: SongTrack[];
   gamerHub?: GamerHubConfig;
+  dailyStory?: DailyStory;
+  discordRadar?: DiscordRadarConfig;
   discordWebhookUrl?: string;
   discordWebhookEnabled?: boolean;
   discordAutoRole?: {

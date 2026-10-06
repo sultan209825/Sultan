@@ -34,6 +34,7 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { GamerHub } from './components/GamerHub';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { defaultGamerHub } from './data/defaultGamerHub';
+import { defaultDailyStory, defaultDiscordRadar } from './data/defaultDailyStory';
 import { getTheme } from './utils/themeSystem';
 import { ThemeId } from './types';
 import { setupMidnightReportTimer } from './utils/discordWebhook';
@@ -66,6 +67,12 @@ export default function App() {
         if (!parsed.gamerHub) {
           parsed.gamerHub = defaultGamerHub;
         }
+        if (!parsed.dailyStory) {
+          parsed.dailyStory = defaultDailyStory;
+        }
+        if (!parsed.discordRadar) {
+          parsed.discordRadar = defaultDiscordRadar;
+        }
         if (localTheme) {
           parsed.theme = localTheme;
         }
@@ -80,6 +87,8 @@ export default function App() {
       footerDomain: 'sultansusu.vercel.app',
       theme: localTheme || 'blood_royal',
       gamerHub: defaultGamerHub,
+      dailyStory: defaultDailyStory,
+      discordRadar: defaultDiscordRadar,
       bgEffect: 'auto',
       bgStyle: (localStorage.getItem('sultan_bg_style') as 'particle' | 'static' | 'glow') || 'particle',
       countdownDate: '2027-08-25T00:00',

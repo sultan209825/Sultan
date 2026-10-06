@@ -17,12 +17,16 @@ import {
   Flame,
   Zap,
   User,
-  Trophy
+  Trophy,
+  Radio
 } from 'lucide-react';
-import { LanyardData, SiteConfig } from '../types';
+import { LanyardData, SiteConfig, DailyStory } from '../types';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from '../utils/lanyard';
 import { audioEngine } from '../utils/audioEngine';
 import { getTheme } from '../utils/themeSystem';
+import { DailyStoryModal } from './DailyStoryModal';
+import { DiscordActivityRadarModal } from './DiscordActivityRadarModal';
+import { defaultDailyStory } from '../data/defaultDailyStory';
 
 interface DiscordProfileCardProps {
   config: SiteConfig;
@@ -62,6 +66,9 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   const [onlineMembers, setOnlineMembers] = useState<number>(11);
   const [totalMembers, setTotalMembers] = useState<number>(32);
   const [serverName, setServerName] = useState<string>('✨ Friends For Ever ✨');
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState<boolean>(false);
+  const [isRadarModalOpen, setIsRadarModalOpen] = useState<boolean>(false);
+  const dailyStory = config.dailyStory || defaultDailyStory;
 
   useEffect(() => {
     // 1. Initial fetch from Lanyard
@@ -320,16 +327,46 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
 
       {/* Main Body below Banner */}
       <div className="px-5 sm:px-7 pb-6 space-y-5">
-        {/* 2. Avatar Overlap Zone with Live Decoration / Frame */}
+        {/* 2. Avatar Overlap Zone with Live Decoration / Frame & Story Ring */}
         <div className="flex items-end justify-between -mt-14 sm:-mt-16 relative z-10 mb-2">
-          {/* Steady Calm Avatar with Status Indicator and Live Frame Decoration */}
+          {/* Steady Calm Avatar with Status Indicator and Live Story Ring */}
           <div
-            className="relative cursor-pointer"
-            onClick={onAvatarClick}
-            data-tooltip="انقر لتشغيل الصوت الملكي 👑"
+            className="relative cursor-pointer group/avatar"
+            onClick={() => {
+              if (dailyStory.enabled !== false) {
+                audioEngine.playPowerUpSound();
+                setIsStoryModalOpen(true);
+              } else {
+                onAvatarClick();
+              }
+            }}
+            data-tooltip="انقر لفتح ستوري السلطان اليوم 👑"
           >
-            {/* Steady Discord Avatar Container - No animations or hover scaling */}
-            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#0c0c16] p-1 border-4 border-[#0b0b14] shadow-2xl overflow-hidden ring-1 ring-white/10">
+            {/* Story Live Indicator Pill on Avatar Top */}
+            {dailyStory.enabled !== false && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  audioEngine.playPowerUpSound();
+                  setIsStoryModalOpen(true);
+                }}
+                className="absolute -top-2 left-1/2 -translate-x-1/2 z-30 px-2 py-0.5 rounded-full bg-gradient-to-r from-red-600 to-amber-600 hover:scale-105 text-white font-extrabold text-[9px] tracking-wider shadow-lg shadow-red-600/60 border border-white/20 flex items-center gap-1 active:scale-95 transition-all animate-pulse"
+                title="فتح ستوري السلطان اليوم"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                <span>ستوري 🔴</span>
+              </button>
+            )}
+
+            {/* Steady Discord Avatar Container with Story Gradient Ring */}
+            <div
+              className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#0c0c16] p-1 border-4 border-[#0b0b14] shadow-2xl overflow-hidden transition-all duration-300 ${
+                dailyStory.enabled !== false
+                  ? 'ring-2 ring-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
+                  : 'ring-1 ring-white/10'
+              }`}
+            >
               <img
                 src={avatarUrl}
                 alt={displayName}
@@ -352,11 +389,24 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </div>
           </div>
 
-          {/* Quick Action Buttons on Header Right: Copy Tag & Join Server with CSS Scale */}
-          <div className="flex items-center gap-2 mb-2">
+          {/* Quick Action Buttons on Header Right: Radar, Copy Tag & Account */}
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+            {/* Live Discord Activity Radar Button */}
+            <button
+              onClick={() => {
+                audioEngine.playClickSound();
+                setIsRadarModalOpen(true);
+              }}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-bold transition-all duration-150 active:scale-90 flex items-center gap-1.5 shadow-sm shadow-cyan-500/20 cursor-pointer"
+              title="فتح رادار نشاط السلطان بالديسكورد"
+            >
+              <Radio size={13} className="text-cyan-400 animate-pulse" />
+              <span>الرادار 🎙️</span>
+            </button>
+
             <button
               onClick={handleCopyTag}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono-custom transition-all duration-150 active:scale-90 flex items-center gap-1.5 border shadow-sm cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono-custom transition-all duration-150 active:scale-90 flex items-center gap-1.5 border shadow-sm cursor-pointer ${
                 copiedTag
                   ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                   : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white'
@@ -364,7 +414,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
               title="نسخ يوزر الديسكورد"
             >
               {copiedTag ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-              <span>{copiedTag ? 'تم نسخ اليوزر!' : `@${username}`}</span>
+              <span>{copiedTag ? 'تم النسخ!' : `@${username}`}</span>
             </button>
 
             <a
@@ -372,11 +422,11 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => audioEngine.playClickSound()}
-              className="px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752c4] text-white rounded-xl text-xs font-bold transition-all duration-150 hover:scale-105 active:scale-90 flex items-center gap-1.5 shadow-md shadow-indigo-600/30 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752c4] text-white rounded-xl text-xs font-bold transition-all duration-150 hover:scale-105 active:scale-90 flex items-center gap-1.5 shadow-md shadow-indigo-600/30 cursor-pointer"
               title="فتح حساب وبروفايل ديسكورد الرسمي"
             >
               <User size={14} />
-              <span>الأكونت</span>
+              <span className="hidden sm:inline">الأكونت</span>
             </a>
           </div>
         </div>
@@ -414,6 +464,76 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
         </div>
 
+        {/* Sultan's Daily Story Capsule */}
+        {dailyStory.enabled !== false && (
+          <div
+            onClick={() => {
+              audioEngine.playPowerUpSound();
+              setIsStoryModalOpen(true);
+            }}
+            className="group/story relative cursor-pointer overflow-hidden p-3 rounded-2xl bg-gradient-to-r from-red-950/40 via-amber-950/25 to-black/70 border border-red-500/40 shadow-[0_0_20px_rgba(239,68,68,0.25)] hover:border-red-400 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)] transition-all duration-200 active:scale-95"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl sm:text-3xl animate-bounce shrink-0 drop-shadow-[0_0_10px_rgba(239,68,68,0.6)]">
+                  {dailyStory.moodEmoji || '🦾'}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/25 text-red-300 font-bold border border-red-500/40 animate-pulse">
+                      ستوري اليوم 🔴
+                    </span>
+                    <span className="text-xs font-bold text-white group-hover/story:text-red-300 transition-colors">
+                      {dailyStory.category || 'يوميات وبطولات السلطان'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-300 truncate mt-0.5 font-medium">
+                    « {dailyStory.text || 'اليوم تركيز عالي في الجيم 🦾 + مذاكرة فيزياء 📖.. ومساءً سهرة رايقة فالورانت وديسكورد مع الشباب! 🔥'} »
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl bg-white/10 group-hover/story:bg-red-600/40 text-xs font-bold text-white transition-colors shadow-sm">
+                <span>عرض 💬</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Discord Activity Radar Interactive Capsule */}
+        <div
+          onClick={() => {
+            audioEngine.playClickSound();
+            setIsRadarModalOpen(true);
+          }}
+          className="group/radar cursor-pointer p-3 rounded-2xl bg-gradient-to-r from-cyan-950/30 via-indigo-950/20 to-black/60 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:border-cyan-400 hover:shadow-[0_0_25px_rgba(6,182,212,0.35)] transition-all duration-200 active:scale-95 flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex items-center justify-center shrink-0 shadow-md">
+              <Radio size={17} className="animate-pulse text-cyan-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white group-hover/radar:text-cyan-300 transition-colors">
+                  رادار نشاط السلطان بالديسكورد (Live Radar)
+                </span>
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
+              </div>
+              <p className="text-[11px] text-zinc-400 truncate mt-0.5 font-mono">
+                {gameActivity
+                  ? `يلعب الآن: ${gameActivity.name} 🎮`
+                  : spotify
+                  ? `يستمع إلى: ${spotify.song} 🎧`
+                  : `الحالة: ${statusConfig.label} • متاح للمحادثة واللعب 🟢`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-500/30 shrink-0 group-hover/radar:bg-cyan-500/30 transition-colors">
+            <span>الرادار 🎙️</span>
+          </div>
+        </div>
+
         {/* 5. الوصف (About Me / Bio Section) */}
         <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5">
           <div className="text-[11px] font-bold text-zinc-400 font-mono tracking-wider flex items-center justify-between">
@@ -439,53 +559,6 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             <p className="text-xs sm:text-sm font-mono-custom text-zinc-200 font-bold tracking-wide">
               {countdownString}
             </p>
-          </div>
-        )}
-
-        {/* 8. Live Discord Activity: Spotify or Game */}
-        {spotify ? (
-          <div className="p-3 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 flex items-center gap-3">
-            {spotify.album_art_url ? (
-              <img
-                src={spotify.album_art_url}
-                alt={spotify.album}
-                className="w-11 h-11 rounded-xl object-cover flex-shrink-0 shadow-md"
-              />
-            ) : (
-              <Headphones size={22} className="text-emerald-400 flex-shrink-0" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold text-white truncate flex items-center gap-1.5">
-                <Headphones size={13} className="text-emerald-400 animate-pulse" />
-                <span>يستمع إلى سبوتيفاي:</span>
-                <span className="text-emerald-300 font-mono-custom truncate">{spotify.song}</span>
-              </p>
-              <p className="text-[11px] text-emerald-400/80 font-mono-custom truncate">
-                بواسطة {spotify.artist}
-              </p>
-            </div>
-          </div>
-        ) : gameActivity ? (
-          <div className="p-3 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 flex items-center gap-3">
-            <Gamepad2 size={20} className="text-cyan-400 flex-shrink-0 animate-bounce" />
-            <div className="min-w-0 flex-1">
-              <span className="text-xs font-bold text-white block">
-                نشاط ديسكورد: <span className="text-cyan-300 font-mono-custom">{gameActivity.name}</span>
-              </span>
-              {gameActivity.state && (
-                <span className="text-[11px] text-zinc-300 block truncate font-mono-custom">
-                  {gameActivity.state}
-                </span>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="px-3.5 py-2 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs text-zinc-400">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
-              <span>متواجد على ديسكورد الديسكتوب (Desktop Client)</span>
-            </span>
-            <span className="font-mono text-[10px] text-zinc-500">Active</span>
           </div>
         )}
 
@@ -564,6 +637,24 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
       </div>
     </div>
     </div>
+
+      {/* Modals: Sultan's Daily Story & Live Discord Activity Radar */}
+      <DailyStoryModal
+        isOpen={isStoryModalOpen}
+        onClose={() => setIsStoryModalOpen(false)}
+        story={dailyStory}
+        config={config}
+        avatarUrl={avatarUrl}
+      />
+      <DiscordActivityRadarModal
+        isOpen={isRadarModalOpen}
+        onClose={() => setIsRadarModalOpen(false)}
+        lanyard={lanyard}
+        config={config}
+        serverOnlineMembers={onlineMembers}
+        serverTotalMembers={totalMembers}
+        serverName={serverName}
+      />
     </div>
   );
 };

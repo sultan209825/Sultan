@@ -50,6 +50,14 @@
           "description": "Countdown banner title",
           "maxLength": 200
         },
+        "dailyStory": {
+          "type": "object",
+          "description": "Sultan daily story and mood capsule"
+        },
+        "discordRadar": {
+          "type": "object",
+          "description": "Discord live activity radar configuration"
+        },
         "updatedAt": {
           "type": "string",
           "description": "ISO timestamp of last update",

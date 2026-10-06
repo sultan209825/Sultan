@@ -67,6 +67,7 @@ import { SiteConfig, GamerAccount } from '../types';
 import { INITIAL_TRACKS } from '../data/tracks';
 import { THEME_LIST, getTheme } from '../utils/themeSystem';
 import { defaultGamerHub } from '../data/defaultGamerHub';
+import { defaultDailyStory, defaultDiscordRadar } from '../data/defaultDailyStory';
 import {
   sendVisitorNotificationToDiscord,
   sendPeriodicAnalyticsSummaryToDiscord
@@ -117,10 +118,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   });
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
-  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'gaming' | 'stats' | 'logs' | 'security'>('settings');
+  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'story' | 'gaming' | 'stats' | 'logs' | 'security'>('settings');
   const [formData, setFormData] = useState<SiteConfig>({
     ...config,
-    gamerHub: config.gamerHub || defaultGamerHub
+    gamerHub: config.gamerHub || defaultGamerHub,
+    dailyStory: config.dailyStory || defaultDailyStory,
+    discordRadar: config.discordRadar || defaultDiscordRadar
   });
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -1082,6 +1085,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   type="button"
                   onClick={() => {
                     audioEngine.playAdminTab();
+                    setActiveSubTab('story');
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
+                    activeSubTab === 'story'
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <MessageSquare size={16} />
+                  <span>ستوري اليوم والرادار 💬</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    audioEngine.playAdminTab();
                     setActiveSubTab('gaming');
                   }}
                   className={`px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
@@ -1942,6 +1961,237 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/30 animate-pulse">
                       <Check size={16} />
                       <span>تم حفظ التعديلات بنجاح في الموقع!</span>
+                    </div>
+                  )}
+                </div>
+              </form>
+            )}
+
+            {/* TAB: Sultan's Daily Story & Discord Radar */}
+            {activeSubTab === 'story' && (
+              <form onSubmit={handleSave} className="p-6 rounded-3xl bg-[#0e0e1a]/90 border border-white/10 shadow-xl space-y-6">
+                {/* Header Banner */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-950/40 via-amber-950/30 to-black/50 border border-red-500/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-400 flex items-center justify-center text-xl shadow-lg">
+                      💬
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm sm:text-base text-white">
+                        كبسولة ستوري اليوم ورادار الديسكورد (Daily Story & Live Radar)
+                      </h3>
+                      <p className="text-[11px] text-zinc-400">
+                        اكتب حالتك اليومية ليراها أصدقاؤك ومتابعوك فوراً مع تحكم برادار نشاط الديسكورد
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:opacity-90 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-red-600/30 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Save size={14} />
+                      <span>حفظ الستوري 👑</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section 1: Daily Story Editor */}
+                <div className="p-5 rounded-2xl bg-black/40 border border-white/10 space-y-5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">💬</span>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">إعدادات حالة اليوم (Sultan's Daily Story)</h4>
+                        <p className="text-[11px] text-zinc-400">تظهر في كبسولة مميزة أعلى البروفايل وحول الأفاتار</p>
+                      </div>
+                    </div>
+
+                    {/* Enable / Disable toggle */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.dailyStory?.enabled ?? true}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyStory: {
+                              ...(formData.dailyStory || defaultDailyStory),
+                              enabled: e.target.checked
+                            }
+                          })
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                      <span className="mr-2 text-xs font-bold text-zinc-300">
+                        {formData.dailyStory?.enabled ?? true ? 'مُفعّل بالبروفايل 🟢' : 'معطّل ⚪'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Mood Emoji Selection */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-zinc-300">
+                      اختر إيموجي الحالة والمزاج اليوم:
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {['🦾', '🔥', '👑', '📖', '🎮', '☕', '⚡', '🏆', '🎧', '💎', '🚀', '✨'].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            audioEngine.playClickSound();
+                            setFormData({
+                              ...formData,
+                              dailyStory: {
+                                ...(formData.dailyStory || defaultDailyStory),
+                                moodEmoji: emoji
+                              }
+                            });
+                          }}
+                          className={`w-11 h-11 rounded-xl text-xl flex items-center justify-center transition-all ${
+                            (formData.dailyStory?.moodEmoji || '🦾') === emoji
+                              ? 'bg-red-600 text-white shadow-lg shadow-red-600/40 border-2 border-white scale-110'
+                              : 'bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300'
+                          }`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Category Selection */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-zinc-300">
+                        تصنيف الستوري:
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.dailyStory?.category || 'يوميات وبطولات السلطان'}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyStory: {
+                              ...(formData.dailyStory || defaultDailyStory),
+                              category: e.target.value
+                            }
+                          })
+                        }
+                        placeholder="مثال: جيم وتدريب 🦾 / ثانوية عامة 📖"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:border-red-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-zinc-300">
+                        وقت وتاريخ الستوري المعروض:
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.dailyStory?.createdAt || 'اليوم • نشط الآن'}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            dailyStory: {
+                              ...(formData.dailyStory || defaultDailyStory),
+                              createdAt: e.target.value
+                            }
+                          })
+                        }
+                        placeholder="مثال: اليوم • نشط الآن"
+                        className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs focus:border-red-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Story Textarea */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-zinc-300">
+                      نص حالة اليوم / ستوري السلطان:
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={formData.dailyStory?.text || ''}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          dailyStory: {
+                            ...(formData.dailyStory || defaultDailyStory),
+                            text: e.target.value
+                          }
+                        })
+                      }
+                      placeholder="اكتب ما يدور في بالك اليوم، خططك، أو نصيحة لأصدقائك..."
+                      className="w-full p-4 rounded-xl bg-white/5 border border-white/10 text-white text-xs leading-relaxed focus:border-red-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Live Story Preview Card */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-r from-red-950/30 via-amber-950/20 to-black/50 border border-red-500/30 space-y-2">
+                    <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                      <Sparkles size={13} />
+                      <span>معاينة حية كما تظهر للزوار:</span>
+                    </span>
+                    <div className="p-4 rounded-xl bg-black/60 border border-white/10 flex items-center gap-3">
+                      <span className="text-3xl animate-bounce">
+                        {formData.dailyStory?.moodEmoji || '🦾'}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 font-bold border border-red-500/30">
+                            ستوري اليوم 🔴
+                          </span>
+                          <span className="text-xs font-bold text-white">
+                            {formData.dailyStory?.category || 'يوميات وبطولات السلطان'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-300 truncate mt-1">
+                          « {formData.dailyStory?.text || 'اليوم تركيز عالي في الجيم 🦾 + مذاكرة فيزياء 📖.. ومساءً سهرة رايقة فالورانت وديسكورد مع الشباب! 🔥'} »
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Live Activity Radar Overview */}
+                <div className="p-5 rounded-2xl bg-black/40 border border-cyan-500/30 space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Radio size={20} className="text-cyan-400 animate-pulse" />
+                      <div>
+                        <h4 className="text-sm font-bold text-white">رادار نشاط السلطان بالديسكورد (Live Activity Radar)</h4>
+                        <p className="text-[11px] text-zinc-400">مرتبط بآيدي الديسكورد الرسمي: 1224502828371017788</p>
+                      </div>
+                    </div>
+
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                      LIVE RADAR ONLINE 🟢
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-zinc-300 leading-relaxed">
+                    يعمل الرادار تلقائياً عبر اتصال WebSocket بخوادم Lanyard. يعرض للزوار ما تلعبه الآن على الكمبيوتر أو الموبايل، أو الأغنية التي تسمعها على Spotify، مع إمكانية إرسال رسائل خاصة لك بالديسكورد مباشرة.
+                  </p>
+                </div>
+
+                {/* Save button bar */}
+                <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:opacity-95 font-bold text-white text-sm shadow-xl shadow-red-600/30 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Save size={16} />
+                    <span>حفظ جميع التغييرات في الموقع 👑</span>
+                  </button>
+
+                  {saveSuccess && (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/30 animate-pulse">
+                      <Check size={16} />
+                      <span>تم حفظ وتحديث الستوري بنجاح في الموقع!</span>
                     </div>
                   )}
                 </div>
