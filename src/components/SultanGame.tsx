@@ -18,6 +18,7 @@ import { recordSiteLog } from '../utils/siteLogger';
 import {
   getLeaderboard,
   saveLeaderboardScore,
+  subscribeLeaderboard,
   LeaderboardEntry
 } from '../utils/leaderboard';
 import { sendSiteEventToDiscord } from '../utils/discordWebhook';
@@ -62,12 +63,20 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
   const speedRef = useRef<number>(3.6);
 
   useEffect(() => {
-    // Load initial high score and leaderboard
+    // Load initial high score
     const savedHigh = localStorage.getItem('sultan_game_highscore');
     if (savedHigh) {
       setHighScore(parseInt(savedHigh, 10) || 0);
     }
-    setLeaderboard(getLeaderboard());
+
+    // Subscribe to live real-time cloud leaderboard updates across all players!
+    const unsubscribe = subscribeLeaderboard((updatedList) => {
+      setLeaderboard(updatedList);
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const resetGame = () => {
@@ -144,9 +153,9 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
     setRecentSavedId(result.entry.id);
 
     if (result.isNewPersonalBest) {
-      setSavedFeedback(`تم تحديث رقمك القياسي إلى ${finalScore} نقطة! (المركز #${result.rank}) 👑`);
+      setSavedFeedback(`تم نشر رقمك القياسي سحابياً لجميع المتنافسين: ${finalScore} نقطة! (المركز #${result.rank}) 🌐👑`);
     } else {
-      setSavedFeedback(`لديك رقم قياسي سابق أعلى (${result.entry.score} نقطة) محفوظ في المركز #${result.rank} 👑`);
+      setSavedFeedback(`لديك رقم قياسي سابق أعلى (${result.entry.score} نقطة) محفوظ عالمياً في المركز #${result.rank} 👑`);
     }
 
     audioEngine.playRoyalFanfare();
@@ -441,31 +450,40 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
 
                   {/* Register to Leaderboard Form */}
                   {score > 0 && !isScoreSaved ? (
-                    <form
-                      onSubmit={handleSaveToLeaderboard}
-                      className="w-full max-w-xs mb-3 flex items-center gap-1.5"
-                    >
-                      <input
-                        type="text"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                        placeholder="اكتب اسمك أو يوزرك..."
-                        maxLength={18}
-                        className="flex-1 px-3 py-1.5 rounded-xl bg-black/60 border border-amber-500/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 text-right"
-                      />
-                      <button
-                        type="submit"
-                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-bold text-xs flex items-center gap-1 transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
-                        data-tooltip="حفظ نتيجتك في لوحة الصدارة"
+                    <div className="w-full max-w-xs mb-3 space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-amber-300 font-medium px-1">
+                        <span>سجّل اسمك للمنافسة عالمياً:</span>
+                        <span className="text-emerald-400 flex items-center gap-1 font-mono text-[9px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          <span>تحديث مباشر عند الكل 🌐</span>
+                        </span>
+                      </div>
+                      <form
+                        onSubmit={handleSaveToLeaderboard}
+                        className="w-full flex items-center gap-1.5"
                       >
-                        <Send size={12} />
-                        <span>سجّل</span>
-                      </button>
-                    </form>
+                        <input
+                          type="text"
+                          value={playerName}
+                          onChange={(e) => setPlayerName(e.target.value)}
+                          placeholder="اكتب اسمك للمنافسة مع الجميع..."
+                          maxLength={18}
+                          className="flex-1 px-3 py-1.5 rounded-xl bg-black/60 border border-amber-500/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 text-right"
+                        />
+                        <button
+                          type="submit"
+                          className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-bold text-xs flex items-center gap-1 transition-transform active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer shrink-0"
+                          data-tooltip="حفظ ونشر نتيجتك فوراً لجميع اللاعبين"
+                        >
+                          <Send size={12} />
+                          <span>انشر 🌐</span>
+                        </button>
+                      </form>
+                    </div>
                   ) : isScoreSaved ? (
                     <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold mb-3 bg-emerald-500/10 px-3 py-1.5 rounded-xl border border-emerald-500/30 text-center">
                       <CheckCircle2 size={14} className="shrink-0" />
-                      <span>{savedFeedback || 'تم حفظ نتيجتك في لوحة الصدارة بنجاح! 👑'}</span>
+                      <span>{savedFeedback || 'تم نشر نتيجتك سحابياً في لوحة الصدارة لجميع اللاعبين! 🌐👑'}</span>
                     </div>
                   ) : null}
 
@@ -484,7 +502,6 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
                     <button
                       onClick={() => {
                         audioEngine.playClickSound();
-                        setLeaderboard(getLeaderboard());
                         setActiveTab('leaderboard');
                       }}
                       className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-amber-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
@@ -521,13 +538,22 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
           <div className="space-y-4 text-right animate-in fade-in duration-200">
             {/* Leaderboard Header */}
             <div className="text-center space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold">
                 <Crown size={14} />
                 <span>أساطير قفزة السلطان</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
               </div>
-              <p className="text-xs text-zinc-400">
-                أعلى الأرقام القياسية المسجلة في سيرفر وموقع السلطان
+              <p className="text-xs text-zinc-300 font-medium">
+                تنافس مباشر ولحظي بين جميع زوار الموقع واللاعبين 🌐⚡
               </p>
+              <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-400 font-mono">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  <span>مزامنة سحابية حية (Cloud Live Sync)</span>
+                </span>
+                <span>•</span>
+                <span>{leaderboard.length} متنافس مسجل</span>
+              </div>
             </div>
 
             {/* Leaderboard List */}

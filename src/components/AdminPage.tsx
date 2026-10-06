@@ -47,6 +47,7 @@ import {
   Gamepad2,
   MousePointerClick,
   TrendingUp,
+  Copy,
   X
 } from 'lucide-react';
 import {
@@ -83,6 +84,8 @@ import {
   PresenceVisitor,
   SiteLogEntry
 } from '../services/firebase';
+import { resetLeaderboardToDefault } from '../utils/leaderboard';
+import { CountdownWidget } from './CountdownWidget';
 import { LogViewer } from './LogViewer';
 
 interface AdminPageProps {
@@ -121,6 +124,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'settings' | 'story' | 'gaming' | 'stats' | 'logs' | 'security'>('settings');
   const [formData, setFormData] = useState<SiteConfig>({
     ...config,
+    musicAutoPlay: config.musicAutoPlay ?? false,
+    defaultVolume: config.defaultVolume ?? 0.45,
+    tracks: config.tracks && config.tracks.length > 0 ? config.tracks : INITIAL_TRACKS,
     gamerHub: config.gamerHub || defaultGamerHub,
     dailyStory: config.dailyStory || defaultDailyStory,
     discordRadar: config.discordRadar || defaultDiscordRadar
@@ -749,8 +755,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     localStorage.setItem('sultan_site_logs', JSON.stringify([]));
     // 5. Reset song plays
     localStorage.removeItem('sultan_song_plays');
-    // 6. Reset game leaderboard & high score
-    localStorage.removeItem('sultan_game_leaderboard');
+    // 6. Reset game leaderboard & high score (local & Cloud Firestore)
+    resetLeaderboardToDefault().catch(() => {});
     localStorage.removeItem('sultan_game_highscore');
 
     setIsResetAllModalOpen(false);
@@ -1305,34 +1311,105 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
                 {/* Target Countdown Milestone Section */}
                 <div className="space-y-4 pt-2">
-                  <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
-                    <Calendar size={18} className="text-amber-400" />
-                    <span>شريط العد التنازلي للهدف والامتحانات</span>
+                  <div className="flex items-center justify-between text-sm font-bold text-white border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Calendar size={18} className="text-amber-400" />
+                      <span>عداد التنازلي للمناسبات بجانب الصورة الشخصية (CountdownWidget)</span>
+                    </div>
+                    {formData.countdownDate && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, countdownDate: '', countdownLabel: '' });
+                          audioEngine.playClickSound();
+                        }}
+                        className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="إلغاء العدّاد وعدم عرضه"
+                      >
+                        <X size={13} />
+                        <span>إلغاء وتفريغ العدّاد</span>
+                      </button>
+                    )}
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-4">
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      اختر أي تاريخ مهم أو مناسبة (مثل عيد ميلادك، الامتحانات، أو حدث سيرفر الديسكورد) ليظهر عدّاد تنازلي تفاعلي فخم بالأيام والساعات والدقائق والثواني بجانب صورة البروفايل مباشرة!
+                    </p>
+
+                    {/* Quick Presets */}
+                    <div>
+                      <label className="block text-zinc-400 mb-1.5 text-xs font-bold">
+                        أفكار واختيارات سريعة للمناسبات ⚡:
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          { label: 'عيد ميلاد السلطان 🎂', date: '2026-12-31T00:00' },
+                          { label: 'طريق الثانوية العامة والهدف 🎯', date: '2027-06-15T09:00' },
+                          { label: 'رأس السنة الميلادية الجديدة 🎆', date: '2027-01-01T00:00' },
+                          { label: 'إجازة الصيف المنتظرة 🏖️', date: '2026-07-01T00:00' },
+                          { label: 'ذكرى تأسيس السيرفر 👑', date: '2026-11-20T20:00' }
+                        ].map((preset, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              audioEngine.playPowerUpSound();
+                              setFormData({
+                                ...formData,
+                                countdownLabel: preset.label,
+                                countdownDate: preset.date
+                              });
+                            }}
+                            className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-[11px] text-zinc-300 hover:text-amber-300 transition-all cursor-pointer active:scale-95"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-zinc-400 mb-1 text-xs">عنوان الهدف أو المناسبة</label>
+                        <label className="block text-zinc-400 mb-1 text-xs font-semibold">عنوان الهدف أو المناسبة</label>
                         <input
                           type="text"
-                          value={formData.countdownLabel}
+                          value={formData.countdownLabel || ''}
                           onChange={(e) => setFormData({ ...formData, countdownLabel: e.target.value })}
-                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs outline-none focus:border-red-500"
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white text-xs outline-none focus:border-amber-500 transition-colors"
                           placeholder="طريق الثانوية العامة والهدف 🎯"
                         />
                       </div>
                       <div>
-                        <label className="block text-zinc-400 mb-1 text-xs">تاريخ ووقت الهدف (ISO / YYYY-MM-DD)</label>
+                        <label className="block text-zinc-400 mb-1 text-xs font-semibold">
+                          اختر التاريخ والوقت (التقويم 📅)
+                        </label>
                         <input
-                          type="text"
-                          value={formData.countdownDate}
+                          type="datetime-local"
+                          value={formData.countdownDate ? formData.countdownDate.slice(0, 16) : ''}
                           onChange={(e) => setFormData({ ...formData, countdownDate: e.target.value })}
-                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono-custom text-xs outline-none focus:border-red-500"
-                          placeholder="2027-08-25T00:00"
+                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono-custom text-xs outline-none focus:border-amber-500 transition-colors cursor-pointer"
                         />
                       </div>
                     </div>
+
+                    {/* Live Preview Inside Admin Page */}
+                    {formData.countdownDate && (
+                      <div className="pt-2 border-t border-white/5 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-zinc-400 font-mono">
+                          <span>معاينة حية للمكوّن (Live Preview):</span>
+                          <span className="text-amber-400 font-sans">تفاعلي بالثواني الحقيقية ⏱️</span>
+                        </div>
+                        <div className="max-w-sm">
+                          <CountdownWidget
+                            targetDate={formData.countdownDate}
+                            label={formData.countdownLabel || 'المناسبة القادمة 🎯'}
+                            accentColor="#ef4444"
+                            compact={true}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1381,18 +1458,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <div className="flex items-center justify-between border-b border-white/10 pb-2">
                     <div className="flex items-center gap-2 text-sm font-bold text-white">
                       <Crown size={18} className="text-amber-400" />
-                      <span>نظام منح الرتب التلقائية الفورية (Discord Auto-Role 👑)</span>
+                      <span>نظام منح الرتب التلقائية (Discord Auto-Role 👑)</span>
                     </div>
                     <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] text-amber-300 font-bold">
                       مفاجأة السلطان
                     </span>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-black/40 border border-amber-500/30 space-y-4">
-                    <p className="text-xs text-zinc-300 leading-relaxed">
-                      عند ضغط الزائر كليك يمين واختيار <span className="text-amber-400 font-bold">مفاجأة السلطان 👑</span>، يدخل سيرفر الديسكورد ويجد الرتبة في حسابه فوراً! يمكنك ضبط إعدادات الرتبة وطرق منحها أدناه:
-                    </p>
-
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-zinc-300 font-bold mb-1 text-xs">
@@ -1464,7 +1537,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
                       <div>
                         <label className="block text-zinc-300 font-bold mb-1 text-xs">
-                          🤖 توكن بوت الديسكورد (Bot Token - للمنح البرمجي)
+                          🤖 توكن بوت الديسكورد (Bot Token)
                         </label>
                         <input
                           type="password"
@@ -1481,184 +1554,188 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                             })
                           }
                           className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
-                          placeholder="MTE5... (توكن البوت بصلاحية Manage Roles)"
+                          placeholder="MTE5... (توكن البوت)"
                         />
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={handleTestBot}
-                            disabled={botTestStatus.loading}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            {botTestStatus.loading ? (
-                              <span>جارٍ فحص البوت...</span>
-                            ) : (
-                              <span>🔍 فحص حالة البوت الآن</span>
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              localStorage.removeItem('sultan_discord_role_claimed');
-                              localStorage.removeItem('sultan_discord_role_claimed_detail');
-                              localStorage.removeItem('sultan_discord_claimed_user');
-                              showToast('تمت إعادة تعيين التفعيل بالمتصفح (يمكنك تجربة التفعيل من جديد) 🔄');
-                              audioEngine.playClickSound();
-                            }}
-                            className="px-3 py-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 hover:text-white text-xs font-bold transition-colors cursor-pointer"
-                          >
-                            🔄 إعادة تعيين حالة التفعيل (للتجربة)
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Bot Test Results Card */}
-                      {(botTestStatus.result || botTestStatus.error) && (
-                        <div className="col-span-1 sm:col-span-2 p-3.5 rounded-xl border text-xs">
-                          {botTestStatus.result && (
-                            <div className="space-y-1.5 text-emerald-300">
-                              <div className="font-bold flex items-center gap-1.5 text-emerald-400">
-                                <Check size={16} />
-                                <span>البوت يعمل ومتصل بنجاح! 👑</span>
-                              </div>
-                              <p>🤖 <strong>اسم البوت:</strong> {botTestStatus.result.botName}</p>
-                              {botTestStatus.result.guildName && (
-                                <p>🏛️ <strong>السيرفر المتصل به:</strong> {botTestStatus.result.guildName}</p>
-                              )}
-                              {botTestStatus.result.roleName && (
-                                <p>🏷️ <strong>رتبة الـ VIP المعينة:</strong> {botTestStatus.result.roleName}</p>
-                              )}
-                            </div>
-                          )}
-                          {botTestStatus.error && (
-                            <div className="text-red-400 space-y-2">
-                              <div className="font-bold flex items-center gap-1.5 text-xs text-red-300">
-                                <AlertCircle size={16} />
-                                <span>تنبيه في فحص البوت:</span>
-                              </div>
-                              <p className="text-xs leading-relaxed font-mono bg-black/40 p-2.5 rounded-lg border border-red-500/20">{botTestStatus.error}</p>
-
-                              {(botTestStatus.error.includes('Could not resolve host') || botTestStatus.error.includes('InfinityFree') || botTestStatus.error.includes('جدار الحماية')) && (
-                                <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs space-y-2 text-right">
-                                  <div className="flex items-center gap-1.5 font-bold text-amber-300">
-                                    <Sparkles size={14} />
-                                    <span>بياناتك (التوكن والآيدي والسيرفر والرتبة) صحيحة 1000%! 👑</span>
-                                  </div>
-                                  <p className="text-[11px] leading-relaxed text-zinc-200">
-                                    استضافة <strong>InfinityFree المجانية</strong> تحظر تقنياً أي اتصال خارجي بسيرفرات Discord لمنع تشغيل البوتات على سيرفراتها المجانية.
-                                  </p>
-                                  <div className="pt-1 border-t border-amber-500/20 text-[11px] text-zinc-200 space-y-1">
-                                    <strong className="text-amber-300 block">🟢 الحل الأسهل والأسرع (بدون أي برمجة):</strong>
-                                    <span>
-                                      ادخل موقع <strong>probot.io</strong> ➔ اختر سيرفرك ➔ <strong>الرتب التلقائية (Autorole)</strong> ➔ اختر رتبة <code className="text-white font-mono">{formData.discordAutoRole?.roleName || 'Friends'}</code>. أي شخص يضغط على مفاجأة السلطان ويدخل السيرفر سيحصل على الرتبة في ثانية واحدة تلقائياً!
-                                    </span>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-zinc-300 font-bold mb-1 text-xs">
-                          ⚡ آيدي تطبيق الديسكورد (Client ID للـ OAuth2)
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.discordAutoRole?.clientId || ''}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              discordAutoRole: {
-                                ...formData.discordAutoRole,
-                                enabled: true,
-                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
-                                clientId: e.target.value
-                              }
-                            })
-                          }
-                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-amber-500"
-                          placeholder="آيدي التطبيق للربط السريع بحسابات الأعضاء"
-                        />
-                      </div>
-
-                      {/* Cloud Proxy Fallback for InfinityFree Firewall */}
-                      <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-gradient-to-r from-emerald-950/40 via-cyan-950/20 to-black/40 border border-emerald-500/30 text-xs space-y-2">
-                        <div className="flex items-center justify-between text-emerald-300 font-bold">
-                          <span className="flex items-center gap-1.5">
-                            <Zap size={14} className="text-yellow-400" />
-                            <span>🌐 رابط البروكسي السحابي (لتجاوز حظر استضافة InfinityFree):</span>
-                          </span>
-                          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                            مفعّل تلقائياً ⚡
-                          </span>
-                        </div>
-                        <input
-                          type="text"
-                          value={formData.discordAutoRole?.apiProxyUrl || 'https://ais-pre-knb6cnmdjserbwyeurhsdn-925476069651.europe-west2.run.app'}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              discordAutoRole: {
-                                ...formData.discordAutoRole,
-                                enabled: true,
-                                roleName: formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪',
-                                apiProxyUrl: e.target.value
-                              }
-                            })
-                          }
-                          className="w-full p-2.5 rounded-xl bg-black/60 border border-white/10 text-white font-mono text-xs outline-none focus:border-emerald-500"
-                          placeholder="https://ais-pre-knb6cnmdjserbwyeurhsdn-925476069651.europe-west2.run.app"
-                        />
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">
-                          🛡️ <strong>لماذا هذا البروكسي؟</strong>
-                          استضافة InfinityFree المجانية تحظر الاتصال الخارجي بالديسكورد (<code className="text-amber-300 font-mono">Could not resolve host: discord.com</code>). يقوم موقعك بالتحويل الذكي فوراً إلى هذا البروكسي السحابي ليفحص حالة البوت ويمنح الرتب بنجاح 100%!
-                        </p>
-                      </div>
-
-                      {/* OAuth2 Redirect URI Notice */}
-                      <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-xs space-y-2">
-                        <div className="flex items-center justify-between text-indigo-300 font-bold">
-                          <span>🔗 رابط الـ Redirect URI المطلوب إضافته في الديسكورد:</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              navigator.clipboard.writeText(typeof window !== 'undefined' ? window.location.origin : '');
-                              audioEngine.playClickSound();
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold transition-colors"
-                          >
-                            نسخ الرابط 📋
-                          </button>
-                        </div>
-                        <p className="font-mono text-[11px] text-amber-300 bg-black/50 p-2 rounded-lg break-all select-all">
-                          {typeof window !== 'undefined' ? window.location.origin : 'https://sultansusu.vercel.app'}
-                        </p>
-                        <p className="text-[11px] text-zinc-300 leading-relaxed">
-                          ⚠️ <strong>حل خطأ «Invalid OAuth2 redirect_uri»:</strong>
-                          <br />
-                          1. افتح <span className="text-indigo-400 font-mono">discord.com/developers/applications</span> ➔ اختر تطبيقك.
-                          <br />
-                          2. من القائمة الجانبية اضغط <strong>OAuth2</strong>.
-                          <br />
-                          3. في قسم <strong>Redirects</strong> اضغط <strong>Add Redirect</strong> والصق الرابط أعلاه (وكذلك رابط موقعك الدائم).
-                          <br />
-                          4. اضغط <strong>Save Changes</strong> بالأسفل، وسيعمل الربط فوراً!
-                        </p>
                       </div>
                     </div>
 
-                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200/90 space-y-2">
-                      <span className="font-bold block text-white">💡 كيفية جعل الرتبة تُعطى للعضو فور دخوله مباشرة:</span>
-                      <ul className="list-disc list-inside space-y-1 text-[11px] text-zinc-300">
-                        <li>
-                          <strong className="text-amber-300">طريقة ProBot التلقائية (الأسهل والأسرع):</strong> ادخل موقع <span className="font-mono text-amber-400">probot.io</span> اختر سيرفرك ➔ <strong>الرتب التلقائية (Autorole)</strong> ➔ اختر رتبة <span className="text-amber-300">{formData.discordAutoRole?.roleName || '𓆩𝑺𝒖𝒍𝒕𝒂𝒏 VIP𓆪'}</span>. أي شخص ينقر على مفاجأة السلطان ويدخل السيرفر سيعطيه بروبوت الرتبة في ثانية واحدة تلقائياً!
-                        </li>
-                        <li>
-                          <strong className="text-amber-300">طريقة الديسكورد الرسمية (Onboarding):</strong> من إعدادات السيرفر ➔ <strong>التهيئة (Onboarding)</strong> ➔ الرتب الافتراضية ➔ اختر الرتبة لتكون مفعلة فور الدخول.
-                        </li>
-                      </ul>
+                    <div className="flex items-center gap-2 flex-wrap pt-1">
+                      <button
+                        type="button"
+                        onClick={handleTestBot}
+                        disabled={botTestStatus.loading}
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/40 text-emerald-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {botTestStatus.loading ? (
+                          <span>جارٍ فحص البوت...</span>
+                        ) : (
+                          <span>🔍 فحص اتصال البوت الآن</span>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.removeItem('sultan_discord_role_claimed');
+                          localStorage.removeItem('sultan_discord_role_claimed_detail');
+                          localStorage.removeItem('sultan_discord_claimed_user');
+                          showToast('تمت إعادة تعيين التفعيل للتجربة 🔄');
+                          audioEngine.playClickSound();
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white text-xs font-medium transition-colors cursor-pointer"
+                      >
+                        🔄 إعادة ضبط تجربة التفعيل
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(typeof window !== 'undefined' ? window.location.origin : '');
+                          audioEngine.playClickSound();
+                          showToast('تم نسخ رابط Redirect URI 📋');
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Copy size={12} />
+                        <span>نسخ Redirect URI</span>
+                      </button>
+                    </div>
+
+                    {/* Bot Test Results Card */}
+                    {(botTestStatus.result || botTestStatus.error) && (
+                      <div className="p-3 rounded-xl border text-xs">
+                        {botTestStatus.result && (
+                          <div className="space-y-1 text-emerald-300">
+                            <div className="font-bold flex items-center gap-1.5 text-emerald-400">
+                              <Check size={15} />
+                              <span>البوت متصل بنجاح: {botTestStatus.result.botName} 👑</span>
+                            </div>
+                            {botTestStatus.result.guildName && (
+                              <p className="text-[11px] text-zinc-400">السيرفر: {botTestStatus.result.guildName}</p>
+                            )}
+                          </div>
+                        )}
+                        {botTestStatus.error && (
+                          <div className="text-red-400 flex items-center gap-1.5">
+                            <AlertCircle size={15} className="shrink-0" />
+                            <span className="text-xs">{botTestStatus.error}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Music Player & Playlist Settings */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <div className="flex items-center gap-2 text-sm font-bold text-white">
+                      <Music size={18} className="text-rose-400" />
+                      <span>إعدادات الموسيقى ومشغل الأغاني (Music Player) 🎵</span>
+                    </div>
+                    <span className="text-[11px] text-zinc-400">
+                      تحكم بالتشغيل التلقائي وقائمة الأغاني
+                    </span>
+                  </div>
+
+                  <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4">
+                    {/* Auto-Play Toggle */}
+                    <div className="flex items-center justify-between gap-4 p-3.5 rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div>
+                        <label className="block text-zinc-200 font-bold text-xs sm:text-sm">
+                          تشغيل الأغاني تلقائياً فور فتح الموقع
+                        </label>
+                        <p className="text-[11px] text-zinc-400 mt-0.5">
+                          {formData.musicAutoPlay
+                            ? 'الموسيقى ستبدأ بالعمل تلقائياً فور دخول الزائر 🟢'
+                            : 'الموسيقى متوقفة افتراضياً - لن تعمل إلا إذا ضغط الزائر على زر التشغيل بنفسه ⏸️'}
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={formData.musicAutoPlay ?? false}
+                          onChange={(e) => {
+                            audioEngine.playAdminToggle(e.target.checked);
+                            setFormData({
+                              ...formData,
+                              musicAutoPlay: e.target.checked
+                            });
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Default Volume Slider */}
+                    <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-zinc-300">مستوى الصوت الافتراضي عند الدخول:</span>
+                        <span className="font-mono text-rose-400 font-bold">
+                          {Math.round((formData.defaultVolume ?? 0.45) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={formData.defaultVolume ?? 0.45}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          setFormData({
+                            ...formData,
+                            defaultVolume: val
+                          });
+                        }}
+                        className="w-full accent-rose-500 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Playlist Track List */}
+                    <div className="space-y-2 pt-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-zinc-300">
+                          قائمة أغاني المشغل ({(formData.tracks || INITIAL_TRACKS).length} تراك معتمد):
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              tracks: INITIAL_TRACKS
+                            });
+                            audioEngine.playClickSound();
+                            showToast('تمت استعادة قائمة الأغاني الافتراضية بنجاح 🔄');
+                          }}
+                          className="text-[11px] text-zinc-400 hover:text-white underline cursor-pointer"
+                        >
+                          استعادة القائمة الأصلية
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {(formData.tracks && formData.tracks.length > 0 ? formData.tracks : INITIAL_TRACKS).map((track, idx) => (
+                          <div
+                            key={track.id || idx}
+                            className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 text-xs hover:border-white/10 transition-colors"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-6 h-6 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center text-[10px] font-mono shrink-0 font-bold">
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="font-bold text-white truncate">{track.title}</p>
+                                <p className="text-[10px] text-zinc-400 truncate">{track.artist}</p>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-zinc-500 shrink-0">
+                              {track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : '0:30'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1717,10 +1794,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <label className="block text-zinc-200 font-bold text-xs sm:text-sm">
-                          إرسال تنبيه فوري إلى ديسكورد عند دخول زائر جديد للموقع
+                          إرسال تنبيه فوري إلى ديسكورد عند دخول زائر جديد
                         </label>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          بدلاً من ظهور إشعارات مزعجة على واجهة الموقع، يقوم النظام بإرسال رسالة Embed فخمة إلى روم ديسكورد الخاصة بك تحتوي على تفاصيل الزائر وبلده ونوع جهازه.
+                          إرسال رسالة بروم الديسكورد بتفاصيل الزائر والدولة والجهاز
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
@@ -1772,14 +1849,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                               : webhookTestStatus === 'success'
                               ? 'تم الإرسال بنجاح! ✅'
                               : webhookTestStatus === 'error'
-                              ? 'فشل الإرسال (تحقق من الرابط) ❌'
+                              ? 'فشل الإرسال ❌'
                               : 'تجربة إرسال إشعار 🚀'}
                           </span>
                         </button>
                       </div>
-                      <p className="text-[10px] text-zinc-500">
-                        * يمكنك إنشاء Webhook بسهولة من إعدادات الروم في سيرفر ديسكورد: <strong>Edit Channel ➔ Integrations ➔ Webhooks ➔ New Webhook ➔ Copy URL</strong>
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -1788,7 +1862,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 <div className="space-y-4 pt-2">
                   <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
                     <Bell size={18} className="text-amber-400" />
-                    <span>نظام التنبيهات الفورية للبريد الإلكتروني 📧 (Email Security Alerts)</span>
+                    <span>تنبيهات البريد الإلكتروني 📧 (Email Security Alerts)</span>
                   </div>
 
                   <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/10 space-y-4">
@@ -1798,7 +1872,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                           تفعيل إرسال الإشعارات إلى بريدك الإلكتروني
                         </label>
                         <p className="text-[11px] text-zinc-400 mt-0.5">
-                          يقوم النظام بإرسال تقرير أمني فوري إلى بريدك يحتوي على تفاصيل الجهاز، المتصفح، التوقيت، ونوع العملية.
+                          تنبيه فوري عند محاولة دخول الأدمن أو تفعيل رتبة VIP
                         </p>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer flex-shrink-0">
@@ -3070,8 +3144,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         جاهز للنشر 100%
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-300 leading-relaxed">
-                      تتضمن هذه الحزمة جميع ملفات الموقع المترجمة والمضغوطة مع ملف <span className="font-mono text-amber-300">.htaccess</span> الخاص بخوادم Apache وسكربت <span className="font-mono text-indigo-300">api_discord_assign.php</span> لربط الديسكورد ومجلد الأغاني. كل ما عليك هو فك الضغط ورفع محتوياتها مباشرة داخل مجلد <strong className="text-white">htdocs</strong>.
+                    <p className="text-xs text-zinc-400 leading-relaxed">
+                      حزمة جاهزة للرفع فوراً على الاستضافة تتضمن كافة ملفات الموقع والأغاني وسكربتات الربط.
                     </p>
                     <button
                       type="button"
@@ -3079,16 +3153,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                       className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-rose-600 to-red-600 hover:opacity-95 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-500/25 transition-all hover:scale-105 active:scale-95 border border-amber-400/40"
                     >
                       <Download size={14} />
-                      <span>تحميل ملف sultan-infinityfree-htdocs.zip الآن 🚀</span>
+                      <span>تحميل ملف sultan-infinityfree-htdocs.zip 🚀</span>
                     </button>
                   </div>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-3 text-xs text-zinc-400">
-                  <Info size={16} className="text-indigo-400 flex-shrink-0 mt-0.5" />
-                  <p className="leading-relaxed">
-                    يتم تخزين جميع التعديلات والإحصاءات محلياً في ذاكرة التخزين السريعة للمتصفح (<span className="text-zinc-200 font-mono">LocalStorage</span>) بحيث تظل محفوظة بشكل دائم حتى عند إغلاق المتصفح أو إعادة تشغيل الجهاز.
-                  </p>
+                <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center gap-2.5 text-xs text-zinc-400">
+                  <ShieldCheck size={16} className="text-emerald-400 shrink-0" />
+                  <span>تزامن سحابي فوري وآمن مع Cloud Firestore لجميع الزوار 🌐</span>
                 </div>
               </div>
             )}

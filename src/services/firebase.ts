@@ -11,6 +11,7 @@ import {
   limit,
   onSnapshot,
   getDocFromServer,
+  getDocs,
   increment,
   DocumentSnapshot,
   QuerySnapshot
@@ -148,7 +149,7 @@ export async function saveGlobalConfigToCloud(config: SiteConfig): Promise<{ suc
       bgStyle: config.bgStyle || 'particle',
       countdownDate: config.countdownDate || '2027-08-25T00:00',
       countdownLabel: config.countdownLabel || 'طريق الثانوية العامة والهدف 🎯',
-      musicAutoPlay: config.musicAutoPlay !== undefined ? config.musicAutoPlay : true,
+      musicAutoPlay: config.musicAutoPlay !== undefined ? config.musicAutoPlay : false,
       defaultVolume: typeof config.defaultVolume === 'number' ? config.defaultVolume : 0.45,
       tracks: Array.isArray(config.tracks) ? config.tracks : null,
       socials: config.socials || {},
@@ -428,3 +429,139 @@ export async function clearAllGlobalSiteLogs(logIds: string[]): Promise<void> {
     console.warn('Clear global logs notice:', err);
   }
 }
+
+/**
+ * Leaderboard Entry for Sultan Runner Game Live Competition
+ */
+export interface GlobalLeaderboardEntry {
+  id: string;
+  name: string;
+  score: number;
+  date: string;
+  timestamp?: number;
+  verified?: boolean;
+}
+
+export const DEFAULT_LEADERBOARD_RECORDS: GlobalLeaderboardEntry[] = [
+  { id: 'p_sultan_legend', name: '𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪', score: 450, date: 'الأسطورة 👑', verified: true, timestamp: 1728000000000 },
+  { id: 'p_shadow_knight', name: 'Shadow Knight', score: 320, date: 'الأمس', verified: false, timestamp: 1728000000000 - 86400000 },
+  { id: 'p_cyber_phoenix', name: 'CyberPhoenix', score: 265, date: 'منذ يومين', verified: false, timestamp: 1728000000000 - 86400000 * 2 },
+  { id: 'p_vortex_pulse', name: 'Vortex ⚡', score: 195, date: 'منذ 3 أيام', verified: false, timestamp: 1728000000000 - 86400000 * 3 },
+  { id: 'p_specter_runner', name: 'Specter', score: 140, date: 'منذ أسبوع', verified: false, timestamp: 1728000000000 - 86400000 * 7 }
+];
+
+/**
+ * Generates deterministic safe Firestore doc ID for each unique player name
+ */
+export function generateLeaderboardDocId(name: string): string {
+  const norm = (name || '').trim().toLowerCase();
+  const encoded = encodeURIComponent(norm).replace(/%/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '');
+  return (`p_${encoded}`).slice(0, 100) || `p_${Date.now()}`;
+}
+
+/**
+ * Saves a player's high score to Cloud Firestore for live multiplayer competition
+ */
+export async function recordGlobalLeaderboardScore(entry: GlobalLeaderboardEntry): Promise<void> {
+  try {
+    const docId = generateLeaderboardDocId(entry.name);
+    const scoreDocRef = doc(db, 'leaderboard', docId);
+
+    // Save with sanitized fields conforming to firestore.rules
+    await setDoc(
+      scoreDocRef,
+      {
+        id: docId,
+        name: (entry.name || 'لاعب مجهول').trim().slice(0, 100),
+        score: Math.max(0, Math.min(Math.round(entry.score), 1000000)),
+        date: (entry.date || 'اليوم').slice(0, 50),
+        timestamp: entry.timestamp || Date.now(),
+        verified: Boolean(entry.verified || entry.name.includes('سلطان') || entry.name.includes('Sultan'))
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn('Record global leaderboard score notice:', err);
+  }
+}
+
+/**
+ * Real-time subscription to global leaderboard scores across all visitors
+ */
+export function subscribeToGlobalLeaderboard(
+  onUpdate: (entries: GlobalLeaderboardEntry[]) => void
+): () => void {
+  try {
+    const col = collection(db, 'leaderboard');
+    const q = query(col, orderBy('score', 'desc'), limit(50));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot: QuerySnapshot) => {
+        if (snapshot.empty) {
+          // Initialize defaults in background so there's always an active board
+          DEFAULT_LEADERBOARD_RECORDS.forEach((rec) => {
+            setDoc(doc(db, 'leaderboard', rec.id), rec).catch(() => {});
+          });
+          onUpdate(DEFAULT_LEADERBOARD_RECORDS);
+          return;
+        }
+
+        const list: GlobalLeaderboardEntry[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as GlobalLeaderboardEntry;
+          if (data && typeof data.score === 'number') {
+            list.push(data);
+          }
+        });
+
+        // Ensure sorted descending
+        list.sort((a, b) => b.score - a.score);
+        onUpdate(list.length > 0 ? list : DEFAULT_LEADERBOARD_RECORDS);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'leaderboard');
+        // Fallback to defaults on offline/error
+        onUpdate(DEFAULT_LEADERBOARD_RECORDS);
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.LIST, 'leaderboard');
+    return () => {};
+  }
+}
+
+/**
+ * Deletes a single score from the leaderboard
+ */
+export async function deleteGlobalLeaderboardScore(scoreId: string): Promise<void> {
+  try {
+    const safeId = scoreId.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    await deleteDoc(doc(db, 'leaderboard', safeId));
+  } catch (err) {
+    console.warn('Delete leaderboard score notice:', err);
+  }
+}
+
+/**
+ * Resets the entire global leaderboard to default records in Firestore
+ */
+export async function clearAllGlobalLeaderboardScores(): Promise<void> {
+  try {
+    const col = collection(db, 'leaderboard');
+    const snapshot = await getDocs(col);
+    const deletePromises = snapshot.docs.map((d) => deleteDoc(d.ref).catch(() => {}));
+    await Promise.all(deletePromises);
+
+    // Re-seed defaults
+    const seedPromises = DEFAULT_LEADERBOARD_RECORDS.map((rec) =>
+      setDoc(doc(db, 'leaderboard', rec.id), rec).catch(() => {})
+    );
+    await Promise.all(seedPromises);
+  } catch (err) {
+    console.warn('Clear global leaderboard notice:', err);
+  }
+}
+

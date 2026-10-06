@@ -71,6 +71,18 @@ service cloud.firestore {
         (!('details' in data) || (data.details is string && data.details.size() <= 500));
     }
 
+    // Validation helper for LeaderboardScore
+    function isValidLeaderboardScore(data) {
+      return data is map &&
+        data.keys().hasAll(['id', 'name', 'score']) &&
+        data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.score is number && data.score >= 0 && data.score <= 1000000 &&
+        (!('date' in data) || (data.date is string && data.date.size() <= 50)) &&
+        (!('timestamp' in data) || (data.timestamp is number)) &&
+        (!('verified' in data) || (data.verified is bool));
+    }
+
     // Catch-all default deny
     match /{document=**} {
       allow read, write: if false;
@@ -102,6 +114,13 @@ service cloud.firestore {
       allow get, list: if true;
       allow create, update: if isValidId(logId) && isValidSiteLog(incoming());
       allow delete: if isValidId(logId);
+    }
+
+    // Global Live Leaderboard: real-time competition for Sultan Runner Game
+    match /leaderboard/{entryId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(entryId) && isValidLeaderboardScore(incoming());
+      allow delete: if isValidId(entryId);
     }
   }
 }

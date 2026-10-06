@@ -31,7 +31,7 @@ interface CornerMusicPlayerProps {
 
 export const CornerMusicPlayer: React.FC<CornerMusicPlayerProps> = ({
   tracks = INITIAL_TRACKS,
-  autoPlay = true,
+  autoPlay = false,
   defaultVolume = 0.45,
   accentColor = '#ef4444',
   onPlayStateChange
@@ -97,7 +97,7 @@ export const CornerMusicPlayer: React.FC<CornerMusicPlayerProps> = ({
           })
           .catch((err) => {
             // Browser autoplay policy blocked unmuted sound
-            if (isAutoAttempt) {
+            if (isAutoAttempt && autoPlay) {
               setShowAutoplayPrompt(true);
               setIsPlaying(false);
             }

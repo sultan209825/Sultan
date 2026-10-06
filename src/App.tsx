@@ -93,6 +93,8 @@ export default function App() {
       bgStyle: (localStorage.getItem('sultan_bg_style') as 'particle' | 'static' | 'glow') || 'particle',
       countdownDate: '2027-08-25T00:00',
       countdownLabel: 'طريق الثانوية العامة والهدف 🎯',
+      musicAutoPlay: false,
+      defaultVolume: 0.45,
       socials: {
         tiktok: 'https://www.tiktok.com/@mohamed0_0hamdy',
         discord: 'https://discord.gg/TUU6EeC6pb'
@@ -432,7 +434,7 @@ export default function App() {
     const rect = cardRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width - 0.5;
     const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({ x: x * 8, y: -y * 8 });
+    setTilt({ x: x * 12, y: -y * 12 });
   };
 
   const handleCardMouseLeave = () => {
@@ -624,6 +626,9 @@ export default function App() {
       {/* Floating Corner Music Player (Dedicated in corner, perfectly styled) */}
       <CornerMusicPlayer
         accentColor={themeAccent}
+        autoPlay={config.musicAutoPlay ?? false}
+        tracks={config.tracks}
+        defaultVolume={config.defaultVolume ?? 0.45}
         onPlayStateChange={(playing) => setIsMusicPlaying(playing)}
       />
 

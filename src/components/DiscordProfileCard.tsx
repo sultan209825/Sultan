@@ -26,6 +26,7 @@ import { audioEngine } from '../utils/audioEngine';
 import { getTheme } from '../utils/themeSystem';
 import { DailyStoryModal } from './DailyStoryModal';
 import { DiscordActivityRadarModal } from './DiscordActivityRadarModal';
+import { CountdownWidget } from './CountdownWidget';
 import { defaultDailyStory } from '../data/defaultDailyStory';
 
 interface DiscordProfileCardProps {
@@ -229,6 +230,23 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   const displayName = lanyard?.discord_user?.global_name || config.username || '! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪';
   const username = lanyard?.discord_user?.username || config.handle || '5susu';
   const [isCardHovered, setIsCardHovered] = useState<boolean>(false);
+  const [glarePos, setGlarePos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+
+  const handleInternalMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      setGlarePos({ x, y });
+    }
+    if (!isCardHovered) setIsCardHovered(true);
+    onMouseMove(e);
+  };
+
+  const handleInternalMouseLeave = () => {
+    setIsCardHovered(false);
+    onMouseLeave();
+  };
 
   return (
     <div className="relative w-full max-w-xl mx-auto py-2">
@@ -249,27 +267,36 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         className={`w-full transition-transform duration-700 ease-out will-change-transform ${
           isCardHovered ? 'animate-sultan-hover-float' : 'animate-sultan-float'
         }`}
+        style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}
       >
         <div
           ref={cardRef}
-          onMouseMove={(e) => {
-            if (!isCardHovered) setIsCardHovered(true);
-            onMouseMove(e);
-          }}
+          onMouseMove={handleInternalMouseMove}
           onMouseEnter={() => setIsCardHovered(true)}
-          onMouseLeave={() => {
-            setIsCardHovered(false);
-            onMouseLeave();
-          }}
+          onMouseLeave={handleInternalMouseLeave}
           style={{
-            transform: `perspective(1100px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) translateZ(0)`,
+            transform: `perspective(1200px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) translateZ(0)`,
+            transformStyle: 'preserve-3d',
             transition: isCardHovered
-              ? 'transform 0.14s cubic-bezier(0.25, 1, 0.5, 1)'
-              : 'transform 0.45s ease-out'
+              ? 'transform 0.12s cubic-bezier(0.25, 1, 0.5, 1)'
+              : 'transform 0.5s ease-out, box-shadow 0.5s ease-out',
+            boxShadow: isCardHovered
+              ? `${-tilt.x * 2.5}px ${tilt.y * 2.5 + 24}px 50px rgba(0, 0, 0, 0.85), 0 0 35px ${activeTheme.accentHex}25`
+              : '0 20px 40px rgba(0, 0, 0, 0.8)'
           }}
-          className={`w-full relative rounded-3xl bg-[#0b0b14]/90 border border-white/10 ${statusConfig.borderGlow} backdrop-blur-2xl shadow-2xl shadow-black/80 transition-all duration-300 overflow-hidden text-right`}
+          className={`w-full relative rounded-3xl bg-[#0b0b14]/90 border border-white/10 ${statusConfig.borderGlow} backdrop-blur-2xl transition-all duration-300 overflow-hidden text-right`}
           dir="rtl"
         >
+      {/* 3D Holographic / Glass Glare Sheen Overlay that follows cursor */}
+      <div
+        className="absolute inset-0 pointer-events-none z-30 transition-opacity duration-300 rounded-3xl"
+        style={{
+          opacity: isCardHovered ? 1 : 0,
+          background: `radial-gradient(circle 380px at ${glarePos.x}% ${glarePos.y}%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 40%, transparent 75%), radial-gradient(circle 240px at ${glarePos.x}% ${glarePos.y}%, ${activeTheme.accentHex}22 0%, transparent 60%)`,
+          mixBlendMode: 'screen'
+        }}
+      />
+
       {/* Dynamic Profile Effect: Floating particles */}
       <div className="absolute inset-0 pointer-events-none z-15 overflow-hidden">
         <div className="absolute top-8 left-1/4 w-1.5 h-1.5 rounded-full bg-cyan-300/60 blur-[0.5px] animate-ping duration-1000" />
@@ -331,7 +358,8 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         <div className="flex items-end justify-between -mt-14 sm:-mt-16 relative z-10 mb-2">
           {/* Steady Calm Avatar with Status Indicator and Live Story Ring */}
           <div
-            className="relative cursor-pointer group/avatar"
+            className="relative cursor-pointer group/avatar shrink-0"
+            style={{ transform: 'translateZ(34px)' }}
             onClick={() => {
               if (dailyStory.enabled !== false) {
                 audioEngine.playPowerUpSound();
@@ -390,7 +418,10 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
 
           {/* Quick Action Buttons on Header Right: Radar, Copy Tag & Account */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+          <div
+            className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2"
+            style={{ transform: 'translateZ(26px)' }}
+          >
             {/* Live Discord Activity Radar Button */}
             <button
               onClick={() => {
@@ -546,19 +577,15 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
         </div>
 
-        {/* 7. المناسبة (Milestone / Countdown Section) */}
-        {countdownString && (
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-red-950/30 via-purple-950/20 to-red-950/30 border border-red-500/25 space-y-1">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-amber-400 font-bold flex items-center gap-1.5">
-                <Calendar size={14} />
-                <span>{config.countdownLabel}</span>
-              </span>
-              <span className="text-[10px] text-red-400/80 font-mono">الحدث المرتقب</span>
-            </div>
-            <p className="text-xs sm:text-sm font-mono-custom text-zinc-200 font-bold tracking-wide">
-              {countdownString}
-            </p>
+        {/* 7. المناسبة والعد التنازلي التفاعلي (Milestone Countdown Widget) */}
+        {config.countdownDate && (
+          <div style={{ transform: 'translateZ(18px)' }}>
+            <CountdownWidget
+              targetDate={config.countdownDate}
+              label={config.countdownLabel || 'المناسبة والهدف القادم 🎯'}
+              accentColor={activeTheme.accentHex}
+              compact={false}
+            />
           </div>
         )}
 

@@ -643,7 +643,7 @@ const queueList = document.getElementById('queueList');
 const volSlider = document.getElementById('volSlider');
 const volBtn = document.getElementById('volBtn');
 
-function loadTrack(idx, autoPlay = true) {
+function loadTrack(idx, autoPlay = false) {
   currentTrackIdx = ((idx % TRACKS.length) + TRACKS.length) % TRACKS.length;
   const t = TRACKS[currentTrackIdx];
   mpTitle.textContent = t.title;

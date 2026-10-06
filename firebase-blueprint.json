@@ -219,6 +219,42 @@
         }
       },
       "required": ["id", "timestamp", "eventType"]
+    },
+    "LeaderboardScore": {
+      "title": "LeaderboardScore",
+      "description": "Global Sultan Runner game player leaderboard record for live multiplayer competition",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique score entry ID or player key",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Player display name",
+          "maxLength": 100
+        },
+        "score": {
+          "type": "number",
+          "description": "Highest score achieved in runner game",
+          "minimum": 0
+        },
+        "date": {
+          "type": "string",
+          "description": "Human readable date label",
+          "maxLength": 50
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp in milliseconds"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Whether the player is verified as Sultan"
+        }
+      },
+      "required": ["id", "name", "score"]
     }
   },
   "firestore": {
@@ -237,6 +273,10 @@
     "/logs/{logId}": {
       "schema": "SiteLog",
       "description": "Live visitor activity logs shared to admin dashboard"
+    },
+    "/leaderboard/{entryId}": {
+      "schema": "LeaderboardScore",
+      "description": "Global competition leaderboard scores synced in real time across all players"
     }
   }
 }
