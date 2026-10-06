@@ -53,6 +53,9 @@ export interface SiteConfig {
   bgStyle?: 'particle' | 'static' | 'glow';
   countdownDate: string;
   countdownLabel: string;
+  musicAutoPlay?: boolean;
+  defaultVolume?: number;
+  tracks?: SongTrack[];
   gamerHub?: GamerHubConfig;
   discordWebhookUrl?: string;
   discordWebhookEnabled?: boolean;

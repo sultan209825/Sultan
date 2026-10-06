@@ -39,13 +39,14 @@ import { ThemeId } from './types';
 import { setupMidnightReportTimer } from './utils/discordWebhook';
 import { audioEngine } from './utils/audioEngine';
 import { generateFullApplicationSourceZip } from './utils/exactAppBuilder';
-import { recordSiteLog } from './utils/siteLogger';
+import { recordSiteLog, getCurrentClientEnv } from './utils/siteLogger';
 import { sendEmailNotification } from './utils/emailNotifier';
 import {
   subscribeToGlobalConfig,
   saveGlobalConfigToCloud,
   incrementGlobalViews,
-  incrementGlobalUpvotes
+  incrementGlobalUpvotes,
+  startVisitorPresenceHeartbeat
 } from './services/firebase';
 
 export default function App() {
@@ -129,6 +130,18 @@ export default function App() {
     return () => {
       unsubscribe();
     };
+  }, []);
+
+  // Real-Time Online Presence Heartbeat for Active Visitors Tracking
+  useEffect(() => {
+    const env = getCurrentClientEnv();
+    const cleanup = startVisitorPresenceHeartbeat({
+      device: env.device,
+      browser: env.browser,
+      os: env.os,
+      currentPath: window.location.hash || '/'
+    });
+    return () => cleanup();
   }, []);
 
   // Periodically check 1-hour expiration so button reactivates on the hour

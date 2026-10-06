@@ -1,8 +1,14 @@
 /**
  * Site Activity Logger & Storage Manager
  * Stores rich event logs (visits, button clicks, secret triggers, game launches, ratings)
- * in localStorage for the Admin LogViewer.
+ * in localStorage and syncs live to Cloud Firestore so the Admin sees all visitors in real time!
  */
+
+import {
+  recordGlobalSiteLog,
+  deleteGlobalSiteLog,
+  clearAllGlobalSiteLogs
+} from '../services/firebase';
 
 export interface SiteLogEntry {
   id: string;
@@ -22,6 +28,41 @@ export interface SiteLogEntry {
 }
 
 const STORAGE_KEY = 'sultan_site_logs';
+
+export let cachedGeoInfo = {
+  country: 'مصر',
+  flag: '🇪🇬',
+  city: 'القاهرة'
+};
+
+if (typeof window !== 'undefined') {
+  try {
+    const saved = sessionStorage.getItem('sultan_geo_info');
+    if (saved) {
+      cachedGeoInfo = JSON.parse(saved);
+    } else {
+      fetch('https://ipapi.co/json/')
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.country_name) {
+            let flagEmoji = '🌍';
+            if (data.country_code && data.country_code.length === 2) {
+              flagEmoji = String.fromCodePoint(
+                ...[...data.country_code.toUpperCase()].map((c) => 127397 + c.charCodeAt(0))
+              );
+            }
+            cachedGeoInfo = {
+              country: data.country_name,
+              flag: flagEmoji,
+              city: data.city || 'القاهرة'
+            };
+            sessionStorage.setItem('sultan_geo_info', JSON.stringify(cachedGeoInfo));
+          }
+        })
+        .catch(() => {});
+    }
+  } catch {}
+}
 
 /**
  * Extracts current visitor environment info
@@ -108,7 +149,7 @@ export function formatLogTime(date: Date = new Date()): string {
 }
 
 /**
- * Records a new event log into localStorage
+ * Records a new event log into localStorage and syncs to Cloud Firestore
  */
 export function recordSiteLog(
   eventType: string,
@@ -130,9 +171,9 @@ export function recordSiteLog(
     timestamp: now.getTime(),
     eventType: eventType || 'نشاط في الموقع ⚡',
     action: actionDesc || '',
-    country: extra?.country || 'مصر',
-    flag: extra?.flag || '🇪🇬',
-    city: extra?.city || 'القاهرة',
+    country: extra?.country || cachedGeoInfo.country || 'مصر',
+    flag: extra?.flag || cachedGeoInfo.flag || '🇪🇬',
+    city: extra?.city || cachedGeoInfo.city || 'القاهرة',
     device: env.device,
     os: env.os,
     browser: env.browser,
@@ -150,6 +191,9 @@ export function recordSiteLog(
   } catch (err) {
     console.error('Failed to store site log', err);
   }
+
+  // Real-time synchronization to Cloud Firestore!
+  recordGlobalSiteLog(newLog).catch(() => {});
 
   return newLog;
 }
@@ -242,10 +286,12 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Clears all site logs from localStorage
+ * Clears all site logs from localStorage and Firestore
  */
 export function clearStoredLogs(): void {
   if (typeof window === 'undefined') return;
+  const current = getStoredLogs();
+  clearAllGlobalSiteLogs(current.map((c) => c.id)).catch(() => {});
   localStorage.removeItem(STORAGE_KEY);
   window.dispatchEvent(new Event('storage'));
 }
@@ -254,6 +300,7 @@ export function clearStoredLogs(): void {
  * Deletes a single log by its unique ID
  */
 export function deleteSingleStoredLog(logId: string): SiteLogEntry[] {
+  deleteGlobalSiteLog(logId).catch(() => {});
   const logs = getStoredLogs().filter((l) => l.id !== logId);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(logs));
   window.dispatchEvent(new Event('storage'));
@@ -271,7 +318,7 @@ export function exportLogsToTextFile(logs: SiteLogEntry[]): void {
   content += `👑 سجل اللوق والنشاطات الشامل لموقع السلطان الرسمي\n`;
   content += `تاريخ التصدير: ${nowStr}\n`;
   content += `إجمالي السجلات: ${logs.length} سجل\n`;
-  content += `الموقع الرسمي: https://sultan.kesug.com\n`;
+  content += `الموقع الرسمي: https://sultansusu.vercel.app\n`;
   content += `========================================================================\n\n`;
 
   logs.forEach((log, index) => {

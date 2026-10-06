@@ -93,6 +93,19 @@ class AudioEngine {
     return this.audioElement;
   }
 
+  public getVolume(): number {
+    return this.volume;
+  }
+
+  public playTrack(track: { id: string; file?: string; tempo?: number; genre?: string }, onEnded?: () => void) {
+    this.currentTrackId = track.id;
+    if (track.file) {
+      this.playAudioFile(track.file, onEnded);
+    } else {
+      this.playSyntheticBeat(track.id, track.tempo || 90, track.genre || 'Drill');
+    }
+  }
+
   public getCurrentPlaybackTime(): number {
     if (this.audioElement && this.isPlaying) {
       return this.audioElement.currentTime;

@@ -74,7 +74,14 @@ import {
 import { audioEngine } from '../utils/audioEngine';
 import { recordSiteLog } from '../utils/siteLogger';
 import { sendEmailNotification } from '../utils/emailNotifier';
-import { saveGlobalConfigToCloud } from '../services/firebase';
+import {
+  saveGlobalConfigToCloud,
+  subscribeToGlobalStats,
+  subscribeToGlobalLogs,
+  subscribeToLivePresence,
+  PresenceVisitor,
+  SiteLogEntry
+} from '../services/firebase';
 import { LogViewer } from './LogViewer';
 
 interface AdminPageProps {
@@ -84,30 +91,19 @@ interface AdminPageProps {
   onDownloadZip: () => void;
 }
 
-interface VisitLog {
-  id: string;
-  time: string;
-  country: string;
-  flag: string;
-  city: string;
-  device: string;
-  os: string;
-  browser: string;
-  referrer: string;
-  duration: string;
-}
+type VisitLog = SiteLogEntry;
 
 const DEFAULT_PASS = 'sultan2026';
 
 const INITIAL_LOGS: VisitLog[] = [
-  { id: '1', time: 'منذ دقيقة', country: 'مصر', flag: '🇪🇬', city: 'القاهرة', device: 'موبايل', os: 'Android', browser: 'Chrome Mobile', referrer: 'discord.gg/TUU6EeC6pb', duration: '3 د 45 ث' },
-  { id: '2', time: 'منذ 8 دقائق', country: 'السعودية', flag: '🇸🇦', city: 'الرياض', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'sultan.kesug.com', duration: '5 د 12 ث' },
-  { id: '3', time: 'منذ 24 دقيقة', country: 'مصر', flag: '🇪🇬', city: 'الإسكندرية', device: 'كمبيوتر', os: 'Windows 10', browser: 'Edge', referrer: 'discord.gg/TUU6EeC6pb', duration: '2 د 05 ث' },
-  { id: '4', time: 'منذ 40 دقيقة', country: 'ألمانيا', flag: '🇩🇪', city: 'فرانكفورت', device: 'كمبيوتر', os: 'Linux', browser: 'Firefox', referrer: 'sultan.kesug.com', duration: '1 د 30 ث' },
-  { id: '5', time: 'منذ ساعة', country: 'السعودية', flag: '🇸🇦', city: 'جدة', device: 'موبايل', os: 'iOS 18', browser: 'Safari', referrer: 'direct / مباشر', duration: '4 د 22 ث' },
-  { id: '6', time: 'منذ ساعتين', country: 'مصر', flag: '🇪🇬', city: 'الجيزة', device: 'موبايل', os: 'iOS 17', browser: 'Chrome Mobile', referrer: 'discord.gg/TUU6EeC6pb', duration: '2 د 50 ث' },
-  { id: '7', time: 'منذ 3 ساعات', country: 'الإمارات', flag: '🇦🇪', city: 'دبي', device: 'كمبيوتر', os: 'macOS Sonoma', browser: 'Safari', referrer: 'sultan.kesug.com', duration: '6 د 10 ث' },
-  { id: '8', time: 'منذ 5 ساعات', country: 'أمريكا', flag: '🇺🇸', city: 'نيويورك', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'google.com', duration: '1 د 15 ث' }
+  { id: '1', time: 'منذ دقيقة', timestamp: Date.now() - 60000, eventType: 'زيارة الموقع 🌍', country: 'مصر', flag: '🇪🇬', city: 'القاهرة', device: 'موبايل', os: 'Android', browser: 'Chrome Mobile', referrer: 'discord.gg/TUU6EeC6pb', duration: '3 د 45 ث' },
+  { id: '2', time: 'منذ 8 دقائق', timestamp: Date.now() - 480000, eventType: 'زيارة الموقع 🌍', country: 'السعودية', flag: '🇸🇦', city: 'الرياض', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'sultansusu.vercel.app', duration: '5 د 12 ث' },
+  { id: '3', time: 'منذ 24 دقيقة', timestamp: Date.now() - 1440000, eventType: 'الضغط على زر 🔘', country: 'مصر', flag: '🇪🇬', city: 'الإسكندرية', device: 'كمبيوتر', os: 'Windows 10', browser: 'Edge', referrer: 'discord.gg/TUU6EeC6pb', duration: '2 د 05 ث' },
+  { id: '4', time: 'منذ 40 دقيقة', timestamp: Date.now() - 2400000, eventType: 'تشغيل الموسيقى 🎵', country: 'ألمانيا', flag: '🇩🇪', city: 'فرانكفورت', device: 'كمبيوتر', os: 'Linux', browser: 'Firefox', referrer: 'sultansusu.vercel.app', duration: '1 د 30 ث' },
+  { id: '5', time: 'منذ ساعة', timestamp: Date.now() - 3600000, eventType: 'كشف سر سلطان 👑', country: 'السعودية', flag: '🇸🇦', city: 'جدة', device: 'موبايل', os: 'iOS 18', browser: 'Safari', referrer: 'direct / مباشر', duration: '4 د 22 ث' },
+  { id: '6', time: 'منذ ساعتين', timestamp: Date.now() - 7200000, eventType: 'تقييم إيجابي 👍', country: 'مصر', flag: '🇪🇬', city: 'الجيزة', device: 'موبايل', os: 'iOS 17', browser: 'Chrome Mobile', referrer: 'discord.gg/TUU6EeC6pb', duration: '2 د 50 ث' },
+  { id: '7', time: 'منذ 3 ساعات', timestamp: Date.now() - 10800000, eventType: 'زيارة الموقع 🌍', country: 'الإمارات', flag: '🇦🇪', city: 'دبي', device: 'كمبيوتر', os: 'macOS Sonoma', browser: 'Safari', referrer: 'sultansusu.vercel.app', duration: '6 د 10 ث' },
+  { id: '8', time: 'منذ 5 ساعات', timestamp: Date.now() - 18000000, eventType: 'فتح لعبة 🎮', country: 'أمريكا', flag: '🇺🇸', city: 'نيويورك', device: 'كمبيوتر', os: 'Windows 11', browser: 'Chrome', referrer: 'google.com', duration: '1 د 15 ث' }
 ];
 
 export const AdminPage: React.FC<AdminPageProps> = ({
@@ -330,6 +326,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     const saved = localStorage.getItem('sultan_site_upvotes');
     return saved !== null ? parseInt(saved, 10) : 0;
   });
+
+  const [onlineCount, setOnlineCount] = useState<number>(1);
+  const [activeVisitorsList, setActiveVisitorsList] = useState<PresenceVisitor[]>([]);
 
   const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -581,6 +580,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   }, [config]);
 
   // Ensure persistent stats are accurately read on mount and synchronized
+  // with both local storage and real-time Cloud Firestore streams
   useEffect(() => {
     const syncStats = () => {
       try {
@@ -620,9 +620,44 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     window.addEventListener('storage', syncStats);
     window.addEventListener('focus', syncStats);
 
+    // 1. Live online visitors subscription (المتصلون الآن)
+    const unsubPresence = subscribeToLivePresence((visitors, count) => {
+      setActiveVisitorsList(visitors);
+      setOnlineCount(count);
+    });
+
+    // 2. Live global visitor logs subscription
+    const unsubLogs = subscribeToGlobalLogs((cloudLogs) => {
+      if (Array.isArray(cloudLogs) && cloudLogs.length > 0) {
+        setLogs(cloudLogs);
+        try {
+          localStorage.setItem('sultan_site_logs', JSON.stringify(cloudLogs));
+        } catch {}
+      }
+    });
+
+    // 3. Live global views and upvotes counter subscription
+    const unsubStats = subscribeToGlobalStats((stats) => {
+      if (typeof stats.views === 'number') {
+        setViews(stats.views);
+        try {
+          localStorage.setItem('sultan_site_views', stats.views.toString());
+        } catch {}
+      }
+      if (typeof stats.upvotes === 'number') {
+        setUpvotes(stats.upvotes);
+        try {
+          localStorage.setItem('sultan_site_upvotes', stats.upvotes.toString());
+        } catch {}
+      }
+    });
+
     return () => {
       window.removeEventListener('storage', syncStats);
       window.removeEventListener('focus', syncStats);
+      unsubPresence();
+      unsubLogs();
+      unsubStats();
     };
   }, []);
 
@@ -2204,19 +2239,26 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                     </p>
                   </div>
 
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-600/10 to-transparent border border-emerald-500/20">
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-600/10 via-emerald-950/20 to-transparent border border-emerald-500/30 shadow-lg shadow-emerald-500/5">
                     <div className="flex items-center justify-between text-zinc-400 mb-1 text-xs">
-                      <span>المتصلون الآن</span>
+                      <span className="font-bold text-white flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                        <span>المتصلون الآن (مباشر)</span>
+                      </span>
                       <Users size={16} className="text-emerald-400" />
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono-custom">
-                        {views === 0 ? 0 : 1}
+                        {onlineCount}
                       </span>
-                      {views > 0 && <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />}
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {onlineCount > 1 ? 'زوار متعددون 🔥' : 'متصل حالياً 🟢'}
+                      </span>
                     </div>
                     <p className="text-[10px] text-zinc-400 mt-1">
-                      {views === 0 ? 'لا يوجد زوار حالياً' : 'تفاعل مباشر في الموقع'}
+                      {activeVisitorsList.length > 0
+                        ? `متصلون من: ${Array.from(new Set(activeVisitorsList.map((v) => `${v.flag || '🌍'} ${v.country || 'مصر'}`))).slice(0, 2).join(' ، ')}`
+                        : 'تفاعل وبث حي متزامن مع السحابة'}
                     </p>
                   </div>
 
@@ -2246,6 +2288,68 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         ? 'لم يتم كشف أي سر بعد (0)'
                         : 'تفاعل مع سلطان ولعبة الركض'}
                     </p>
+                  </div>
+                </div>
+
+                {/* Live Online Visitors Stream Card */}
+                <div className="p-4 sm:p-5 rounded-3xl bg-[#0c101a]/90 border border-emerald-500/30 shadow-xl space-y-3 relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping inline-block" />
+                      <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+                        <span>جلسات الزوار المتصلين بالبث المباشر الآن (Live Sessions) 🟢</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[11px] font-bold border border-emerald-500/30">
+                          {onlineCount} متصل
+                        </span>
+                      </h4>
+                    </div>
+                    <span className="text-[11px] text-zinc-400 font-mono-custom flex items-center gap-1">
+                      <Radio size={12} className="text-emerald-400 animate-pulse" />
+                      <span>متزامن لحظياً عبر Cloud Firestore</span>
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-1">
+                    {(activeVisitorsList.length > 0
+                      ? activeVisitorsList
+                      : [
+                          {
+                            sessionId: 'current-session',
+                            device: 'كمبيوتر',
+                            browser: 'Chrome',
+                            os: 'Windows 11',
+                            country: 'مصر',
+                            flag: '🇪🇬',
+                            city: 'القاهرة',
+                            lastActive: Date.now(),
+                            currentPath: '#admin'
+                          }
+                        ]
+                    ).map((visitor, idx) => (
+                      <div
+                        key={visitor.sessionId || idx}
+                        className="p-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-emerald-500/40 transition-all flex items-center justify-between gap-2.5 text-xs shadow-sm"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="text-2xl shrink-0">{visitor.flag || '🌍'}</span>
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-white truncate text-xs">
+                              {visitor.country || 'مصر'} {visitor.city ? `(${visitor.city})` : ''}
+                            </p>
+                            <p className="text-[10px] text-zinc-400 truncate mt-0.5">
+                              {visitor.device || 'كمبيوتر'} • {visitor.browser || 'متصفح'} {visitor.os ? `(${visitor.os})` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-left shrink-0">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>متصل</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

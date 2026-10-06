@@ -78,6 +78,139 @@
         }
       },
       "required": ["views"]
+    },
+    "SitePresence": {
+      "title": "SitePresence",
+      "description": "Active online visitor session heartbeat",
+      "type": "object",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "description": "Unique session ID",
+          "maxLength": 128
+        },
+        "device": {
+          "type": "string",
+          "description": "Client device type",
+          "maxLength": 50
+        },
+        "browser": {
+          "type": "string",
+          "description": "Client web browser",
+          "maxLength": 50
+        },
+        "os": {
+          "type": "string",
+          "description": "Client operating system",
+          "maxLength": 50
+        },
+        "country": {
+          "type": "string",
+          "description": "Visitor country name",
+          "maxLength": 100
+        },
+        "flag": {
+          "type": "string",
+          "description": "Country flag emoji",
+          "maxLength": 20
+        },
+        "city": {
+          "type": "string",
+          "description": "Visitor city name",
+          "maxLength": 100
+        },
+        "lastActive": {
+          "type": "number",
+          "description": "Timestamp in milliseconds of last heartbeat"
+        },
+        "joinedAt": {
+          "type": "number",
+          "description": "Timestamp in milliseconds when session started"
+        },
+        "currentPath": {
+          "type": "string",
+          "description": "Current URL path or view",
+          "maxLength": 100
+        }
+      },
+      "required": ["sessionId", "lastActive"]
+    },
+    "SiteLog": {
+      "title": "SiteLog",
+      "description": "Real-time activity log entry for visitor actions and events",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique log ID",
+          "maxLength": 128
+        },
+        "time": {
+          "type": "string",
+          "description": "Readable time string",
+          "maxLength": 50
+        },
+        "timestamp": {
+          "type": "number",
+          "description": "Unix timestamp in milliseconds"
+        },
+        "eventType": {
+          "type": "string",
+          "description": "Event category",
+          "maxLength": 100
+        },
+        "action": {
+          "type": "string",
+          "description": "Event action description",
+          "maxLength": 200
+        },
+        "country": {
+          "type": "string",
+          "description": "Country",
+          "maxLength": 100
+        },
+        "flag": {
+          "type": "string",
+          "description": "Flag emoji",
+          "maxLength": 20
+        },
+        "city": {
+          "type": "string",
+          "description": "City",
+          "maxLength": 100
+        },
+        "device": {
+          "type": "string",
+          "description": "Device type",
+          "maxLength": 50
+        },
+        "os": {
+          "type": "string",
+          "description": "Operating system",
+          "maxLength": 50
+        },
+        "browser": {
+          "type": "string",
+          "description": "Browser",
+          "maxLength": 50
+        },
+        "referrer": {
+          "type": "string",
+          "description": "Referrer URL or label",
+          "maxLength": 200
+        },
+        "duration": {
+          "type": "string",
+          "description": "Duration text",
+          "maxLength": 50
+        },
+        "details": {
+          "type": "string",
+          "description": "Additional event details",
+          "maxLength": 500
+        }
+      },
+      "required": ["id", "timestamp", "eventType"]
     }
   },
   "firestore": {
@@ -88,6 +221,14 @@
     "/stats/{statId}": {
       "schema": "SiteStats",
       "description": "Public aggregated site counters and interactions"
+    },
+    "/presence/{sessionId}": {
+      "schema": "SitePresence",
+      "description": "Live active visitor presence documents with heartbeats"
+    },
+    "/logs/{logId}": {
+      "schema": "SiteLog",
+      "description": "Live visitor activity logs shared to admin dashboard"
     }
   }
 }

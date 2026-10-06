@@ -26,6 +26,7 @@ import {
   exportLogsToTextFile,
   recordSiteLog
 } from '../utils/siteLogger';
+import { subscribeToGlobalLogs } from '../services/firebase';
 import { audioEngine } from '../utils/audioEngine';
 import confetti from 'canvas-confetti';
 
@@ -50,13 +51,26 @@ export const LogViewer: React.FC<LogViewerProps> = ({ onRefreshParentStats }) =>
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Sync with localStorage on mount & when storage updates
+  // Sync with localStorage on mount & listen to real-time Cloud Firestore updates
   useEffect(() => {
     const handleSync = () => {
       setLogs(getStoredLogs());
     };
     window.addEventListener('storage', handleSync);
-    return () => window.removeEventListener('storage', handleSync);
+
+    const unsubscribe = subscribeToGlobalLogs((cloudLogs) => {
+      if (Array.isArray(cloudLogs) && cloudLogs.length > 0) {
+        setLogs(cloudLogs);
+        try {
+          localStorage.setItem('sultan_site_logs', JSON.stringify(cloudLogs));
+        } catch {}
+      }
+    });
+
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      unsubscribe();
+    };
   }, []);
 
   // Distinct list of event types present in logs

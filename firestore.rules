@@ -37,6 +37,40 @@ service cloud.firestore {
         data.views is number && data.views >= 0;
     }
 
+    // Validation helper for SitePresence
+    function isValidSitePresence(data) {
+      return data is map &&
+        data.keys().hasAll(['sessionId', 'lastActive']) &&
+        data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 128 &&
+        data.lastActive is number &&
+        (!('device' in data) || (data.device is string && data.device.size() <= 50)) &&
+        (!('browser' in data) || (data.browser is string && data.browser.size() <= 50)) &&
+        (!('os' in data) || (data.os is string && data.os.size() <= 50)) &&
+        (!('country' in data) || (data.country is string && data.country.size() <= 100)) &&
+        (!('flag' in data) || (data.flag is string && data.flag.size() <= 20)) &&
+        (!('city' in data) || (data.city is string && data.city.size() <= 100)) &&
+        (!('currentPath' in data) || (data.currentPath is string && data.currentPath.size() <= 100));
+    }
+
+    // Validation helper for SiteLog
+    function isValidSiteLog(data) {
+      return data is map &&
+        data.keys().hasAll(['id', 'timestamp', 'eventType']) &&
+        data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+        data.timestamp is number &&
+        data.eventType is string && data.eventType.size() > 0 && data.eventType.size() <= 100 &&
+        (!('action' in data) || (data.action is string && data.action.size() <= 200)) &&
+        (!('country' in data) || (data.country is string && data.country.size() <= 100)) &&
+        (!('flag' in data) || (data.flag is string && data.flag.size() <= 20)) &&
+        (!('city' in data) || (data.city is string && data.city.size() <= 100)) &&
+        (!('device' in data) || (data.device is string && data.device.size() <= 50)) &&
+        (!('os' in data) || (data.os is string && data.os.size() <= 50)) &&
+        (!('browser' in data) || (data.browser is string && data.browser.size() <= 50)) &&
+        (!('referrer' in data) || (data.referrer is string && data.referrer.size() <= 200)) &&
+        (!('duration' in data) || (data.duration is string && data.duration.size() <= 50)) &&
+        (!('details' in data) || (data.details is string && data.details.size() <= 500));
+    }
+
     // Catch-all default deny
     match /{document=**} {
       allow read, write: if false;
@@ -54,6 +88,20 @@ service cloud.firestore {
       allow get, list: if true;
       allow create, update: if isValidId(statId) && isValidSiteStats(incoming());
       allow delete: if false;
+    }
+
+    // Live Active Presence: online visitors heartbeats
+    match /presence/{sessionId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(sessionId) && isValidSitePresence(incoming());
+      allow delete: if isValidId(sessionId);
+    }
+
+    // Live Site Activity Logs: visible in Admin dashboard in real time
+    match /logs/{logId} {
+      allow get, list: if true;
+      allow create, update: if isValidId(logId) && isValidSiteLog(incoming());
+      allow delete: if isValidId(logId);
     }
   }
 }
