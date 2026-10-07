@@ -44,6 +44,7 @@ interface DiscordProfileCardProps {
   onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
   onMouseLeave: () => void;
   cardRef: React.RefObject<HTMLDivElement | null>;
+  isEcoMode?: boolean;
 }
 
 export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
@@ -60,7 +61,8 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   onRate,
   onMouseMove,
   onMouseLeave,
-  cardRef
+  cardRef,
+  isEcoMode = false
 }) => {
   const [lanyard, setLanyard] = useState<LanyardData | null>(null);
   const [copiedTag, setCopiedTag] = useState<boolean>(false);
@@ -230,23 +232,6 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   const displayName = lanyard?.discord_user?.global_name || config.username || '! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪';
   const username = lanyard?.discord_user?.username || config.handle || '5susu';
   const [isCardHovered, setIsCardHovered] = useState<boolean>(false);
-  const [glarePos, setGlarePos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-
-  const handleInternalMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (cardRef.current) {
-      const rect = cardRef.current.getBoundingClientRect();
-      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-      setGlarePos({ x, y });
-    }
-    if (!isCardHovered) setIsCardHovered(true);
-    onMouseMove(e);
-  };
-
-  const handleInternalMouseLeave = () => {
-    setIsCardHovered(false);
-    onMouseLeave();
-  };
 
   return (
     <div className="relative w-full max-w-xl mx-auto py-2">
@@ -267,36 +252,18 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         className={`w-full transition-transform duration-700 ease-out will-change-transform ${
           isCardHovered ? 'animate-sultan-hover-float' : 'animate-sultan-float'
         }`}
-        style={{ perspective: '1200px', transformStyle: 'preserve-3d' }}
       >
         <div
           ref={cardRef}
-          onMouseMove={handleInternalMouseMove}
+          onMouseMove={onMouseMove}
           onMouseEnter={() => setIsCardHovered(true)}
-          onMouseLeave={handleInternalMouseLeave}
-          style={{
-            transform: `perspective(1200px) rotateX(${tilt.y}deg) rotateY(${tilt.x}deg) translateZ(0)`,
-            transformStyle: 'preserve-3d',
-            transition: isCardHovered
-              ? 'transform 0.12s cubic-bezier(0.25, 1, 0.5, 1)'
-              : 'transform 0.5s ease-out, box-shadow 0.5s ease-out',
-            boxShadow: isCardHovered
-              ? `${-tilt.x * 2.5}px ${tilt.y * 2.5 + 24}px 50px rgba(0, 0, 0, 0.85), 0 0 35px ${activeTheme.accentHex}25`
-              : '0 20px 40px rgba(0, 0, 0, 0.8)'
+          onMouseLeave={() => {
+            setIsCardHovered(false);
+            onMouseLeave();
           }}
-          className={`w-full relative rounded-3xl bg-[#0b0b14]/90 border border-white/10 ${statusConfig.borderGlow} backdrop-blur-2xl transition-all duration-300 overflow-hidden text-right`}
+          className={`w-full relative rounded-3xl bg-[#0b0b14]/90 border border-white/10 ${statusConfig.borderGlow} backdrop-blur-2xl shadow-2xl shadow-black/80 transition-all duration-300 overflow-hidden text-right`}
           dir="rtl"
         >
-      {/* 3D Holographic / Glass Glare Sheen Overlay that follows cursor */}
-      <div
-        className="absolute inset-0 pointer-events-none z-30 transition-opacity duration-300 rounded-3xl"
-        style={{
-          opacity: isCardHovered ? 1 : 0,
-          background: `radial-gradient(circle 380px at ${glarePos.x}% ${glarePos.y}%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 40%, transparent 75%), radial-gradient(circle 240px at ${glarePos.x}% ${glarePos.y}%, ${activeTheme.accentHex}22 0%, transparent 60%)`,
-          mixBlendMode: 'screen'
-        }}
-      />
-
       {/* Dynamic Profile Effect: Floating particles */}
       <div className="absolute inset-0 pointer-events-none z-15 overflow-hidden">
         <div className="absolute top-8 left-1/4 w-1.5 h-1.5 rounded-full bg-cyan-300/60 blur-[0.5px] animate-ping duration-1000" />
@@ -353,13 +320,12 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
       </div>
 
       {/* Main Body below Banner */}
-      <div className="px-5 sm:px-7 pb-6 space-y-5">
+      <div className="px-4 sm:px-7 pb-6 space-y-4 sm:space-y-5">
         {/* 2. Avatar Overlap Zone with Live Decoration / Frame & Story Ring */}
-        <div className="flex items-end justify-between -mt-14 sm:-mt-16 relative z-10 mb-2">
+        <div className="flex flex-wrap items-end justify-between -mt-12 sm:-mt-16 relative z-10 mb-2 gap-2">
           {/* Steady Calm Avatar with Status Indicator and Live Story Ring */}
           <div
             className="relative cursor-pointer group/avatar shrink-0"
-            style={{ transform: 'translateZ(34px)' }}
             onClick={() => {
               if (dailyStory.enabled !== false) {
                 audioEngine.playPowerUpSound();
@@ -389,7 +355,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
 
             {/* Steady Discord Avatar Container with Story Gradient Ring */}
             <div
-              className={`relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-[#0c0c16] p-1 border-4 border-[#0b0b14] shadow-2xl overflow-hidden transition-all duration-300 ${
+              className={`relative w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-[#0c0c16] p-1 border-4 border-[#0b0b14] shadow-2xl overflow-hidden transition-all duration-300 ${
                 dailyStory.enabled !== false
                   ? 'ring-2 ring-red-500/80 shadow-[0_0_20px_rgba(239,68,68,0.4)]'
                   : 'ring-1 ring-white/10'
@@ -418,17 +384,14 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
 
           {/* Quick Action Buttons on Header Right: Radar, Copy Tag & Account */}
-          <div
-            className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2"
-            style={{ transform: 'translateZ(26px)' }}
-          >
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 max-w-full">
             {/* Live Discord Activity Radar Button */}
             <button
               onClick={() => {
                 audioEngine.playClickSound();
                 setIsRadarModalOpen(true);
               }}
-              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 hover:text-white text-xs font-bold transition-all duration-150 active:scale-90 flex items-center gap-1.5 shadow-sm shadow-cyan-500/20 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 hover:text-white text-[11px] sm:text-xs font-bold transition-all duration-150 active:scale-90 flex items-center gap-1.5 shadow-sm shadow-cyan-500/20 cursor-pointer"
               title="فتح رادار نشاط السلطان بالديسكورد"
             >
               <Radio size={13} className="text-cyan-400 animate-pulse" />
@@ -437,15 +400,15 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
 
             <button
               onClick={handleCopyTag}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-mono-custom transition-all duration-150 active:scale-90 flex items-center gap-1.5 border shadow-sm cursor-pointer ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-[11px] sm:text-xs font-mono-custom transition-all duration-150 active:scale-90 flex items-center gap-1.5 border shadow-sm cursor-pointer max-w-[140px] sm:max-w-none ${
                 copiedTag
                   ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                   : 'bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300 hover:text-white'
               }`}
               title="نسخ يوزر الديسكورد"
             >
-              {copiedTag ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-              <span>{copiedTag ? 'تم النسخ!' : `@${username}`}</span>
+              {copiedTag ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+              <span className="truncate">{copiedTag ? 'تم النسخ!' : `@${username}`}</span>
             </button>
 
             <a
@@ -453,11 +416,11 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => audioEngine.playClickSound()}
-              className="px-2.5 sm:px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752c4] text-white rounded-xl text-xs font-bold transition-all duration-150 hover:scale-105 active:scale-90 flex items-center gap-1.5 shadow-md shadow-indigo-600/30 cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752c4] text-white rounded-xl text-[11px] sm:text-xs font-bold transition-all duration-150 hover:scale-105 active:scale-90 flex items-center gap-1.5 shadow-md shadow-indigo-600/30 cursor-pointer"
               title="فتح حساب وبروفايل ديسكورد الرسمي"
             >
-              <User size={14} />
-              <span className="hidden sm:inline">الأكونت</span>
+              <User size={13} />
+              <span className="hidden xs:inline sm:inline">الأكونت</span>
             </a>
           </div>
         </div>
@@ -579,7 +542,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
 
         {/* 7. المناسبة والعد التنازلي التفاعلي (Milestone Countdown Widget) */}
         {config.countdownDate && (
-          <div style={{ transform: 'translateZ(18px)' }}>
+          <div>
             <CountdownWidget
               targetDate={config.countdownDate}
               label={config.countdownLabel || 'المناسبة والهدف القادم 🎯'}
@@ -590,18 +553,18 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         )}
 
         {/* 9. Discord Server Live Box (Friends For Ever) with Tactile CTA */}
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/30 to-[#0e0d1c] border border-indigo-500/25 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-950/30 to-[#0e0d1c] border border-indigo-500/25 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
                 👑
               </div>
-              <div>
-                <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <span>{serverName}</span>
-                  <ExternalLink size={12} className="text-indigo-400" />
+              <div className="min-w-0">
+                <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                  <span className="truncate">{serverName}</span>
+                  <ExternalLink size={12} className="text-indigo-400 shrink-0" />
                 </h2>
-                <div className="flex items-center gap-2 text-[11px] text-zinc-400 font-mono">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-zinc-400 font-mono">
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
                     <span className="text-emerald-400 font-bold">{onlineMembers}</span> متصل
@@ -614,7 +577,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
               </div>
             </div>
 
-            <span className="text-[11px] font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+            <span className="text-[10px] sm:text-[11px] font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0">
               TUU6EeC6pb
             </span>
           </div>
@@ -624,7 +587,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => audioEngine.playClickSound()}
-            className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 hover:scale-[1.01] active:scale-95 cursor-pointer"
+            className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 hover:scale-[1.01] active:scale-95 cursor-pointer"
           >
             <MessageSquare size={16} />
             <span>انضم لسيرفر السلطان (Friends For Ever) 🚀</span>

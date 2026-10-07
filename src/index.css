@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
 @layer base {
-  body {
+  html, body {
     font-family: 'Cairo', system-ui, sans-serif;
     color: #eae9f2;
     background-color: #06060a;
     overflow-x: hidden;
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 
@@ -152,4 +157,36 @@
 .animate-sultan-floor-shadow {
   animation: sultanFloorShadow 6s ease-in-out infinite;
 }
+
+/* Performance & Eco Mode Optimization rules */
+.eco-mode *,
+.eco-mode *::before,
+.eco-mode *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 150ms !important;
+}
+
+.eco-mode .animate-vinyl,
+.eco-mode .animate-sultan-float,
+.eco-mode .animate-sultan-hover-float,
+.eco-mode .animate-sultan-floor-shadow,
+.eco-mode .animate-pulse-glow,
+.eco-mode .animate-laser,
+.eco-mode .animate-ping,
+.eco-mode .animate-bounce {
+  animation: none !important;
+}
+
+.eco-mode canvas {
+  display: none !important;
+}
+
+.eco-mode .backdrop-blur-xl,
+.eco-mode .backdrop-blur-2xl,
+.eco-mode .backdrop-blur-3xl {
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
 

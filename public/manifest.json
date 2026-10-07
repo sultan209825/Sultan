@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "SULTAN - 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪 Bio & Music Vault",
+  "short_name": "SULTAN",
+  "description": "الموقع الشخصي الفاخر لـ سلطان: مشغل الأغاني الحصري، بطاقة الديسكورد التفاعلية، والألعاب والأسرار.",
+  "theme_color": "#06060a",
+  "background_color": "#06060a",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

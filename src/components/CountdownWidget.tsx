@@ -81,8 +81,8 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({
   return (
     <div
       onClick={handleWidgetClick}
-      className={`group/countdown relative cursor-pointer select-none rounded-2xl bg-gradient-to-br from-black/85 via-[#100c1e]/90 to-black/90 border border-white/10 hover:border-amber-500/40 shadow-lg shadow-black/70 backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-98 ${
-        compact ? 'p-1.5 sm:p-2' : 'p-2 sm:p-2.5'
+      className={`group/countdown relative cursor-pointer select-none rounded-2xl bg-gradient-to-br from-black/85 via-[#100c1e]/90 to-black/90 border border-white/10 hover:border-amber-500/40 shadow-lg shadow-black/70 backdrop-blur-md transition-all duration-300 hover:scale-[1.01] active:scale-98 ${
+        compact ? 'p-1.5 sm:p-2' : 'p-3 sm:p-4'
       } ${className}`}
       style={{
         boxShadow: `0 4px 20px -2px rgba(0, 0, 0, 0.7), 0 0 15px -3px ${accentColor}25`
@@ -99,89 +99,89 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({
       />
 
       {/* Header Label Row */}
-      <div className="relative z-10 flex items-center justify-between gap-1 pb-1 border-b border-white/5">
-        <div className="flex items-center gap-1 min-w-0">
-          <Flame size={compact ? 11 : 12} className="text-amber-400 shrink-0 animate-pulse" />
+      <div className="relative z-10 flex items-center justify-between gap-1 pb-1.5 border-b border-white/5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Flame size={compact ? 11 : 14} className="text-amber-400 shrink-0 animate-pulse" />
           <span
             className={`font-bold text-zinc-200 truncate group-hover/countdown:text-amber-300 transition-colors ${
-              compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'
+              compact ? 'text-[10px]' : 'text-xs sm:text-sm'
             }`}
           >
             {label}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-[8px] sm:text-[9px] font-mono text-zinc-400 bg-white/5 px-1.5 py-0.5 rounded-md border border-white/5 shrink-0">
-          <Clock size={compact ? 9 : 10} className="text-amber-400" />
-          <span>متبقي</span>
+        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] font-mono text-zinc-400 bg-white/5 px-2 py-0.5 rounded-md border border-white/5 shrink-0">
+          <Clock size={compact ? 9 : 11} className="text-amber-400" />
+          <span>متبقي للهدف</span>
         </div>
       </div>
 
       {/* Countdown Digits Grid */}
       {time.isReached ? (
-        <div className="relative z-10 pt-1.5 text-center flex items-center justify-center gap-1.5 text-xs font-bold text-amber-300 animate-bounce">
-          <Sparkles size={14} className="text-amber-400" />
+        <div className="relative z-10 pt-2 text-center flex items-center justify-center gap-1.5 text-xs sm:text-sm font-bold text-amber-300 animate-bounce">
+          <Sparkles size={16} className="text-amber-400" />
           <span>تم الوصول للهدف بنجاح! 👑🎉</span>
         </div>
       ) : (
-        <div className="relative z-10 pt-1.5 flex items-center justify-between gap-1 text-center">
+        <div className={`relative z-10 pt-2 flex items-center justify-between text-center ${compact ? 'gap-1' : 'gap-1.5 sm:gap-2.5'}`}>
           {/* Days */}
-          <div className="flex-1 min-w-[28px] sm:min-w-[34px] py-1 px-0.5 rounded-xl bg-white/[0.04] border border-white/5 group-hover/countdown:border-white/10 transition-colors">
+          <div className={`flex-1 rounded-xl bg-white/[0.04] border border-white/5 group-hover/countdown:border-white/10 transition-colors ${compact ? 'min-w-[28px] py-1 px-0.5' : 'min-w-[36px] sm:min-w-[50px] py-2 px-1'}`}>
             <span
               className={`block font-extrabold font-mono-custom text-white tracking-tight drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] ${
-                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                compact ? 'text-[11px] sm:text-xs' : 'text-sm sm:text-lg font-black'
               }`}
             >
               {time.days}
             </span>
-            <span className="block text-[7px] sm:text-[8px] text-zinc-400 font-sans font-medium">
+            <span className={`block text-zinc-400 font-sans font-medium ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[10px]'}`}>
               يوم
             </span>
           </div>
 
-          <span className="text-zinc-600 font-bold text-[10px] select-none">:</span>
+          <span className={`text-zinc-600 font-bold select-none ${compact ? 'text-[10px]' : 'text-xs sm:text-sm'}`}>:</span>
 
           {/* Hours */}
-          <div className="flex-1 min-w-[26px] sm:min-w-[30px] py-1 px-0.5 rounded-xl bg-white/[0.04] border border-white/5 group-hover/countdown:border-white/10 transition-colors">
+          <div className={`flex-1 rounded-xl bg-white/[0.04] border border-white/5 group-hover/countdown:border-white/10 transition-colors ${compact ? 'min-w-[26px] py-1 px-0.5' : 'min-w-[34px] sm:min-w-[46px] py-2 px-1'}`}>
             <span
               className={`block font-extrabold font-mono-custom text-zinc-200 tracking-tight ${
-                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                compact ? 'text-[11px] sm:text-xs' : 'text-sm sm:text-lg font-black'
               }`}
             >
               {pad(time.hours)}
             </span>
-            <span className="block text-[7px] sm:text-[8px] text-zinc-400 font-sans font-medium">
+            <span className={`block text-zinc-400 font-sans font-medium ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[10px]'}`}>
               ساعة
             </span>
           </div>
 
-          <span className="text-zinc-600 font-bold text-[10px] select-none">:</span>
+          <span className={`text-zinc-600 font-bold select-none ${compact ? 'text-[10px]' : 'text-xs sm:text-sm'}`}>:</span>
 
           {/* Minutes */}
-          <div className="flex-1 min-w-[26px] sm:min-w-[30px] py-1 px-0.5 rounded-xl bg-white/[0.04] border border-white/5 group-hover/countdown:border-white/10 transition-colors">
+          <div className={`flex-1 rounded-xl bg-white/[0.04] border border-white/5 group-hover/countdown:border-white/10 transition-colors ${compact ? 'min-w-[26px] py-1 px-0.5' : 'min-w-[34px] sm:min-w-[46px] py-2 px-1'}`}>
             <span
               className={`block font-extrabold font-mono-custom text-zinc-200 tracking-tight ${
-                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                compact ? 'text-[11px] sm:text-xs' : 'text-sm sm:text-lg font-black'
               }`}
             >
               {pad(time.minutes)}
             </span>
-            <span className="block text-[7px] sm:text-[8px] text-zinc-400 font-sans font-medium">
+            <span className={`block text-zinc-400 font-sans font-medium ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[10px]'}`}>
               دقيقة
             </span>
           </div>
 
-          <span className="text-zinc-600 font-bold text-[10px] select-none">:</span>
+          <span className={`text-zinc-600 font-bold select-none ${compact ? 'text-[10px]' : 'text-xs sm:text-sm'}`}>:</span>
 
           {/* Seconds (Pulsing live tick) */}
-          <div className="flex-1 min-w-[26px] sm:min-w-[30px] py-1 px-0.5 rounded-xl bg-gradient-to-b from-amber-500/15 to-transparent border border-amber-500/30 group-hover/countdown:border-amber-400/50 transition-colors shadow-sm">
+          <div className={`flex-1 rounded-xl bg-gradient-to-b from-amber-500/15 to-transparent border border-amber-500/30 group-hover/countdown:border-amber-400/50 transition-colors shadow-sm ${compact ? 'min-w-[26px] py-1 px-0.5' : 'min-w-[34px] sm:min-w-[46px] py-2 px-1'}`}>
             <span
               className={`block font-extrabold font-mono-custom text-amber-400 tracking-tight animate-pulse ${
-                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                compact ? 'text-[11px] sm:text-xs' : 'text-sm sm:text-lg font-black'
               }`}
             >
               {pad(time.seconds)}
             </span>
-            <span className="block text-[7px] sm:text-[8px] text-amber-300/80 font-sans font-medium">
+            <span className={`block text-amber-300/80 font-sans font-medium ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[10px]'}`}>
               ثانية
             </span>
           </div>

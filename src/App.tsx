@@ -42,6 +42,10 @@ import { audioEngine } from './utils/audioEngine';
 import { generateFullApplicationSourceZip } from './utils/exactAppBuilder';
 import { recordSiteLog, getCurrentClientEnv } from './utils/siteLogger';
 import { sendEmailNotification } from './utils/emailNotifier';
+import { useEcoMode } from './hooks/useEcoMode';
+import { EcoModeToggle } from './components/EcoModeToggle';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import {
   subscribeToGlobalConfig,
   saveGlobalConfigToCloud,
@@ -51,6 +55,7 @@ import {
 } from './services/firebase';
 
 export default function App() {
+  const { isEcoMode, toggleEcoMode, battery } = useEcoMode();
   const [isLoading, setIsLoading] = useState<boolean>(() => {
     // Only show loading screen once per session
     return !sessionStorage.getItem('sultan_session_loaded');
@@ -429,12 +434,8 @@ export default function App() {
     setTimeout(() => setEasterEggBanner(null), 3000);
   };
 
-  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({ x: x * 12, y: -y * 12 });
+  const handleCardMouseMove = (_e: React.MouseEvent<HTMLDivElement>) => {
+    // 3D Parallax tilt disabled as requested
   };
 
   const handleCardMouseLeave = () => {
@@ -546,7 +547,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#06060a] text-zinc-100 flex flex-col justify-between selection:bg-red-500/30 selection:text-white relative overflow-hidden">
       {/* Background Interactive Particles */}
-      <BackgroundCanvas effect={config.bgEffect} accentColor={themeAccent} />
+      <BackgroundCanvas effect={config.bgEffect} accentColor={themeAccent} ecoMode={isEcoMode} />
 
       {/* Ambient background glows */}
       <div
@@ -558,17 +559,27 @@ export default function App() {
         style={{ background: activeTheme.secondaryHex }}
       />
 
-      {/* Top Banner: Elegant Sultan Branding with Theme Switcher */}
-      <header className="relative z-20 w-full border-b border-white/5 bg-black/60 backdrop-blur-md px-4 py-2.5">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-zinc-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold text-white hidden sm:inline">سلطان • SULTAN</span>
-            <span className="text-zinc-400">|</span>
-            <span className="text-zinc-300 font-mono-custom truncate">{config.footerDomain || 'sultansusu.vercel.app'}</span>
+      {/* Top Banner: Elegant Sultan Branding with Theme Switcher, Eco Mode & PWA Install */}
+      <header className="relative z-20 w-full border-b border-white/5 bg-black/60 backdrop-blur-md px-3 sm:px-4 py-2 sm:py-2.5">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3 text-xs">
+          <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-300 min-w-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="font-bold text-white hidden sm:inline shrink-0">سلطان • SULTAN</span>
+            <span className="text-zinc-400 hidden sm:inline">|</span>
+            <span className="text-zinc-300 font-mono-custom text-[11px] sm:text-xs truncate max-w-[120px] xs:max-w-[160px] sm:max-w-none">{config.footerDomain || 'sultansusu.vercel.app'}</span>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Eco Mode / Performance Mode Switcher */}
+            <EcoModeToggle
+              isEcoMode={isEcoMode}
+              onToggle={toggleEcoMode}
+              battery={battery}
+            />
+
+            {/* In-App PWA Install Button */}
+            <PWAInstallButton variant="header" />
+
             <ThemeSwitcher
               currentTheme={config.theme}
               onThemeChange={(newTh) => {
@@ -579,7 +590,7 @@ export default function App() {
                 });
               }}
             />
-            <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 font-mono">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-zinc-400 font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
               <span className="text-zinc-300 font-bold">𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪</span>
             </div>
@@ -589,34 +600,35 @@ export default function App() {
 
       {/* Secret Easter Egg Pop Banner */}
       {easterEggBanner && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-          <div className="px-6 py-3 rounded-2xl bg-black/90 border border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.6)] backdrop-blur-xl flex items-center gap-3">
-            <span className="text-3xl">{easterEggBanner.emoji}</span>
-            <div>
-              <p className="font-bold text-white text-base">{easterEggBanner.title}</p>
-              <p className="text-xs text-zinc-400">{easterEggBanner.subtitle}</p>
+        <div className="fixed top-14 sm:top-16 left-1/2 -translate-x-1/2 z-50 animate-bounce px-3 max-w-sm w-full">
+          <div className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-black/90 border border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.6)] backdrop-blur-xl flex items-center gap-3">
+            <span className="text-2xl sm:text-3xl shrink-0">{easterEggBanner.emoji}</span>
+            <div className="min-w-0">
+              <p className="font-bold text-white text-sm sm:text-base truncate">{easterEggBanner.title}</p>
+              <p className="text-[11px] sm:text-xs text-zinc-400 truncate">{easterEggBanner.subtitle}</p>
             </div>
           </div>
         </div>
       )}
 
       {/* Main Content Area */}
-      <main className="relative z-10 flex-1 max-w-xl mx-auto w-full px-4 py-6 sm:py-8 flex flex-col items-center justify-center gap-6">
+      <main className="relative z-10 flex-1 max-w-xl mx-auto w-full px-3.5 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 flex flex-col items-center justify-center gap-5 sm:gap-6">
         <DiscordProfileCard
           config={config}
           typedBio={typedBio}
           countdownString={countdownString}
           isMusicPlaying={isMusicPlaying}
           musicTempo={musicTempo}
-          tilt={tilt}
+          tilt={isEcoMode ? { x: 0, y: 0 } : tilt}
           onAvatarClick={() => triggerSecret('sultan')}
           onShare={handleSharePage}
           copiedLink={copiedLink}
           hasRated={hasRated}
           onRate={handleRate}
-          onMouseMove={handleCardMouseMove}
+          onMouseMove={isEcoMode ? () => {} : handleCardMouseMove}
           onMouseLeave={handleCardMouseLeave}
           cardRef={cardRef}
+          isEcoMode={isEcoMode}
         />
 
         {/* Gamer Showcase Card (Feature 5) */}
@@ -681,6 +693,7 @@ export default function App() {
           }
         }}
       />
+      <OfflineIndicator />
     </div>
   );
 }

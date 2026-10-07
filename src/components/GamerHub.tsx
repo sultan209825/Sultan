@@ -68,7 +68,7 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
   };
 
   return (
-    <section className="w-full relative rounded-3xl bg-black/40 backdrop-blur-xl border border-white/10 p-5 sm:p-6 shadow-2xl transition-all duration-300 hover:border-white/20 overflow-hidden group">
+    <section className="w-full relative rounded-3xl bg-black/40 backdrop-blur-xl border border-white/10 p-4 sm:p-6 shadow-2xl transition-all duration-300 hover:border-white/20 overflow-hidden group">
       {/* Dynamic ambient backdrop glow */}
       <div
         className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none transition-all duration-700"
@@ -80,39 +80,39 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
       />
 
       {/* Header */}
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-white/10">
-        <div className="flex items-center gap-3">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 sm:pb-4 mb-3.5 sm:mb-4 border-b border-white/10">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center border shadow-lg transition-transform group-hover:scale-105"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center border shadow-lg transition-transform group-hover:scale-105 shrink-0"
             style={{
               backgroundColor: `${theme.accentHex}15`,
               borderColor: `${theme.accentHex}40`
             }}
           >
-            <Gamepad2 size={20} style={{ color: theme.accentHex }} className="animate-pulse" />
+            <Gamepad2 size={18} style={{ color: theme.accentHex }} className="animate-pulse" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base sm:text-lg font-extrabold text-white">منطقة اللاعب (Gamer Showcase)</h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-custom font-bold bg-white/10 border border-white/15 text-zinc-300">
+              <h3 className="text-sm sm:text-lg font-extrabold text-white truncate">منطقة اللاعب (Gamer Showcase)</h3>
+              <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono-custom font-bold bg-white/10 border border-white/15 text-zinc-300 shrink-0">
                 PRO 🎮
               </span>
             </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              آيديات وحسابات السلطان في الألعاب • انسخ الآيدي والعب معي! ⚔️
+            <p className="text-[11px] sm:text-xs text-zinc-400 mt-0.5 truncate">
+              آيديات وحسابات السلطان في الألعاب • انسخ والعب معي! ⚔️
             </p>
           </div>
         </div>
 
         {/* Status Indicator */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] sm:text-xs font-bold self-start sm:self-auto shrink-0">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span>{config.statusText || 'جاهز للعب وسحق الخصوم 🟢'}</span>
         </div>
       </div>
 
       {/* Game Cards Grid */}
-      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-3.5">
+      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
         {enabledAccounts.map((acc) => {
           const badge = getGameBadge(acc.game);
           const fullCopyText = acc.tagOrCode

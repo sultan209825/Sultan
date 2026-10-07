@@ -48,8 +48,10 @@ import {
   MousePointerClick,
   TrendingUp,
   Copy,
-  X
+  X,
+  Leaf
 } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -1410,6 +1412,55 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Progressive Web App (PWA) & Eco Mode Section */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-white border-b border-white/10 pb-2">
+                    <Smartphone size={18} className="text-cyan-400" />
+                    <span>تطبيق الهاتف (PWA) وإعدادات توفير الطاقة وسلاسة الحركة</span>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* PWA Card */}
+                      <div className="p-3.5 rounded-xl bg-gradient-to-br from-cyan-950/30 to-black/60 border border-cyan-500/30 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <Smartphone className="w-4 h-4 text-cyan-400" />
+                            <span>تطبيق الهاتف الكامل (PWA App)</span>
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                            جاهز ومثبت 📱
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                          تم تحويل الموقع بالكامل إلى Progressive Web App يعمل بدون شريط المتصفح، مع دعم وضع عدم الاتصال (Offline) والذاكرة المؤقتة السريعة.
+                        </p>
+                        <PWAInstallButton variant="card" />
+                      </div>
+
+                      {/* Eco Mode Card */}
+                      <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/30 to-black/60 border border-emerald-500/30 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <Leaf className="w-4 h-4 text-emerald-400" />
+                            <span>وضع توفير الطاقة (Performance / Eco)</span>
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            ذكي وتلقائي ⚡
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-zinc-400 leading-relaxed">
+                          يقوم بإيقاف الجسيمات المتحركة وإراحة معالج الهاتف والـ GPU لحفظ شحن البطارية وتسريع الاستجابة على الأجهزة الضعيفة.
+                        </p>
+                        <div className="flex items-center justify-between p-2 rounded-lg bg-black/50 border border-white/5 text-xs">
+                          <span className="text-zinc-300 font-semibold">مستشعر شحن البطارية:</span>
+                          <span className="text-emerald-400 font-mono font-bold">نشط ومرتبط بالمؤشر 🔋</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 

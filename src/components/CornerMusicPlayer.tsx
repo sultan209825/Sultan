@@ -222,44 +222,44 @@ export const CornerMusicPlayer: React.FC<CornerMusicPlayerProps> = ({
 
       {/* Main Corner Floating Widget */}
       <div
-        className="fixed bottom-5 left-5 z-40 select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
+        className="fixed bottom-3 sm:bottom-5 left-3 sm:left-5 z-40 select-none animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-[calc(100vw-24px)]"
         dir="rtl"
       >
         {!isExpanded ? (
           /* Minimized Floating Pill */
-          <div className="flex items-center gap-2 p-1.5 pl-3 rounded-full bg-[#0d0d18]/90 border border-red-500/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(239,68,68,0.25)] hover:border-red-400 transition-all group">
+          <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 pl-2.5 sm:pl-3 rounded-full bg-[#0d0d18]/90 border border-red-500/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(239,68,68,0.25)] hover:border-red-400 transition-all group max-w-full">
             {/* Play / Pause Toggle Button */}
             <button
               onClick={togglePlay}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+              className={`w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full flex items-center justify-center transition-all ${
                 isPlaying
                   ? 'bg-gradient-to-tr from-red-600 via-amber-600 to-red-500 text-white shadow-lg shadow-red-500/30'
                   : 'bg-white/10 text-zinc-300 hover:bg-white/20'
               }`}
               title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل الموسيقى'}
             >
-              {isPlaying ? <Pause size={14} /> : <Play size={14} className="translate-x-0.5" />}
+              {isPlaying ? <Pause size={13} /> : <Play size={13} className="translate-x-0.5" />}
             </button>
 
             {/* Next Track Button */}
             <button
               onClick={handleNextTrack}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1 sm:p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
               title="تخطي للأغنية التالية (⏭️)"
             >
-              <SkipForward size={14} />
+              <SkipForward size={13} />
             </button>
 
             {/* Click to Expand Info */}
             <button
               onClick={() => setIsExpanded(true)}
-              className="flex items-center gap-2 text-right py-1 hover:opacity-90 max-w-[170px] sm:max-w-[210px]"
+              className="flex items-center gap-1.5 sm:gap-2 text-right py-1 hover:opacity-90 max-w-[140px] sm:max-w-[210px] min-w-0"
               title="فتح مشغل الموسيقى وقائمة الأغاني"
             >
               <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <Crown size={12} className="text-amber-400 shrink-0" />
-                  <span className="text-xs font-bold text-white truncate font-display-custom">
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <Crown size={11} className="text-amber-400 shrink-0" />
+                  <span className="text-[11px] sm:text-xs font-bold text-white truncate font-display-custom">
                     {activeTrack.title}
                   </span>
                   {isPlaying && (
@@ -270,18 +270,18 @@ export const CornerMusicPlayer: React.FC<CornerMusicPlayerProps> = ({
                     </span>
                   )}
                 </div>
-                <span className="text-[10px] text-zinc-400 truncate">
-                  {isPlaying ? `${activeTrack.artist} • شغال الآن 🎵` : 'انقر للتشغيل أو تغيير التراك 🎧'}
+                <span className="text-[9px] sm:text-[10px] text-zinc-400 truncate">
+                  {isPlaying ? `${activeTrack.artist} • شغال 🎵` : 'انقر للقائمة 🎧'}
                 </span>
               </div>
-              <ChevronUp size={14} className="text-zinc-400 group-hover:text-white transition-colors shrink-0" />
+              <ChevronUp size={13} className="text-zinc-400 group-hover:text-white transition-colors shrink-0" />
             </button>
           </div>
         ) : (
           /* Expanded Full Floating Player Card */
-          <div className="w-80 sm:w-88 rounded-3xl bg-[#0c0c16]/95 border border-red-500/40 p-4 sm:p-5 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(239,68,68,0.3)] space-y-4">
+          <div className="w-[calc(100vw-24px)] max-w-[340px] sm:w-88 rounded-3xl bg-[#0c0c16]/95 border border-red-500/40 p-4 sm:p-5 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(239,68,68,0.3)] space-y-3 sm:space-y-4">
             {/* Header: Title & Close Button */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5 sm:pb-3">
               <div className="flex items-center gap-2.5">
                 <div
                   className={`w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-red-600 flex items-center justify-center text-white shadow-md ${

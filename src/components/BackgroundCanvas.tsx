@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 interface BackgroundCanvasProps {
   effect: 'auto' | 'winter' | 'summer' | 'cyber' | 'rain' | 'none';
   accentColor?: string;
+  ecoMode?: boolean;
 }
 
 interface Ripple {
@@ -34,12 +35,20 @@ interface Splash {
 
 export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
   effect = 'auto',
-  accentColor = '#ef4444'
+  accentColor = '#ef4444',
+  ecoMode = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    if (effect === 'none') return;
+    if (effect === 'none' || ecoMode) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
 
