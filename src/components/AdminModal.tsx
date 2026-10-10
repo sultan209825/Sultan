@@ -26,6 +26,18 @@ import { SiteConfig } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { sendEmailNotification } from '../utils/emailNotifier';
 import { generateFullApplicationSourceZip } from '../utils/exactAppBuilder';
+import { sendAnnouncementToDiscord } from '../utils/discordWebhook';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -72,6 +84,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [formData, setFormData] = useState<SiteConfig>(config);
   const [savedToast, setSavedToast] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [announceLoading, setAnnounceLoading] = useState<boolean>(false);
+  const [announceFeedback, setAnnounceFeedback] = useState<string>('');
+
+  const handleTestAnnounce = async () => {
+    if (!formData.discordWebhookUrl) {
+      alert('يرجى كتابة رابط الويب هوك أولاً');
+      return;
+    }
+    setAnnounceLoading(true);
+    setAnnounceFeedback('');
+    audioEngine.playPowerUpSound();
+    const res = await sendAnnouncementToDiscord(
+      formData.discordWebhookUrl,
+      '👑 تجربة إشعار تلقائي من موقع السلطان',
+      'تم إرسال هذا الإشعار بنجاح للتأكد من ربط الويب هوك بسيرفر ديسكورد! 🚀'
+    );
+    setAnnounceLoading(false);
+    setAnnounceFeedback(res.message || (res.success ? 'تم إرسال الإشعار بنجاح!' : 'فشل الإرسال'));
+  };
 
   // Stats state
   const [totalViews, setTotalViews] = useState<number>(() => {
@@ -185,9 +216,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     l.referrer.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleClose = () => {
+    window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+    window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    audioEngine.playClickSound();
+    onClose();
+  };
+
   return (
     <div
-      onClick={onClose}
+      onClick={handleClose}
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
       dir="rtl"
     >
@@ -211,11 +252,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </div>
 
           <button
-            onClick={() => {
-              audioEngine.playClickSound();
-              onClose();
-            }}
-            className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white"
+            onClick={handleClose}
+            className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white cursor-pointer"
+            aria-label="إغلاق"
           >
             <X size={18} />
           </button>

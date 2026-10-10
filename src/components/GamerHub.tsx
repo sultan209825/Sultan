@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Gamepad2, Copy, Check, ExternalLink, ShieldCheck, Flame, Trophy, Sparkles, Swords, Zap } from 'lucide-react';
+import { Gamepad2, Copy, Check, ExternalLink, Trophy, Sparkles, Swords, Zap } from 'lucide-react';
 import { GamerAccount, GamerHubConfig } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { ThemeDefinition } from '../utils/themeSystem';
@@ -68,7 +68,7 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
   };
 
   return (
-    <section className="w-full relative rounded-3xl bg-black/40 backdrop-blur-xl border border-white/10 p-4 sm:p-6 shadow-2xl transition-all duration-300 hover:border-white/20 overflow-hidden group">
+    <section className="w-full relative rounded-3xl bg-black/50 backdrop-blur-xl border border-white/10 p-4 sm:p-6 shadow-2xl transition-all duration-300 hover:border-white/20 overflow-hidden group text-right" dir="rtl">
       {/* Dynamic ambient backdrop glow */}
       <div
         className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-3xl opacity-20 pointer-events-none transition-all duration-700"
@@ -80,38 +80,38 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
       />
 
       {/* Header */}
-      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 sm:pb-4 mb-3.5 sm:mb-4 border-b border-white/10">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 sm:pb-4 mb-3 border-b border-white/10">
         <div className="flex items-center gap-2.5 sm:gap-3">
           <div
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center border shadow-lg transition-transform group-hover:scale-105 shrink-0"
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center border shadow-lg transition-transform group-hover:scale-105 shrink-0"
             style={{
               backgroundColor: `${theme.accentHex}15`,
               borderColor: `${theme.accentHex}40`
             }}
           >
-            <Gamepad2 size={18} style={{ color: theme.accentHex }} className="animate-pulse" />
+            <Gamepad2 size={20} style={{ color: theme.accentHex }} className="animate-pulse" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-lg font-extrabold text-white truncate">منطقة اللاعب (Gamer Showcase)</h3>
-              <span className="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-mono-custom font-bold bg-white/10 border border-white/15 text-zinc-300 shrink-0">
+              <h3 className="text-base sm:text-lg font-black text-white truncate">منطقة اللاعب (Gamer Showcase)</h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono-custom font-bold bg-white/10 border border-white/15 text-zinc-200 shrink-0">
                 PRO 🎮
               </span>
             </div>
-            <p className="text-[11px] sm:text-xs text-zinc-400 mt-0.5 truncate">
+            <p className="text-xs text-zinc-300 mt-0.5 truncate font-medium">
               آيديات وحسابات السلطان في الألعاب • انسخ والعب معي! ⚔️
             </p>
           </div>
         </div>
 
         {/* Status Indicator */}
-        <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[11px] sm:text-xs font-bold self-start sm:self-auto shrink-0">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold self-start sm:self-auto shrink-0 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span>{config.statusText || 'جاهز للعب وسحق الخصوم 🟢'}</span>
         </div>
       </div>
 
-      {/* Game Cards Grid */}
+      {/* Game Cards Grid (مباشرة بدون تصفية) */}
       <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-3.5">
         {enabledAccounts.map((acc) => {
           const badge = getGameBadge(acc.game);
@@ -125,20 +125,20 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
               key={acc.id}
               className={`p-4 rounded-2xl border transition-all duration-300 relative group/card flex flex-col justify-between gap-3 ${
                 isCopied
-                  ? 'bg-emerald-950/30 border-emerald-500/50 shadow-[0_0_25px_rgba(16,185,129,0.2)]'
-                  : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/10 hover:border-white/20'
+                  ? 'bg-emerald-950/40 border-emerald-500/60 shadow-[0_0_25px_rgba(16,185,129,0.25)]'
+                  : 'bg-white/[0.03] hover:bg-white/[0.07] border-white/10 hover:border-white/25 shadow-lg'
               }`}
             >
               {/* Card Top: Game badge + Rank */}
               <div className="flex items-center justify-between gap-2">
-                <div className={`px-2.5 py-1 rounded-xl border bg-gradient-to-r text-[10px] font-bold font-mono-custom flex items-center gap-1.5 ${badge.color}`}>
+                <div className={`px-2.5 py-1 rounded-xl border bg-gradient-to-r text-[10px] font-extrabold font-mono-custom flex items-center gap-1.5 ${badge.color}`}>
                   <span>{badge.icon}</span>
                   <span>{badge.badgeText}</span>
                 </div>
 
                 {acc.rank && (
-                  <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[10px] font-bold">
-                    <Trophy size={11} className="text-amber-400" />
+                  <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-bold font-mono">
+                    <Trophy size={12} className="text-amber-400" />
                     <span>{acc.rank}</span>
                   </div>
                 )}
@@ -147,42 +147,42 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
               {/* Card Middle: IGN and details */}
               <div className="text-right">
                 <div className="flex items-baseline gap-1.5 flex-wrap">
-                  <span className="text-sm sm:text-base font-extrabold text-white font-mono-custom tracking-wide">
+                  <span className="text-base sm:text-lg font-black text-white font-mono-custom tracking-wide">
                     {acc.ign}
                   </span>
                   {acc.tagOrCode && (
-                    <span className="text-xs font-mono-custom font-bold text-zinc-400">
+                    <span className="text-xs font-mono-custom font-extrabold text-zinc-300 bg-white/5 px-1.5 py-0.5 rounded">
                       {acc.tagOrCode}
                     </span>
                   )}
                 </div>
                 {acc.extraInfo && (
-                  <p className="text-[11px] text-zinc-400 mt-1 flex items-center gap-1">
-                    <Sparkles size={11} style={{ color: theme.accentHex }} />
+                  <p className="text-xs text-zinc-300 mt-1 flex items-center gap-1 font-medium">
+                    <Sparkles size={12} style={{ color: theme.accentHex }} />
                     <span>{acc.extraInfo}</span>
                   </p>
                 )}
               </div>
 
-              {/* Card Bottom: Action buttons */}
+              {/* Card Bottom: Action buttons (Touch target 44px) */}
               <div className="flex items-center gap-2 pt-2 border-t border-white/5">
                 <button
                   onClick={() => handleCopy(fullCopyText, acc.id)}
-                  className={`flex-1 py-2 px-3 rounded-xl border text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 active:scale-95 ${
+                  className={`flex-1 min-h-[44px] py-2.5 px-3 rounded-xl border text-xs font-extrabold transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 cursor-pointer ${
                     isCopied
-                      ? 'bg-emerald-500 text-black border-emerald-400 font-extrabold shadow-[0_0_15px_rgba(16,185,129,0.4)]'
-                      : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20 text-zinc-200 hover:text-white'
+                      ? 'bg-emerald-500 text-black border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                      : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20 text-white'
                   }`}
-                  title="نسخ الآيدي والاسم"
+                  aria-label={`نسخ آيدي ${acc.ign}`}
                 >
                   {isCopied ? (
                     <>
-                      <Check size={13} className="text-black" />
+                      <Check size={14} className="text-black" />
                       <span>تم نسخ الآيدي! 🎮</span>
                     </>
                   ) : (
                     <>
-                      <Copy size={13} className="text-zinc-400 group-hover/card:text-white" />
+                      <Copy size={14} className="text-zinc-300 group-hover/card:text-white" />
                       <span>نسخ الآيدي</span>
                     </>
                   )}
@@ -194,10 +194,10 @@ export const GamerHub: React.FC<GamerHubProps> = ({ config, theme }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => audioEngine.playClickSound()}
-                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-zinc-400 hover:text-white transition-colors"
-                    title="فتح الرابط المباشر"
+                    className="min-h-[44px] min-w-[44px] p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white transition-colors flex items-center justify-center"
+                    aria-label={`فتح ملف ${acc.ign}`}
                   >
-                    <ExternalLink size={14} />
+                    <ExternalLink size={15} />
                   </a>
                 )}
               </div>

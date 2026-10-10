@@ -352,11 +352,16 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
         {/* Close Button */}
         <button
           onClick={() => {
+            window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+            window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+            if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur();
+            }
             audioEngine.playClickSound();
             onClose();
           }}
           className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
-          data-tooltip="إغلاق اللعبة"
+          aria-label="إغلاق اللعبة"
         >
           <X size={18} />
         </button>

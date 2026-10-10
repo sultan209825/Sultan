@@ -779,6 +779,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     const newLog: VisitLog = {
       id: Date.now().toString(),
       time: 'الآن',
+      timestamp: Date.now(),
+      eventType: 'زيارة تجريبية محاكاة 🌍',
       country: picked.country,
       flag: picked.flag,
       city: picked.city,

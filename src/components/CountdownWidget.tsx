@@ -9,6 +9,7 @@ interface CountdownWidgetProps {
   accentColor?: string;
   className?: string;
   compact?: boolean;
+  isEcoMode?: boolean;
 }
 
 interface TimeRemaining {
@@ -25,7 +26,8 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({
   label = 'الهدف القادم 🎯',
   accentColor = '#ef4444',
   className = '',
-  compact = false
+  compact = false,
+  isEcoMode = false
 }) => {
   const [time, setTime] = useState<TimeRemaining>(() => calculateRemaining(targetDate));
 
@@ -81,6 +83,11 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({
   return (
     <div
       onClick={handleWidgetClick}
+      onMouseEnter={() => {
+        if (!isEcoMode) {
+          audioEngine.playHoverSound(false);
+        }
+      }}
       className={`group/countdown relative cursor-pointer select-none rounded-2xl bg-gradient-to-br from-black/85 via-[#100c1e]/90 to-black/90 border border-white/10 hover:border-amber-500/40 shadow-lg shadow-black/70 backdrop-blur-md transition-all duration-300 hover:scale-[1.01] active:scale-98 ${
         compact ? 'p-1.5 sm:p-2' : 'p-3 sm:p-4'
       } ${className}`}

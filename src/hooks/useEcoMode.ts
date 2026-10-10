@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { safeLocalStorage } from '../utils/safeStorage';
 
 export interface BatteryInfo {
   level: number;
@@ -7,14 +8,16 @@ export interface BatteryInfo {
 
 export function useEcoMode() {
   const [isEcoMode, setIsEcoMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('sultan_eco_mode');
+    const saved = safeLocalStorage.getItem('sultan_eco_mode');
     if (saved !== null) {
       return saved === 'true';
     }
     // Auto-detect mobile devices or prefers-reduced-motion
     if (typeof window !== 'undefined') {
-      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      return prefersReduced;
+      try {
+        const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        return prefersReduced;
+      } catch {}
     }
     return false;
   });
@@ -24,12 +27,14 @@ export function useEcoMode() {
 
   // Sync class on root document
   useEffect(() => {
-    if (isEcoMode) {
-      document.documentElement.classList.add('eco-mode');
-    } else {
-      document.documentElement.classList.remove('eco-mode');
+    if (typeof document !== 'undefined') {
+      if (isEcoMode) {
+        document.documentElement.classList.add('eco-mode');
+      } else {
+        document.documentElement.classList.remove('eco-mode');
+      }
     }
-    localStorage.setItem('sultan_eco_mode', isEcoMode ? 'true' : 'false');
+    safeLocalStorage.setItem('sultan_eco_mode', isEcoMode ? 'true' : 'false');
   }, [isEcoMode]);
 
   // Battery Status API listener

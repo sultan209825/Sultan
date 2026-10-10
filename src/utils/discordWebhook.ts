@@ -28,6 +28,34 @@ export type SiteEventType =
   | 'logs_cleared';
 
 /**
+ * Feature 7: Sends auto-announcement to Discord Webhook via backend proxy
+ */
+export async function sendAnnouncementToDiscord(
+  webhookUrl: string,
+  title: string,
+  description: string,
+  category: 'story' | 'music' | 'announcement' = 'announcement'
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const res = await fetch('/api/discord/webhook-announce', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        webhookUrl,
+        title,
+        description,
+        category,
+        url: window.location.origin
+      })
+    });
+    const data = await res.json();
+    return { success: Boolean(data.success), message: data.message || data.error };
+  } catch (err: any) {
+    return { success: false, message: err?.message || 'تعذر الإرسال للديسكورد' };
+  }
+}
+
+/**
  * Retrieve the active Discord Webhook URL from localStorage configuration
  */
 export function getStoredDiscordWebhookUrl(): string | null {

@@ -173,8 +173,19 @@ export const GlobalCustomTooltip: React.FC = () => {
     // Only enable on desktop pointer fine devices
     if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
 
-    // High performance RAF loop for smooth floating easing
+    const dismissTooltip = () => {
+      currentTargetRef.current = null;
+      isTracking.current = false;
+      setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    };
+
+    // High performance RAF loop for smooth floating easing & disconnection monitoring
     const animateLoop = () => {
+      // 1. Immediately dismiss if target was detached or removed from DOM (e.g. modal closed)
+      if (currentTargetRef.current && (!currentTargetRef.current.isConnected || !document.body.contains(currentTargetRef.current))) {
+        dismissTooltip();
+      }
+
       if (isTracking.current && containerRef.current) {
         // Easing interpolation factor (gentle damping trailing the cursor)
         const easing = 0.16;
@@ -233,6 +244,19 @@ export const GlobalCustomTooltip: React.FC = () => {
 
     const handleMouseMove = (e: MouseEvent) => {
       if (currentTargetRef.current && isTracking.current) {
+        // If the target element was removed from DOM, dismiss immediately
+        if (!currentTargetRef.current.isConnected || !document.body.contains(currentTargetRef.current)) {
+          dismissTooltip();
+          return;
+        }
+
+        // Verify cursor is still over target or its descendants
+        const hovered = document.elementFromPoint(e.clientX, e.clientY);
+        if (hovered && !currentTargetRef.current.contains(hovered) && currentTargetRef.current !== hovered) {
+          dismissTooltip();
+          return;
+        }
+
         const text =
           currentTargetRef.current.getAttribute('data-custom-tooltip') ||
           currentTargetRef.current.getAttribute('data-tooltip') ||
@@ -242,6 +266,8 @@ export const GlobalCustomTooltip: React.FC = () => {
           const { x, y } = calcTargetPos(e.clientX, e.clientY, text);
           targetX.current = x;
           targetY.current = y;
+        } else {
+          dismissTooltip();
         }
       }
     };
@@ -249,20 +275,37 @@ export const GlobalCustomTooltip: React.FC = () => {
     const handleMouseOut = (e: MouseEvent) => {
       const related = e.relatedTarget as HTMLElement | null;
       if (currentTargetRef.current && (!related || !currentTargetRef.current.contains(related))) {
-        setTooltip((prev) => ({ ...prev, visible: false }));
-        currentTargetRef.current = null;
-        isTracking.current = false;
+        dismissTooltip();
+      }
+    };
+
+    const handleWindowClick = () => {
+      // Dismiss instantly on click so closing modals / clicking buttons won't leave tooltip hanging
+      dismissTooltip();
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        dismissTooltip();
       }
     };
 
     window.addEventListener('mouseover', handleMouseOver, { passive: true });
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
     window.addEventListener('mouseout', handleMouseOut, { passive: true });
+    window.addEventListener('click', handleWindowClick, { capture: true, passive: true });
+    window.addEventListener('keydown', handleKeyDown, { passive: true });
+    window.addEventListener('hide-custom-tooltip', dismissTooltip);
+    window.addEventListener('sultan-clear-hover-state', dismissTooltip);
 
     return () => {
       window.removeEventListener('mouseover', handleMouseOver);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseout', handleMouseOut);
+      window.removeEventListener('click', handleWindowClick, { capture: true });
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hide-custom-tooltip', dismissTooltip);
+      window.removeEventListener('sultan-clear-hover-state', dismissTooltip);
       if (rafId.current) cancelAnimationFrame(rafId.current);
     };
   }, []);

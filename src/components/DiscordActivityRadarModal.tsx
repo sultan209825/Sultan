@@ -48,6 +48,41 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
   const [copiedId, setCopiedId] = useState<boolean>(false);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
+  // Swipe to dismiss state
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleClose = () => {
+    window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+    window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    audioEngine.playClickSound();
+    onClose();
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 85) {
+      handleClose();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   const status = lanyard?.discord_status || 'dnd';
   const gameActivity = lanyard?.activities?.find((a) => a.type === 0);
   const spotify = lanyard?.listening_to_spotify ? lanyard.spotify : null;
@@ -128,14 +163,24 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
+      onClick={handleClose}
       dir="rtl"
     >
       <div
-        className="relative w-full max-w-lg rounded-3xl bg-[#090b14] border border-cyan-500/40 shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col p-5 sm:p-6 text-white space-y-5 max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-lg rounded-t-[32px] sm:rounded-3xl bg-[#090b14] border border-cyan-500/40 shadow-[0_0_60px_rgba(6,182,212,0.3)] overflow-hidden flex flex-col p-5 sm:p-6 text-white space-y-5 max-h-[92vh] sm:max-h-[90vh] overflow-y-auto animate-modal-slide-up transition-transform"
+        style={{
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.2s ease-out' : 'none'
+        }}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
+        {/* Mobile Swipe to Dismiss Top Grab Handle */}
+        <div className="w-12 h-1.5 rounded-full bg-white/20 hover:bg-white/40 mx-auto -mt-1 -mb-1 cursor-grab shrink-0 transition-colors" />
+
         {/* Animated Radar Sweep Background */}
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full border border-cyan-500/20 pointer-events-none opacity-40 animate-ping" />
         <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full border border-cyan-400/30 pointer-events-none opacity-50" />
@@ -160,11 +205,9 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
           </div>
 
           <button
-            onClick={() => {
-              audioEngine.playClickSound();
-              onClose();
-            }}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-colors"
+            onClick={handleClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="إغلاق"
           >
             <X size={17} />
           </button>

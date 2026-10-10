@@ -255,11 +255,22 @@ export function startVisitorPresenceHeartbeat(envInfo?: {
 }): () => void {
   if (typeof window === 'undefined') return () => {};
 
-  let sessionId = sessionStorage.getItem('sultan_presence_session_id');
-  if (!sessionId) {
-    sessionId = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
-    sessionStorage.setItem('sultan_presence_session_id', sessionId);
-  }
+  let sessionId = 's_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 7);
+  let joinedAt = Date.now();
+  try {
+    const saved = sessionStorage.getItem('sultan_presence_session_id');
+    if (saved) {
+      sessionId = saved;
+    } else {
+      sessionStorage.setItem('sultan_presence_session_id', sessionId);
+    }
+    const savedJoined = sessionStorage.getItem('sultan_presence_joined_at');
+    if (savedJoined) {
+      joinedAt = Number(savedJoined);
+    } else {
+      sessionStorage.setItem('sultan_presence_joined_at', joinedAt.toString());
+    }
+  } catch {}
 
   const presenceDocRef = doc(db, 'presence', sessionId);
 
@@ -277,7 +288,7 @@ export function startVisitorPresenceHeartbeat(envInfo?: {
           city: (envInfo?.city || 'القاهرة').slice(0, 100),
           currentPath: (window.location.hash || window.location.pathname || '/').slice(0, 100),
           lastActive: Date.now(),
-          joinedAt: Number(sessionStorage.getItem('sultan_presence_joined_at') || Date.now())
+          joinedAt
         },
         { merge: true }
       );
@@ -285,10 +296,6 @@ export function startVisitorPresenceHeartbeat(envInfo?: {
       console.warn('Presence heartbeat notice:', err);
     }
   };
-
-  if (!sessionStorage.getItem('sultan_presence_joined_at')) {
-    sessionStorage.setItem('sultan_presence_joined_at', Date.now().toString());
-  }
 
   // Initial immediate pulse
   updatePresence();

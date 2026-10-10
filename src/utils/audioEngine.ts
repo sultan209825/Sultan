@@ -12,6 +12,31 @@ class AudioEngine {
   private audioSourceNode: MediaElementAudioSourceNode | null = null;
   private volume: number = 0.6;
   private isMuted: boolean = false;
+  private lastHoverTime: number = 0;
+  private playStateListeners: Set<(isPlaying: boolean) => void> = new Set();
+
+  public subscribePlayState(listener: (isPlaying: boolean) => void): () => void {
+    this.playStateListeners.add(listener);
+    try {
+      listener(this.isPlaying);
+    } catch {
+      // ignore
+    }
+    return () => {
+      this.playStateListeners.delete(listener);
+    };
+  }
+
+  private notifyPlayState(playing: boolean) {
+    this.isPlaying = playing;
+    this.playStateListeners.forEach((fn) => {
+      try {
+        fn(playing);
+      } catch {
+        // ignore
+      }
+    });
+  }
 
   public init() {
     if (!this.ctx) {
@@ -72,7 +97,7 @@ class AudioEngine {
     this.audioElement.src = urlOrBlob;
     this.audioElement.volume = this.isMuted ? 0 : this.volume;
     this.audioElement.onended = () => {
-      this.isPlaying = false;
+      this.notifyPlayState(false);
       if (onEnded) onEnded();
     };
 
@@ -80,13 +105,14 @@ class AudioEngine {
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
-          this.isPlaying = true;
+          this.notifyPlayState(true);
         })
         .catch((err) => {
           console.warn('Playback error:', err);
+          this.notifyPlayState(false);
         });
     }
-    this.isPlaying = true;
+    this.notifyPlayState(true);
   }
 
   public getAudioElement(): HTMLAudioElement | null {
@@ -127,7 +153,7 @@ class AudioEngine {
     if (!this.ctx || !this.analyser) return;
 
     this.currentTrackId = trackId;
-    this.isPlaying = true;
+    this.notifyPlayState(true);
     this.step = 0;
 
     const intervalMs = (60 / tempo / 4) * 1000; // 16th note steps
@@ -425,7 +451,7 @@ class AudioEngine {
   }
 
   public stop() {
-    this.isPlaying = false;
+    this.notifyPlayState(false);
     this.currentTrackId = null;
     this.stopCalmLoFiAmbience();
 
@@ -441,7 +467,7 @@ class AudioEngine {
   }
 
   public pause() {
-    this.isPlaying = false;
+    this.notifyPlayState(false);
     if (this.beatInterval) {
       clearInterval(this.beatInterval);
       this.beatInterval = null;
@@ -454,7 +480,7 @@ class AudioEngine {
   public resume() {
     if (this.audioElement && this.audioElement.src) {
       this.audioElement.play().catch(() => {});
-      this.isPlaying = true;
+      this.notifyPlayState(true);
     }
   }
 
@@ -485,6 +511,36 @@ class AudioEngine {
 
     osc.start();
     osc.stop(this.ctx.currentTime + 0.045);
+  }
+
+  // Soft tactile UI hover sound (disabled in Eco Mode for max battery/performance)
+  public playHoverSound(isEcoMode: boolean = false) {
+    if (isEcoMode || this.isMuted) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - this.lastHoverTime < 50) return; // 50ms throttle
+    this.lastHoverTime = now;
+
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1350, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1750, this.ctx.currentTime + 0.022);
+
+      gain.gain.setValueAtTime(0.015, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.022);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 0.025);
+    } catch {
+      // AudioContext might be pending initial user interaction
+    }
   }
 
   public playJumpSound() {

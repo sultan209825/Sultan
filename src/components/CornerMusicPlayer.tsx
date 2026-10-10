@@ -220,66 +220,144 @@ export const CornerMusicPlayer: React.FC<CornerMusicPlayerProps> = ({
         </div>
       )}
 
-      {/* Main Corner Floating Widget */}
+      {/* Responsive Player: Mobile Bottom Dock + Desktop Corner Floating Widget */}
       <div
-        className="fixed bottom-3 sm:bottom-5 left-3 sm:left-5 z-40 select-none animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-[calc(100vw-24px)]"
+        className={`fixed z-40 select-none animate-in fade-in duration-300 ${
+          isExpanded
+            ? 'inset-x-0 bottom-0 sm:inset-auto sm:bottom-5 sm:left-5 sm:max-w-96'
+            : 'inset-x-0 bottom-0 sm:inset-auto sm:bottom-5 sm:left-5'
+        }`}
         dir="rtl"
       >
         {!isExpanded ? (
-          /* Minimized Floating Pill */
-          <div className="flex items-center gap-1.5 sm:gap-2 p-1.5 pl-2.5 sm:pl-3 rounded-full bg-[#0d0d18]/90 border border-red-500/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(239,68,68,0.25)] hover:border-red-400 transition-all group max-w-full">
-            {/* Play / Pause Toggle Button */}
-            <button
-              onClick={togglePlay}
-              className={`w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-full flex items-center justify-center transition-all ${
-                isPlaying
-                  ? 'bg-gradient-to-tr from-red-600 via-amber-600 to-red-500 text-white shadow-lg shadow-red-500/30'
-                  : 'bg-white/10 text-zinc-300 hover:bg-white/20'
-              }`}
-              title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل الموسيقى'}
-            >
-              {isPlaying ? <Pause size={13} /> : <Play size={13} className="translate-x-0.5" />}
-            </button>
+          <>
+            {/* Desktop View: Floating Pill in corner */}
+            <div className="hidden sm:flex items-center gap-2 p-1.5 pl-3 rounded-full bg-[#0d0d18]/90 border border-red-500/40 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(239,68,68,0.25)] hover:border-red-400 transition-all group">
+              <button
+                onClick={togglePlay}
+                className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center transition-all cursor-pointer min-h-[36px] min-w-[36px] ${
+                  isPlaying
+                    ? 'bg-gradient-to-tr from-red-600 via-amber-600 to-red-500 text-white shadow-lg shadow-red-500/30'
+                    : 'bg-white/10 text-zinc-300 hover:bg-white/20'
+                }`}
+                title={isPlaying ? 'إيقاف مؤقت' : 'تشغيل الموسيقى'}
+                aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل الموسيقى'}
+              >
+                {isPlaying ? <Pause size={14} /> : <Play size={14} className="translate-x-0.5" />}
+              </button>
 
-            {/* Next Track Button */}
-            <button
-              onClick={handleNextTrack}
-              className="p-1 sm:p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors shrink-0"
-              title="تخطي للأغنية التالية (⏭️)"
-            >
-              <SkipForward size={13} />
-            </button>
+              <button
+                onClick={handleNextTrack}
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
+                title="تخطي للأغنية التالية (⏭️)"
+                aria-label="تخطي للأغنية التالية"
+              >
+                <SkipForward size={14} />
+              </button>
 
-            {/* Click to Expand Info */}
-            <button
-              onClick={() => setIsExpanded(true)}
-              className="flex items-center gap-1.5 sm:gap-2 text-right py-1 hover:opacity-90 max-w-[140px] sm:max-w-[210px] min-w-0"
-              title="فتح مشغل الموسيقى وقائمة الأغاني"
-            >
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1 sm:gap-1.5">
-                  <Crown size={11} className="text-amber-400 shrink-0" />
-                  <span className="text-[11px] sm:text-xs font-bold text-white truncate font-display-custom">
-                    {activeTrack.title}
-                  </span>
-                  {isPlaying && (
-                    <span className="flex items-center gap-0.5 h-2.5 shrink-0">
-                      <span className="w-1 h-2 bg-red-400 animate-pulse rounded-full" />
-                      <span className="w-1 h-3 bg-red-400 animate-pulse delay-75 rounded-full" />
-                      <span className="w-1 h-1.5 bg-red-400 animate-pulse delay-150 rounded-full" />
+              <button
+                onClick={() => setIsExpanded(true)}
+                className="flex items-center gap-2 text-right py-1 hover:opacity-90 max-w-[210px] min-w-0 cursor-pointer"
+                title="فتح مشغل الموسيقى وقائمة الأغاني"
+              >
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Crown size={12} className="text-amber-400 shrink-0" />
+                    <span className="text-xs font-bold text-white truncate font-display-custom">
+                      {activeTrack.title}
                     </span>
-                  )}
+                    {isPlaying && (
+                      <span className="flex items-center gap-0.5 h-2.5 shrink-0">
+                        <span className="w-1 h-2 bg-red-400 animate-pulse rounded-full" />
+                        <span className="w-1 h-3 bg-red-400 animate-pulse delay-75 rounded-full" />
+                        <span className="w-1 h-1.5 bg-red-400 animate-pulse delay-150 rounded-full" />
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-zinc-300 truncate">
+                    {isPlaying ? `${activeTrack.artist} • شغال 🎵` : 'انقر للقائمة 🎧'}
+                  </span>
                 </div>
-                <span className="text-[9px] sm:text-[10px] text-zinc-400 truncate">
-                  {isPlaying ? `${activeTrack.artist} • شغال 🎵` : 'انقر للقائمة 🎧'}
-                </span>
+                <ChevronUp size={14} className="text-zinc-400 group-hover:text-white transition-colors shrink-0" />
+              </button>
+            </div>
+
+            {/* Mobile View: Clean Docked Bottom Bar (Feature 2) */}
+            <div className="sm:hidden w-full bg-[#090912]/95 border-t border-red-500/30 backdrop-blur-2xl px-3.5 py-2 shadow-[0_-10px_30px_rgba(0,0,0,0.85)] relative pb-[max(8px,env(safe-area-inset-bottom))]">
+              {/* Scrub line on top border */}
+              <div className="absolute top-0 inset-x-0 h-1 bg-white/10 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-red-500 to-amber-500 transition-all duration-300"
+                  style={{
+                    width: `${Math.min(100, (currentTime / (duration > 0 ? duration : activeTrack.duration || 60)) * 100)}%`
+                  }}
+                />
               </div>
-              <ChevronUp size={13} className="text-zinc-400 group-hover:text-white transition-colors shrink-0" />
-            </button>
-          </div>
+
+              <div className="flex items-center justify-between gap-3 pt-0.5">
+                {/* Track metadata and expand button */}
+                <button
+                  onClick={() => setIsExpanded(true)}
+                  className="flex items-center gap-2.5 min-w-0 flex-1 text-right cursor-pointer"
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 border shadow-md"
+                    style={{
+                      backgroundColor: `${activeTrack.coverColor || accentColor}25`,
+                      borderColor: `${activeTrack.coverColor || accentColor}50`
+                    }}
+                  >
+                    🎵
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-white truncate">{activeTrack.title}</span>
+                      {isPlaying && (
+                        <span className="flex items-center gap-0.5 h-2 shrink-0">
+                          <span className="w-1 h-2 bg-red-400 animate-bounce rounded-full" />
+                          <span className="w-1 h-3 bg-amber-400 animate-bounce delay-75 rounded-full" />
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-zinc-300 truncate">{activeTrack.artist}</p>
+                  </div>
+                </button>
+
+                {/* Mobile Core Playback Buttons (44px touch targets) */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={handleNextTrack}
+                    className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px]"
+                    aria-label="التالي"
+                  >
+                    <SkipForward size={16} />
+                  </button>
+
+                  <button
+                    onClick={togglePlay}
+                    className="w-11 h-11 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-red-600/40 cursor-pointer min-h-[44px] min-w-[44px]"
+                    aria-label={isPlaying ? 'إيقاف مؤقت' : 'تشغيل'}
+                  >
+                    {isPlaying ? <Pause size={18} /> : <Play size={18} className="translate-x-0.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => setIsExpanded(true)}
+                    className="w-9 h-9 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center cursor-pointer"
+                    aria-label="فتح المشغل الكامل"
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
         ) : (
-          /* Expanded Full Floating Player Card */
-          <div className="w-[calc(100vw-24px)] max-w-[340px] sm:w-88 rounded-3xl bg-[#0c0c16]/95 border border-red-500/40 p-4 sm:p-5 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(239,68,68,0.3)] space-y-3 sm:space-y-4">
+          /* Expanded Full Floating Player Card / Mobile Bottom Sheet */
+          <div className="w-full sm:w-88 rounded-t-3xl sm:rounded-3xl bg-[#0c0c16]/98 border-t sm:border border-red-500/40 p-4 sm:p-5 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(239,68,68,0.3)] space-y-3 sm:space-y-4 max-h-[85vh] sm:max-h-none overflow-y-auto pb-[max(16px,env(safe-area-inset-bottom))]">
+            {/* Mobile Sheet Grab Handle */}
+            <div className="sm:hidden w-12 h-1.5 rounded-full bg-white/20 mx-auto -mt-1 mb-2 shrink-0" />
+
             {/* Header: Title & Close Button */}
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5 sm:pb-3">
               <div className="flex items-center gap-2.5">

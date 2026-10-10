@@ -3,6 +3,8 @@ import { Palette, Check, Sparkles, X } from 'lucide-react';
 import { THEME_LIST, ThemeDefinition, getTheme } from '../utils/themeSystem';
 import { audioEngine } from '../utils/audioEngine';
 import { ThemeId } from '../types';
+import { safeLocalStorage } from '../utils/safeStorage';
+import { CustomThemeModal } from './CustomThemeModal';
 
 interface ThemeSwitcherProps {
   currentTheme: ThemeId;
@@ -11,6 +13,7 @@ interface ThemeSwitcherProps {
 
 export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ currentTheme, onThemeChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
   const activeTheme = getTheme(currentTheme);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +34,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ currentTheme, onTh
   const handleSelectTheme = (theme: ThemeDefinition) => {
     audioEngine.playPowerUpSound();
     onThemeChange(theme.id);
-    localStorage.setItem('sultan_theme', theme.id);
+    safeLocalStorage.setItem('sultan_theme', theme.id);
     setIsOpen(false);
   };
 
@@ -111,6 +114,19 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ currentTheme, onTh
                 </button>
               );
             })}
+
+            {/* Custom Theme Creator Button */}
+            <button
+              onClick={() => {
+                audioEngine.playPowerUpSound();
+                setIsCustomModalOpen(true);
+                setIsOpen(false);
+              }}
+              className="w-full mt-2 p-2.5 rounded-xl border border-dashed border-amber-500/50 hover:border-amber-400 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer active:scale-95"
+            >
+              <Palette size={15} />
+              <span>مصمم الثيمات المخصص 🎨</span>
+            </button>
           </div>
 
           <div className="mt-3 pt-2.5 border-t border-white/5 text-center">
@@ -120,6 +136,16 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ currentTheme, onTh
           </div>
         </div>
       )}
+
+      {/* Custom Theme Creator Modal */}
+      <CustomThemeModal
+        isOpen={isCustomModalOpen}
+        onClose={() => setIsCustomModalOpen(false)}
+        onApplyTheme={() => {
+          onThemeChange('custom');
+          safeLocalStorage.setItem('sultan_theme', 'custom');
+        }}
+      />
     </div>
   );
 };

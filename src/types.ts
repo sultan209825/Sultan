@@ -20,7 +20,9 @@ export interface SongTrack {
   coverImage?: string;
 }
 
-export type ThemeId = 'blood_royal' | 'imperial_gold' | 'cyber_neon' | 'stealth_black' | 'emerald_dynasty' | 'royal' | 'default' | 'emerald' | 'rose';
+export type ThemeId = 'blood_royal' | 'imperial_gold' | 'cyber_neon' | 'stealth_black' | 'emerald_dynasty' | 'royal' | 'default' | 'emerald' | 'rose' | 'custom';
+
+export type TabType = 'all' | 'profile' | 'music' | 'gaming' | 'secrets';
 
 export interface GamerAccount {
   id: string;
@@ -149,6 +151,9 @@ export interface LanyardData {
     album: string;
   } | null;
   listening_to_spotify: boolean;
+  active_on_discord_desktop?: boolean;
+  active_on_discord_mobile?: boolean;
+  active_on_discord_web?: boolean;
 }
 
 export interface SecurityIssue {

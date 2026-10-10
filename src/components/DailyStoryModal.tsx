@@ -49,6 +49,43 @@ export const DailyStoryModal: React.FC<DailyStoryModalProps> = ({
     };
   });
 
+  // Swipe to dismiss state
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsPaused(true);
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleClose = () => {
+    window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+    window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    audioEngine.playClickSound();
+    onClose();
+  };
+
+  const handleTouchEnd = () => {
+    setIsPaused(false);
+    if (dragOffset > 85) {
+      handleClose();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   // Story auto-progress timer (10 seconds duration)
   useEffect(() => {
     if (!isOpen) {
@@ -131,18 +168,26 @@ export const DailyStoryModal: React.FC<DailyStoryModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
-      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
+      onClick={handleClose}
       dir="rtl"
     >
       <div
-        className="relative w-full max-w-md rounded-3xl bg-[#0d0e18] border border-red-500/40 shadow-[0_0_60px_rgba(239,68,68,0.35)] overflow-hidden flex flex-col justify-between p-5 sm:p-6 min-h-[500px] text-white"
+        className="relative w-full max-w-md rounded-t-[32px] sm:rounded-3xl bg-[#0d0e18] border border-red-500/40 shadow-[0_0_60px_rgba(239,68,68,0.35)] overflow-hidden flex flex-col justify-between p-5 sm:p-6 min-h-[500px] text-white animate-modal-slide-up transition-transform"
+        style={{
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.2s ease-out' : 'none'
+        }}
         onClick={(e) => e.stopPropagation()}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
+        {/* Mobile Swipe to Dismiss Top Grab Handle */}
+        <div className="w-12 h-1.5 rounded-full bg-white/20 hover:bg-white/40 mx-auto -mt-1 mb-2.5 cursor-grab shrink-0 transition-colors" />
+
         {/* Animated Background Aura */}
         <div className="absolute -top-24 -right-24 w-60 h-60 bg-red-600/25 rounded-full blur-3xl pointer-events-none animate-pulse" />
         <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-amber-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -196,11 +241,9 @@ export const DailyStoryModal: React.FC<DailyStoryModalProps> = ({
               {copiedLink ? <Check size={15} className="text-emerald-400" /> : <Share2 size={15} />}
             </button>
             <button
-              onClick={() => {
-                audioEngine.playClickSound();
-                onClose();
-              }}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-colors"
+              onClick={handleClose}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="إغلاق"
             >
               <X size={17} />
             </button>

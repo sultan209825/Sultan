@@ -246,9 +246,25 @@ export const DiscordSecretRoleModal: React.FC<DiscordSecretRoleModalProps> = ({
     window.open(discordUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const handleClose = () => {
+    window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+    window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    audioEngine.playClickSound();
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#0e0e15] border border-amber-500/30 p-6 shadow-2xl shadow-amber-500/20 space-y-5">
+    <div
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md rounded-3xl bg-[#0e0e15] border border-amber-500/30 p-6 shadow-2xl shadow-amber-500/20 space-y-5"
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -267,8 +283,9 @@ export const DiscordSecretRoleModal: React.FC<DiscordSecretRoleModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors"
+            onClick={handleClose}
+            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            aria-label="إغلاق"
           >
             ✕
           </button>

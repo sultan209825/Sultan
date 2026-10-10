@@ -100,7 +100,57 @@ THEMES['default'] = THEMES.blood_royal;
 THEMES['emerald'] = THEMES.emerald_dynasty;
 THEMES['rose'] = THEMES.blood_royal;
 
+export interface CustomThemeColors {
+  accentHex: string;
+  secondaryHex: string;
+  name?: string;
+}
+
+const CUSTOM_THEME_KEY = 'sultan_custom_theme_colors';
+
+export function getCustomThemeColors(): CustomThemeColors {
+  try {
+    const raw = localStorage.getItem(CUSTOM_THEME_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.accentHex) return parsed;
+    }
+  } catch {}
+  return { accentHex: '#ec4899', secondaryHex: '#8b5cf6', name: 'ثيمي الملكي الخاص' };
+}
+
+export function saveCustomThemeColors(colors: CustomThemeColors): void {
+  try {
+    localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(colors));
+  } catch {}
+}
+
+export function createCustomThemeDefinition(colors?: CustomThemeColors): ThemeDefinition {
+  const current = colors || getCustomThemeColors();
+  const accent = current.accentHex || '#ec4899';
+  const secondary = current.secondaryHex || '#8b5cf6';
+
+  return {
+    id: 'custom',
+    name: current.name || 'الثيم المخصص',
+    nameEn: 'Custom Royal',
+    emoji: '🎨',
+    accentHex: accent,
+    secondaryHex: secondary,
+    glowColor: `${accent}70`,
+    gradientBadge: 'from-pink-600/30 to-purple-600/20 text-pink-200 border-pink-500/40',
+    gradientText: 'from-pink-400 via-purple-300 to-indigo-300',
+    buttonClass: 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]',
+    activeBorder: 'border-pink-500/60 shadow-[0_0_25px_rgba(236,72,153,0.25)]',
+    cardGlow: 'hover:border-pink-500/50 hover:shadow-[0_0_30px_rgba(236,72,153,0.2)]',
+    tagline: 'تصميمك الملكي المخصص بألوانك الخاصة وتدرجاتك المختارة'
+  };
+}
+
 export function getTheme(themeId?: string): ThemeDefinition {
+  if (themeId === 'custom') {
+    return createCustomThemeDefinition();
+  }
   if (themeId && THEMES[themeId]) {
     return THEMES[themeId];
   }
