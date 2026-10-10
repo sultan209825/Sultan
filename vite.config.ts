@@ -415,21 +415,41 @@ function discordApiPlugin() {
                     parts: [{ text: message }]
                   });
 
-                  const response: any = await Promise.race([
-                    ai.models.generateContent({
-                      model: 'gemini-3.8-flash',
-                      contents,
-                      config: {
-                        systemInstruction,
-                        temperature: 0.85,
-                        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+                  // High-availability model pipeline: tries primary models and fast flash lite models if free-tier quota is hit
+                  const modelsToTry = [
+                    'gemini-flash-lite-latest',
+                    'gemini-3.8-flash',
+                    'gemini-3.5-flash-lite',
+                    'gemini-3.1-flash-lite'
+                  ];
+
+                  for (const modelCandidate of modelsToTry) {
+                    try {
+                      const response: any = await Promise.race([
+                        ai.models.generateContent({
+                          model: modelCandidate,
+                          contents,
+                          config: {
+                            systemInstruction,
+                            temperature: 0.85,
+                            ...(modelCandidate === 'gemini-3.8-flash'
+                              ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } }
+                              : {})
+                          }
+                        }),
+                        new Promise((_, reject) =>
+                          setTimeout(() => reject(new Error('AI generation timed out')), 20000)
+                        )
+                      ]);
+                      if (response?.text && response.text.trim()) {
+                        replyText = response.text.trim();
+                        break;
                       }
-                    }),
-                    new Promise((_, reject) =>
-                      setTimeout(() => reject(new Error('AI generation timed out')), 25000)
-                    )
-                  ]);
-                  replyText = response?.text || '';
+                    } catch (modelError: any) {
+                      console.warn(`Model ${modelCandidate} notice:`, modelError?.message || modelError);
+                      // Continue to next model candidate in pipeline
+                    }
+                  }
                 } catch (genError: any) {
                   console.warn('Gemini generation notice in dev server:', genError?.message || genError);
                 }
