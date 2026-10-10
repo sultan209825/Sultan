@@ -17,7 +17,6 @@ import {
   Package,
   Loader2,
   Maximize2,
-  Bot,
   Swords
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -36,7 +35,6 @@ import { LoadingScreen } from './components/LoadingScreen';
 import { GamerHub } from './components/GamerHub';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { RoyalTicTacToeModal } from './components/RoyalTicTacToeModal';
-import { SultanAICompanionModal } from './components/SultanAICompanionModal';
 import { VisitorLoyaltyModal } from './components/VisitorLoyaltyModal';
 import { ZenImmersionOverlay } from './components/ZenImmersionOverlay';
 import { recordAndGetLoyalty, VisitorLoyaltyState } from './utils/visitorLoyalty';
@@ -135,7 +133,6 @@ export default function App() {
 
   // Features States:
   const [isTicTacToeOpen, setIsTicTacToeOpen] = useState<boolean>(false);
-  const [isAICompanionOpen, setIsAICompanionOpen] = useState<boolean>(false);
   const [isLoyaltyModalOpen, setIsLoyaltyModalOpen] = useState<boolean>(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [visitorLoyalty, setVisitorLoyalty] = useState<VisitorLoyaltyState>(() => recordAndGetLoyalty());
@@ -646,25 +643,8 @@ export default function App() {
           onOpenSecrets={() => setActiveModalSection('secrets')}
           visitorLoyalty={visitorLoyalty}
           onOpenLoyaltyModal={() => setIsLoyaltyModalOpen(true)}
-          onOpenAICompanion={() => setIsAICompanionOpen(true)}
         />
       </main>
-
-      {/* Floating Action Button: Feature 12 - Sultan's AI Persona Companion */}
-      <button
-        onClick={() => {
-          audioEngine.playPowerUpSound();
-          setIsAICompanionOpen(true);
-        }}
-        className="fixed bottom-5 right-5 z-40 px-3.5 py-2.5 rounded-full bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-extrabold text-xs sm:text-sm shadow-2xl shadow-red-600/50 flex items-center gap-2 border border-red-400/40 hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer group"
-        title="تحدث مع مساعد السلطان الذكي (AI Persona)"
-      >
-        <div className="relative">
-          <Bot size={18} className="group-hover:rotate-12 transition-transform" />
-          <span className="w-2 h-2 rounded-full bg-emerald-400 border border-black absolute -top-0.5 -right-0.5 animate-ping" />
-        </div>
-        <span className="font-display-custom tracking-wide">مساعد السلطان 🤖</span>
-      </button>
 
       {/* Footer */}
       <footer className="relative z-10 w-full py-4 text-center text-xs font-mono-custom text-zinc-400 border-t border-white/5 bg-black/40 backdrop-blur-sm">
@@ -766,12 +746,6 @@ export default function App() {
       <RoyalTicTacToeModal
         isOpen={isTicTacToeOpen}
         onClose={() => setIsTicTacToeOpen(false)}
-      />
-      <SultanAICompanionModal
-        isOpen={isAICompanionOpen}
-        onClose={() => setIsAICompanionOpen(false)}
-        onOpenMusicModal={() => setActiveModalSection('music')}
-        onOpenGameModal={() => setIsGameOpen(true)}
       />
       <VisitorLoyaltyModal
         isOpen={isLoyaltyModalOpen}

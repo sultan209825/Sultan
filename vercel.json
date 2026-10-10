@@ -5,10 +5,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/ai/chat",
-      "destination": "/api/ai/chat"
-    },
-    {
       "source": "/api/discord/announce",
       "destination": "/api/discord/announce"
     },
