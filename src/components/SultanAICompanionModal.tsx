@@ -164,7 +164,8 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
     const text = (textToSend || input).trim();
     if (!text || isLoading) return;
 
-    const shield = checkSpamShield('ai_chat', 2, 2);
+    // Generous spam shield allowing natural fast conversation
+    const shield = checkSpamShield('ai_chat', 1, 5);
     if (!shield.allowed) {
       setMessages((prev) => [
         ...prev,
@@ -190,6 +191,10 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
     setInput('');
     setIsLoading(true);
 
+    // 25-second timeout on fetch so Gemini has ample time to generate
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     try {
       // Map history for backend
       const history = messages.map((m) => ({
@@ -203,8 +208,11 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
         const res = await fetch('/api/ai/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history })
+          body: JSON.stringify({ message: text, history }),
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (res.ok) {
           const data = await res.json();
@@ -213,7 +221,8 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
           }
         }
       } catch (networkErr) {
-        console.warn('Network fetch error, using charismatic fallback:', networkErr);
+        clearTimeout(timeoutId);
+        console.warn('Network fetch error or timeout, using charismatic fallback:', networkErr);
       }
 
       // If backend didn't return a reply, use intelligent charismatic persona
@@ -242,6 +251,7 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
         }
       ]);
     } finally {
+      clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };

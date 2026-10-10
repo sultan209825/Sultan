@@ -19,7 +19,8 @@ import {
   User,
   Trophy,
   Radio,
-  Music
+  Music,
+  Bot
 } from 'lucide-react';
 import { LanyardData, SiteConfig, DailyStory } from '../types';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from '../utils/lanyard';
@@ -660,6 +661,24 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
               <Flame size={13} className="text-amber-400 animate-pulse" />
               <span>{visitorLoyalty.currentTier.badge}</span>
               <span className="font-mono text-amber-300 font-bold">{visitorLoyalty.streakDays}d</span>
+            </button>
+          )}
+
+          {/* Feature 12: مساعد السلطان الذكي (AI Companion Badge Button) */}
+          {onOpenAICompanion && (
+            <button
+              type="button"
+              onClick={() => {
+                audioEngine.playPowerUpSound();
+                onOpenAICompanion();
+              }}
+              onMouseEnter={playHover}
+              onTouchStart={playHover}
+              className="group/ai relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-950/70 via-red-950/40 to-amber-950/60 border border-rose-500/40 text-rose-200 text-xs font-bold shadow-[0_0_15px_rgba(244,63,94,0.2)] hover:border-rose-400 hover:shadow-[0_0_20px_rgba(244,63,94,0.4)] transition-all duration-150 active:scale-95 cursor-pointer"
+              data-tooltip="تحدث مع مساعد السلطان الذكي الملكي 🤖"
+            >
+              <Bot size={13} className="text-rose-400 animate-pulse" />
+              <span>مساعد السلطان 🤖</span>
             </button>
           )}
         </div>

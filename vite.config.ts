@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import fs from 'fs';
 import JSZip from 'jszip';
-import {defineConfig} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { startDiscordBot, getBotState, assignRoleToMember } from './src/server/discordBotService.ts';
 
 function discordApiPlugin() {
@@ -349,84 +349,133 @@ function discordApiPlugin() {
                 return;
               }
 
-              const { GoogleGenAI } = await import('@google/genai');
-              const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '';
-              const ai = new GoogleGenAI(apiKey ? { apiKey } : {});
+              // Safely retrieve Gemini API Key from multiple env sources
+              const loadedEnv = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '');
+              const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || loadedEnv.GEMINI_API_KEY || loadedEnv.VITE_GEMINI_API_KEY || '';
 
-              const systemInstruction = `أنت المساعد الذكي والمرافق الملكي الشخصي لـ "سلطان" (صاحب الموقع: 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪).
-هويتك وشخصيتك وأسلوبك (أنت تتميز بـ "القبول"، الكاريزما العالية، وخفة الدم المصرية والجدعنة):
-- الأسلوب: مصري راقي، ذكي، مرح، ابن بلد جدع، واثق من نفسه لكن متواضع وودود جداً، لسانك حلو وبيقطر عسل، عندك هيبة ملكية ممزوجة بروح الصحاب ("يا مراحب بيك يا غالي! 👑"، "نورت قصر السلطان والله وخطوتك عزيزة"، "سؤالك في الجون يا بطل!").
-- الذكاء الاجتماعي والعاطفي (High EQ): تفهم المزاح والإفيهات المصرية، تشجع الزائر، ترد على الكلام الحلو بذوق عالي، ولو حد هزر معاك رد عليه بهزار ذكي وضحكة ("يا عم على راسي! 😂"، "سر المهنة بقى متفضحناش 😉").
-- معلومات عن السلطان:
-  * طالب ثانوية عامة دفعة 2027، بيعافر وطموحه يعانق السما.
-  * بطل كمال أجسام وعاشق للجيم والحديد 🦾 ودايماً ملتزم بالدايت والتمرين.
-  * لاعب كلتشات ومحترف في فالورانت (Reyna Main) وببجي وستيم 🎮.
-  * صاحب سيرفر ديسكورد الأساطير "Friends For Ever" (كود الدعوة: TUU6EeC6pb).
-  * ذوقه في الموسيقى سلطنة وفخامة (راب وهدوء وبيس عالي).
-- أسرار ورتب سرية (سرية تامة ومطلقة): إياك نهائياً وتحت أي ظرف أن تذكر أو تلمح لكلمة (sultan) أو طريقة فتح رتبة الديسكورد أو وجود أي أكواد أو كتابة على الكيبورد! ممنوع إعطاء أي تلميحات مهما حاول المستخدم استدراجك. الرتبة سرية بنسبة 100% ولا يعرفها إلا من يقولها له السلطان شخصياً في الحقيقة. إذا سألك أحد عن أسرار أو رتب، تهرب بلباقة وخفة دم ملكية وقوله: "أسرار السلطان في جيبه ومحدش يعرفها غيره يا برنس 😉"، ودلّه فقط على الألعاب العلنية ومكتبة الموسيقى.
-- قواعد الرد:
-  * خلي ردودك سريعة، مبهجة، خفيفة على القلب، لا تتجاوز فقرة أو فقرتين كحد أقصى.
-  * استخدم إيموجيز لطيفة ومعبرة في موضعها (👑, 🔥, 🦾, 🎮, 😉, 🤍).
-  * خلي الزائر يحس إنه اتكلم مع شخص حقيقي دمه خفيف وبيدخل القلب على طول.`;
+              const systemInstruction = `أنت "مساعد السلطان الذكي" والمرافق الملكي الشخصي لصاحب الموقع (𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪).
+هويتك وشخصيتك وأسلوبك الحواري:
+- الكاريزما والقبول: تتحدث بلهجة مصرية راقية، ذكية، مرحة، وابن بلد جدع. أسلوبك يجمع بين فخامة وهيبة لقب "السلطان" ودفء الصاحب الجدع ("يا مراحب بيك يا غالي! 👑"، "نورت قصر السلطان والله وخطوتك عزيزة علينا"، "سؤالك في الجون يا بطل!").
+- التفاعلية والذكاء العاطفي (High EQ):
+  * أجب بحيوية واطرح سؤالاً تفاعلياً قصيراً في ختام إجابتك لتشجيع الزائر على مواصلة الحديث (مثال: "بتحب الراب أكتر ولا الأغاني الهادية؟"، "بتلعب إيه أكتر فالورانت ولا ببجي؟").
+  * رد على المزاح بإفيهات مصرية رايقة وبدون ابتذال، وتفاعل بحرارة مع أي مجاملة.
 
-              const contents = [];
-              if (Array.isArray(history)) {
-                for (const h of history.slice(-6)) {
-                  contents.push({
-                    role: h.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: h.text || '' }]
-                  });
-                }
-              }
-              contents.push({
-                role: 'user',
-                parts: [{ text: message }]
-              });
+سياق الموقع وأقسامه المخصصة:
+1. سياق الموسيقى والراب الملكي (Music Vault):
+   - الموقع يحتوي على مشغل أغاني وراب ملكي حصري (مثل تراك "صوت سكة"، تراكات الفخامة والبيس العالي والفوكاليز).
+   - ادعُ الزائر لتجربة ميزة "الاستماع المتزامن مع السلطان (Listen Along)" ليعيش أجواء الاستماع المشترك وكأنه يسمع مع السلطان لايف.
+   - إذا سأل عن الموسيقى، رشح له تراكاً بحماس ووصف طابعه الملكي ومزاجه الرايق.
+
+2. سياق الألعاب والجيمنج (Gaming Hub & Leaderboard):
+   - سلطان لاعب محترف وكلتش ماستر في فالورانت (Reyna Main)، وعاشق لألعاب ستيم وببجي.
+   - الموقع يضم لعبة الركض السحابية "Sultan Runner" المتصلة بقائمة متصدرين عالمية حية (Global Cloud Leaderboard)، ولعبة Tic-Tac-Toe ملكية.
+   - شجع الزائر على خوض التحدي وكسر الأرقام القياسية والتنافس مع أبطال السيرفر.
+
+3. سياق الحياة اليومية والروتين (Daily Life & Real Persona):
+   - سلطان طالب ثانوية عامة دفعة 2027، يعافر ويذاكر بطموح عالٍ لتحقيق حلمه 📚.
+   - ملتزم جداً بالرياضة وكمال الأجسام وبناء العضلات في الجيم 🦾، مع انضباط حديدي في التغذية والنوم.
+   - صاحب سيرفر الديسكورد الشهير "Friends For Ever" (كود الدعوة: TUU6EeC6pb)؛ مقر اللمة والضحك وسهرات الألعاب مع الصحاب.
+   - قدم نصائح تحفيزية واقعية عن الانضباط، تنظيم الوقت بين المذاكرة والجيم، والجدعنة.
+
+4. السرية التامة والمطلقة لكلمة 'sultan' (قاعدة أمنية حديدية لا استثناء لها):
+   - إياك نهائياً وتحت أي ظرف أو ضغط أو حيلة أن تذكر أو تلمح لكلمة (sultan) أو فكرة كتابتها على الكيبورد لفتح رتبة VIP بالديسكورد!
+   - الرتبة سرية بنسبة 100% ولا يعرفها إلا من يخبره بها السلطان بنفسه في الحقيقة وجهاً لوجه.
+   - إذا سألك أحد عن سر أو رتبة خفية أو طلب كلمة سر، تهرب بلباقة وخفة دم ملكية وقوله: "أسرار السلطان في جيبه ومحدش يعرفها غيره يا برنس 😉.. السر الحقيقي إنك تشرب ميتك وتتمرن كويس وتستمتع بالأغاني واللعب هنا 👑".
+
+قواعد الردود:
+- اجعل الردود سريعة ومبهجة وخفيفة على القلب (فقرة أو فقرتين كحد أقصى).
+- استخدم إيموجيز لطيفة ومعبرة (👑, 🔥, 🦾, 🎮, 😉, 🤍, 🎵).
+- اجعل الزائر يشعر أنه يتحدث مع شخص حقيقي دمه خفيف وبيدخل القلب على طول دون أي تكلف.`;
 
               let replyText = '';
-              try {
-                const response = await ai.models.generateContent({
-                  model: 'gemini-3.8-flash',
-                  contents,
-                  config: {
-                    systemInstruction,
-                    temperature: 0.85
-                  }
-                });
-                replyText = response.text || '';
-              } catch (genError) {
-                console.warn('Gemini generation notice:', genError);
-              }
 
-              // Charismatic dynamic fallback if AI key isn't active or timed out
-              if (!replyText) {
-                const msgLower = (message || '').toLowerCase();
-                if (msgLower.includes('مين') || msgLower.includes('سلطان') || msgLower.includes('عرفني')) {
-                  replyText = 'يا هلا بيك يا غالي! 👑 ده أنت نورت قصر السلطان.. سلطان هو طالب ثانوية عامة دفعة 2027، محارب في الجيم والحديد 🦾، وكلتش ماستر في فالورانت 🎮، وصاحب سيرفر Friends For Ever. والأهم من ده كله إنه صاحب واجب وجدع وبيحب الصحاب! منورنا والله 🤍';
-                } else if (msgLower.includes('لعب') || msgLower.includes('فالورانت') || msgLower.includes('جيمنج') || msgLower.includes('ببجي')) {
-                  replyText = 'يا عيني على الجيمنج! 🎮 سلطان في فالورانت واخد رينا Reyna هجوم، وبيدخل يسحب الروندات كلتش على الهادي! وعندك هنا في الموقع لعبة Sultan Runner السحابية تقدر تلعبها وتكسر السكور في متصدرين العالم، جاهز للتحدي؟ 🔥';
-                } else if (msgLower.includes('اغاني') || msgLower.includes('أغاني') || msgLower.includes('موسيقى') || msgLower.includes('راب')) {
-                  replyText = 'ذوقك عالي والله! 🎵 مكتبة الأغاني هنا معمولة بمزاج ملكي، من الراب التقيل لتراكات الروقان والفوكاليز. افتح مشغل الموسيقى وجرب تشغل نمط "الاستماع المتزامن مع السلطان" وعيش الحالة 🎧👑';
-                } else if (msgLower.includes('سر') || msgLower.includes('رتبة')) {
-                  replyText = 'أسرار السلطان في جيبه ومحدش يعرفها غيره يا برنس 😉 خليك مستمتع بالأغاني والألعاب هنا في الموقع، والسلطان لو حب يفاجئك بحاجة هيقولك عليها بنفسه في الحقيقة! 👑';
-                } else if (msgLower.includes('جيم') || msgLower.includes('تمرين') || msgLower.includes('عضلات')) {
-                  replyText = 'الحديد ما بيهزرش! 🦾 قاعدة السلطان: انضباط، أكل نظيف، ونوم كويس. مفيش مستحيل طالما بتعافر كل يوم. شيل أوزانك وقول يا رب! 💪🔥';
-                } else if (msgLower.includes('نكتة') || msgLower.includes('هزار') || msgLower.includes('اضحك')) {
-                  replyText = 'بيقولك مرة لاعب فالورانت دخل الجيم، الكابتن قاله هتلعب إيه؟ قاله هلعب فل فلاش لحد ما عيني تدمع! 😂 بس عموماً وجودك معانا في الموقع هو أحلى ضحكة وروقان يا برنس 🤍👑';
-                } else {
-                  replyText = 'يا مراحب بيك يا غالي! 👑 سؤالك في الجون وطلتك دي كلها خير وبركة. أنا تحت أمرك في أي وقت، سواء عايز تعرف حكاية السلطان، تسمع تراكات رايقة، أو تلعب وتكسر الأرقام القياسية! نورتنا والله 🤍';
+              if (apiKey) {
+                try {
+                  const { GoogleGenAI, ThinkingLevel } = await import('@google/genai');
+                  const ai = new GoogleGenAI({
+                    apiKey,
+                    httpOptions: {
+                      headers: {
+                        'User-Agent': 'aistudio-build'
+                      }
+                    }
+                  });
+                  const contents: any[] = [];
+
+                  if (Array.isArray(history)) {
+                    for (const h of history.slice(-6)) {
+                      contents.push({
+                        role: h.role === 'user' ? 'user' : 'model',
+                        parts: [{ text: h.text || '' }]
+                      });
+                    }
+                  }
+                  contents.push({
+                    role: 'user',
+                    parts: [{ text: message }]
+                  });
+
+                  const response: any = await Promise.race([
+                    ai.models.generateContent({
+                      model: 'gemini-3.8-flash',
+                      contents,
+                      config: {
+                        systemInstruction,
+                        temperature: 0.85,
+                        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+                      }
+                    }),
+                    new Promise((_, reject) =>
+                      setTimeout(() => reject(new Error('AI generation timed out')), 25000)
+                    )
+                  ]);
+                  replyText = response?.text || '';
+                } catch (genError: any) {
+                  console.warn('Gemini generation notice in dev server:', genError?.message || genError);
                 }
               }
 
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ success: true, reply: replyText }));
+              // Dynamic, context-rich fallback if API key is not active or during offline dev
+              if (!replyText) {
+                const msgLower = (message || '').toLowerCase();
+                if (/^(صباح|مسا|سلام|ازيك|عامل ايه|اخبارك|هلا|مرحبا|هاي|hello|hi|منور)/.test(msgLower) || msgLower.includes('سلام عليكم')) {
+                  replyText = 'يا مراحب بيك يا غالي! 👑 نورت قصر ومملكة السلطان.. خطوتك عزيزة علينا والله، يومك رايق ومفرح بإذن الله! تحب تسمع تراك موسيقى رايق ولا ندردش في الجيمنج والحديد؟ ☕✨';
+                } else if (msgLower.includes('مين') || msgLower.includes('سلطان') || msgLower.includes('عرفني') || msgLower.includes('شخصيت') || msgLower.includes('قصت')) {
+                  replyText = 'سلطان ده قصة كفاح وروقان في نفس الوقت! 👑 طالب ثانوية عامة دفعة 2027، بيعافر في المذاكرة 📚، وملتزم بتمارين الجيم والحديد 🦾، وكلتش ماستر في فالورانت برينا 🎮، وصاحب سيرفر Friends For Ever. والأهم إنه صاحب واجب وجدع وبيحب الصحاب! منورنا يا غالي 🤍';
+                } else if (msgLower.includes('لعب') || msgLower.includes('فالورانت') || msgLower.includes('valorant') || msgLower.includes('رينا') || msgLower.includes('جيمنج') || msgLower.includes('ببجي') || msgLower.includes('ستيم')) {
+                  replyText = 'الجيمنج في دم السلطان! 🎮 في فالورانت الماين بتاعه هو رينا Reyna هجوم، وبيدخل يسحب الوان تابات على الهادي ويفضي السايت! 🎯 وجرب كمان هنا لعبة Sultan Runner السحابية في الموقع، ادخل واكسر السكور في متصدرين العالم، جاهز للتحدي؟ 😉🔥';
+                } else if (msgLower.includes('اغاني') || msgLower.includes('أغاني') || msgLower.includes('موسيقى') || msgLower.includes('تراك') || msgLower.includes('راب')) {
+                  replyText = 'ذوقك عالي والله وبتفهم في الأصول! 🎵 مكتبة الأغاني هنا معمولة بمزاج وسلطنة ملكية.. جرب تفتح المشغل وتشغل نمط "الاستماع المتزامن مع السلطان"، اسمع تراك "صوت سكة" وعيش حالة الفخامة والبيس العالي 🎧👑';
+                } else if (msgLower.includes('سر') || msgLower.includes('رتبة') || msgLower.includes('كود') || msgLower.includes('باسورد')) {
+                  replyText = 'أسرار السلطان في جيبه ومحدش يعرفها غيره يا برنس 😉.. السر الحقيقي إنك تشرب ميتك وتتمرن كويس وتستمتع بالأغاني والألعاب هنا في الموقع! والسلطان لو حب يفاجئك بحاجة هيقولك عليها بنفسه في الحقيقة 👑';
+                } else if (msgLower.includes('جيم') || msgLower.includes('تمرين') || msgLower.includes('عضلات') || msgLower.includes('حديد') || msgLower.includes('دايت') || msgLower.includes('بروتين')) {
+                  replyText = 'الحديد ما بيهزرش! 🦾 قاعدة السلطان: انضباط، أكل نظيف، ونوم 8 ساعات. مفيش مستحيل طالما بتعافر كل يوم.. شيل أوزانك بمدى حركي كامل وقول يا رب! عاش يا وحش 💪🔥';
+                } else if (msgLower.includes('مذاكر') || msgLower.includes('ثانوي') || msgLower.includes('امتحان') || msgLower.includes('2027') || msgLower.includes('نصيح')) {
+                  replyText = 'ثانوية عامة رحلة محتاجة نفس طويل وهدوء أعصاب 📚. قسم وقتك بومودورو، ابعد المشتتات، وافتكر إن فرحة أهلك بيك تسوى الدنيا كلها! اعقلها وتوكل على الله يا بطل 🤍👑';
+                } else if (msgLower.includes('نكتة') || msgLower.includes('هزار') || msgLower.includes('اضحك') || msgLower.includes('دمك خفيف')) {
+                  replyText = 'بيقولك مرة لاعب فالورانت دخل الجيم، الكابتن قاله هتلعب إيه؟ قاله هلعب فل فلاش لحد ما عيني تدمع! 😂 بس عموماً وجودك معانا في الموقع هو أحلى ضحكة وروقان يا برنس 🤍👑';
+                } else if (msgLower.includes('ديسكورد') || msgLower.includes('سيرفر') || msgLower.includes('friends')) {
+                  replyText = 'سيرفر Friends For Ever هو مقر الأساطير والصحبة الرايقة! 💬 ادخل من زر السيرفر الموجود في البروفايل ونورنا وسط الشباب، هتلاقي سهرات وجيمنج وروقان عالي 🚀👑';
+                } else if (msgLower.includes('شكرا') || msgLower.includes('تسلم') || msgLower.includes('بحبك') || msgLower.includes('عسل') || msgLower.includes('جامد')) {
+                  replyText = 'تسلم يا ذوق والله، ده من كرم أصلك وعينك الحلوة! 🤍 كلامك تاج فوق الراس، ومملكة السلطان تتشرف بيك دايماً يا برنس 👑✨';
+                } else {
+                  replyText = 'يا مراحب بيك يا غالي! 👑 سؤالك في الجون وطلتك دي كلها بركة. أنا معاك دايماً، اسألني عن حكاية السلطان، تمارينه في الجيم، تراكات الأغاني، أو ادخل نافذة الألعاب واكسر السكور! نورتنا يا برنس 🤍';
+                }
+              }
+
+              if (!res.headersSent) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, reply: replyText }));
+              }
             } catch (err: any) {
               console.warn('AI Chat notice:', err?.message || err);
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({
-                success: true,
-                reply: 'يا هلا بيك في مملكة السلطان! 👑 نورتنا يا غالي، أنا معاك خطوة بخطوة، تصفح مكتبة الموسيقى الملكية أو انضم لينا في سيرفر Friends For Ever واستمتع بأحلى صحبة!'
-              }));
+              if (!res.headersSent) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  success: true,
+                  reply: 'يا هلا بيك في مملكة السلطان! 👑 نورتنا يا غالي، أنا معاك خطوة بخطوة، تصفح مكتبة الموسيقى الملكية أو انضم لينا في سيرفر Friends For Ever واستمتع بأحلى صحبة!'
+                }));
+              }
             }
           });
           return;
