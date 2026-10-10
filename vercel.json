@@ -5,12 +5,24 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
+      "source": "/api/ai/chat",
+      "destination": "/api/ai/chat"
+    },
+    {
+      "source": "/api/discord/announce",
+      "destination": "/api/discord/announce"
+    },
+    {
       "source": "/api/discord/test-bot",
       "destination": "/api/discord/test-bot"
     },
     {
       "source": "/api/discord/assign-role",
       "destination": "/api/discord/assign-role"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     },
     {
       "source": "/(.*)",

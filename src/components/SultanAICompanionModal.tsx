@@ -99,6 +99,67 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
     } catch {}
   };
 
+  const generateCharismaticFallback = (userText: string): string => {
+    const msg = userText.toLowerCase().trim();
+
+    if (/^(صباح|مسا|سلام|ازيك|عامل ايه|اخبارك|هلا|مرحبا|هاي|hello|hi|منور)/.test(msg) || msg === 'سلام عليكم' || msg === 'السلام عليكم') {
+      const greetings = [
+        'يا مراحب بيك يا غالي! 👑 نورت قصر ومملكة السلطان.. خطوتك عزيزة علينا والله، يومك رايق بإذن الله! تشرب قهوتك ونبدأ سوا؟ ☕✨',
+        'وعليكم السلام يا هلا بالورد والفخامة! 🤍 نورتنا يا برنس، أنا المساعد الملكي للسلطان ومعاك في أي حاجة تحبها. عامل إيه طمني عنك؟ 👑',
+        'أهلاً أهلاً يا بطل! 👑 طلتك دي دايماً بتنور الموقع.. أنا تحت أمرك، تحب تسمع تراك رايق ولا ندردش في الجيمنج والحديد؟ 🎮🦾'
+      ];
+      return greetings[Math.floor(Math.random() * greetings.length)];
+    }
+
+    if (msg.includes('مين') || msg.includes('سلطان') || msg.includes('عرفني') || msg.includes('شخصيته') || msg.includes('قصت') || msg.includes('حكايت')) {
+      return 'سلطان ده قصة كفاح وروقان في نفس الوقت! 👑 طالب ثانوية عامة دفعة 2027، بيعافر في المذاكرة عشان يوصل لأعلى قمة 📚، وفي نفس الوقت ملتزم بتمارين الجيم وبناء العضلات 🦾، وملك الكلتشات في فالورانت برينا 🎮. وصاحب سيرفر Friends For Ever.. الأهم من كل ده إنه صاحب جدع ومحترم وبيحب الناس! منورنا يا غالي 🤍';
+    }
+
+    if (msg.includes('جيم') || msg.includes('تمرين') || msg.includes('عضل') || msg.includes('حديد') || msg.includes('دايت') || msg.includes('بروتين') || msg.includes('كرياتين') || msg.includes('بنش') || msg.includes('سكوات') || msg.includes('باي')) {
+      const gymTips = [
+        'الحديد ما بيهزرش! 🦾 قاعدة السلطان الذهبية: "انضباط + أكل نظيف وتغذية محسوبة + نوم 8 ساعات". الالتزام مش إنك تتمرن وأنت متحمس، الالتزام إنك تنزل وأنت مش قادر وتفرتك الأوزان! عاش يا وحش 💪🔥',
+        'يا كابتن! 🦾 في الجيم مفيش أسرار: تمرينة بنش تقيلة، تركيز على الحركة السلبية (Eccentric)، بروتينك اليومي، وأهم حاجة أوعى تهمل شرب المية والنوم. فورمة السلطان بتتبني بالعرق والصبر! 🦍🔥',
+        'عاش يا بطل! 🦾 لو بتدور على الضخامة: العب بمدى حركي كامل (Full ROM)، زود الحمل التدريجي كل أسبوع (Progressive Overload)، ومتنساش تضبط أكلك عشان العضلات تكبر بروقان! 💪👑'
+      ];
+      return gymTips[Math.floor(Math.random() * gymTips.length)];
+    }
+
+    if (msg.includes('لعب') || msg.includes('فالورانت') || msg.includes('valorant') || msg.includes('رينا') || msg.includes('reyna') || msg.includes('ببجي') || msg.includes('ستيم') || msg.includes('steam') || msg.includes('قيم') || msg.includes('كلتش')) {
+      return 'الجيمنج في دم السلطان! 🎮 في فالورانت الماين بتاعه هو رينا Reyna هجوم، وبيدخل يسحب الوان تابات على الهادي ويفضي السايت! 🎯 ولو حابب تتحدى وتشوف سرعتك، عندك في الموقع لعبة Sultan Runner السحابية، ادخل واكسر السكور في متصدرين العالم، جاهز ولا خايف؟ 😉🔥';
+    }
+
+    if (msg.includes('اغاني') || msg.includes('أغاني') || msg.includes('موسيقى') || msg.includes('تراك') || msg.includes('راب') || msg.includes('صوت') || msg.includes('سمعني')) {
+      return 'ذوقك عالي والله وبتفهم في الأصول! 🎵 مكتبة الأغاني هنا معمولة بمزاج وسلطنة ملكية.. جرب تفتح المشغل وتشغل نمط "الاستماع المتزامن مع السلطان"، اسمع تراك "صوت سكة" وعيش حالة الفخامة والبيس العالي 🎧👑';
+    }
+
+    if (msg.includes('سر') || msg.includes('رتب') || msg.includes('كود') || msg.includes('باسورد') || msg.includes('خفي')) {
+      return 'أسرار السلطان في جيبه ومحدش يعرفها غيره يا برنس 😉 خليك مستمتع بالأغاني والألعاب هنا في الموقع، والسلطان لو حب يفاجئك بحاجة هيقولك عليها بنفسه في الحقيقة! 👑';
+    }
+
+    if (msg.includes('مذاكر') || msg.includes('امتحان') || msg.includes('ثانوي') || msg.includes('2027') || msg.includes('كسل') || msg.includes('تعبان') || msg.includes('محبط') || msg.includes('نصيح')) {
+      return 'اسمع من أخوك: ثانوية عامة رحلة محتاجة نفس طويل وهدوء أعصاب 📚. قسم وقتك بطريقة البومودورو (25 دقيقة تركيز و5 دقائق راحة)، ابعد الموبايل وقت المذاكرة، وافتكر إن فرحة أهلك بيك تسوى الدنيا كلها! اعقلها وتوكل على الله، التعب هيروح والنتيجة هتفضل 🤍👑';
+    }
+
+    if (msg.includes('نكت') || msg.includes('هزار') || msg.includes('اضحك') || msg.includes('دمك خفيف') || msg.includes('إفيه') || msg.includes('روش')) {
+      const jokes = [
+        'بيقولك مرة لاعب فالورانت دخل الجيم، الكابتن قاله هتلعب إيه؟ قاله هلعب فل فلاش لحد ما عيني تدمع! 😂 المهم يا برنس إن ضحكتك دي بالدنيا والله 🤍',
+        'مرة واحد سأل لاعب فالورانت: ليه مش بتنام بدري؟ قاله عشان الـ Spike لسه ما زرعتهوش في الحلم! 😂 روق دمك يا عسل وقضي يومك بابتسامة 👑',
+        'بيقولك واد بتاع جيم راح يخطب، أبو العروسة قاله بتشتغل إيه؟ قاله شغال كابتن تسخين قلوب وبكسر أوزان! 😂 اضحك يا غالي ده أنت منورنا والله 🤍'
+      ];
+      return jokes[Math.floor(Math.random() * jokes.length)];
+    }
+
+    if (msg.includes('بحبك') || msg.includes('عسل') || msg.includes('جامد') || msg.includes('فخم') || msg.includes('برنس') || msg.includes('شكرا') || msg.includes('شكراً') || msg.includes('تسلم') || msg.includes('حبيبي')) {
+      return 'تسلم يا ذوق والله، ده من كرم أصلك وعينك الحلوة اللي شايفة كل حاجة حلوة! 🤍 كلامك تاج فوق الراس، ومملكة السلطان تتشرف بيك في أي وقت يا برنس 👑✨';
+    }
+
+    if (msg.includes('ديسكورد') || msg.includes('سيرفر') || msg.includes('friends') || msg.includes('روم') || msg.includes('شات')) {
+      return 'سيرفر Friends For Ever هو المكان اللي بنتجمع فيه كلنا! 🚀 صوت وجيمنج وسهرات رايقة وضحك مع الصحاب.. رابط السيرفر موجود في كارت البروفايل، ادخل ونورنا وسط الشباب 👑💬';
+    }
+
+    return 'يا مراحب بيك يا غالي! 👑 سؤالك في الجون وطلتك دي كلها خير وبركة. أنا معاك خطوة بخطوة، اسألني عن حكاية السلطان، الجيم والتمرين، تراكات الأغاني، أو ادخل قسم الألعاب واكسر السكور! نورتنا والله يا برنس 🤍';
+  };
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || input).trim();
     if (!text || isLoading) return;
@@ -136,14 +197,29 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
         text: m.text
       }));
 
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history })
-      });
+      let reply = '';
 
-      const data = await res.json();
-      const reply = data.reply || 'يا مراحب بيك يا غالي! 👑 نورت مملكة السلطان ودايماً منورنا 🤍';
+      try {
+        const res = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.reply === 'string' && data.reply.trim()) {
+            reply = data.reply.trim();
+          }
+        }
+      } catch (networkErr) {
+        console.warn('Network fetch error, using charismatic fallback:', networkErr);
+      }
+
+      // If backend didn't return a reply, use intelligent charismatic persona
+      if (!reply) {
+        reply = generateCharismaticFallback(text);
+      }
 
       setMessages((prev) => [
         ...prev,
@@ -161,7 +237,7 @@ export const SultanAICompanionModal: React.FC<SultanAICompanionModalProps> = ({
         {
           id: Math.random().toString(),
           sender: 'sultan_ai',
-          text: 'يا هلا بيك يا برنس! 👑 النت يمكن غمز شوية، بس أنا في ضهرك دايماً.. تصفح الأغاني براحتك أو انضم لسيرفر الديسكورد Friends For Ever عشان تلاقينا هناك لايف! 🔥',
+          text: generateCharismaticFallback(text),
           time: 'الآن'
         }
       ]);
