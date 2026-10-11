@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-interface BeforeInstallPromptEvent extends Event {
+export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
@@ -9,18 +9,33 @@ export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isAndroid, setIsAndroid] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [isWindows, setIsWindows] = useState(false);
+  const [isMac, setIsMac] = useState(false);
 
   useEffect(() => {
     // Detect standalone mode (already installed or running as PWA)
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+      document.referrer.includes('android-app://');
     setIsInstalled(isStandalone);
 
-    // Detect iOS devices (iPhone, iPad, iPod)
-    const userAgent = window.navigator.userAgent.toLowerCase();
-    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
+    const ua = (typeof window !== 'undefined' ? window.navigator.userAgent : '').toLowerCase();
+    
+    // Platform detection
+    const isIOSDevice = /iphone|ipad|ipod/.test(ua) && !(window as any).MSStream;
+    const isAndroidDevice = /android/.test(ua);
+    const isWindowsDevice = /windows|win32|win64/.test(ua);
+    const isMacDevice = /macintosh|mac os x/.test(ua) && !isIOSDevice;
+    const isDesktopDevice = !isIOSDevice && !isAndroidDevice && !/mobile|tablet/.test(ua);
+
     setIsIOS(isIOSDevice);
+    setIsAndroid(isAndroidDevice);
+    setIsWindows(isWindowsDevice);
+    setIsMac(isMacDevice);
+    setIsDesktop(isDesktopDevice);
 
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -61,6 +76,11 @@ export function usePWAInstall() {
     isInstallable: !!deferredPrompt,
     isInstalled,
     isIOS,
+    isAndroid,
+    isDesktop,
+    isWindows,
+    isMac,
     install,
+    deferredPrompt
   };
 }
