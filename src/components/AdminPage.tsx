@@ -411,8 +411,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       setAdminVoiceData((prev) => ({ ...prev, loading: true }));
     }
     try {
-      const res = await fetch(`/api/discord/live-voice?_t=${Date.now()}`, {
-        headers: { 'Cache-Control': 'no-cache, no-store' }
+      const res = await fetch(`/api/discord/live-voice?bypassCache=1&_t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache, no-store', 'Pragma': 'no-cache' }
       });
       if (res.ok) {
         const data = await res.json();
@@ -511,15 +511,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({
     }
   };
 
-  // Automatic Polling every 10 seconds for real-time live Discord radar synchronization
+  // Automatic Polling every 5-10 seconds for real-time live Discord radar synchronization
   useEffect(() => {
     if (!isAuthenticated) return;
     fetchAdminLiveVoice(true);
+    const pollTime = activeSubTab === 'story' ? 5000 : 10000;
     const interval = setInterval(() => {
       fetchAdminLiveVoice(true);
-    }, 10000);
+    }, pollTime);
     return () => clearInterval(interval);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeSubTab]);
 
   const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -2443,7 +2444,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
             {/* TAB: Sultan's Daily Story & Discord Radar */}
             {activeSubTab === 'story' && (
-              <form onSubmit={handleSave} className="p-6 rounded-3xl bg-[#0e0e1a]/90 border border-white/10 shadow-xl space-y-6">
+              <form onSubmit={handleSave} className="p-4 sm:p-6 rounded-3xl bg-[#0e0e1a]/90 border border-white/10 shadow-xl space-y-6 max-w-full overflow-x-hidden">
                 {/* Header Banner */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-950/40 via-amber-950/30 to-black/50 border border-red-500/30">
                   <div className="flex items-center gap-3">
@@ -2632,7 +2633,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 </div>
 
                 {/* Section 2: Live Activity Radar & Realtime Voice Control Panel (لوحة تحكم تفاعلية لرادار الروم والمايك والديفن والستريم والأعضاء) */}
-                <div className="p-5 sm:p-6 rounded-3xl bg-black/60 border border-cyan-500/40 shadow-2xl space-y-5 max-w-full overflow-hidden">
+                <div className="p-4 sm:p-6 rounded-3xl bg-black/60 border border-cyan-500/40 shadow-2xl space-y-5 max-w-full overflow-x-hidden">
                   {/* Radar Header with Live Badge, 10s Polling Indicator & Refresh Button */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                     <div className="flex items-center gap-3">

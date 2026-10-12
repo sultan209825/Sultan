@@ -87,11 +87,14 @@ function discordApiPlugin() {
         // Status of Sultan's Custom Discord Bot & Real-time Live Voice Radar
         if ((urlPath === '/api/discord/bot-service' || urlPath === '/api/discord/live-voice') && req.method === 'GET') {
           try {
-            const liveVoice = await getLiveVoiceState();
+            const rawUrl = req.url || '';
+            const bypassCache = rawUrl.includes('bypassCache=1') || rawUrl.includes('nocache=1');
+            const liveVoice = await getLiveVoiceState('1306240131224571957', bypassCache);
             const currentState = getBotState();
             res.writeHead(200, {
               'Content-Type': 'application/json',
-              'Cache-Control': 'no-cache, no-store, must-revalidate'
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
             });
             res.end(
               JSON.stringify({

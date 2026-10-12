@@ -47,25 +47,28 @@ interface CachedWidget {
 
 let cachedWidget: CachedWidget | null = null;
 let lastKnownValidWidgetData: any = null;
-const CACHE_TTL_MS = 4000; // 4s cache to gracefully absorb rapid polling without Discord 429 rate-limits
+const CACHE_TTL_MS = 2000; // 2s cache to prevent rapid flood while ensuring fast live updates
 
-async function fetchGuildWidgetData(guildId: string): Promise<any> {
+async function fetchGuildWidgetData(guildId: string, force = false): Promise<any> {
   const now = Date.now();
-  if (cachedWidget && now - cachedWidget.timestamp < CACHE_TTL_MS) {
+  if (!force && cachedWidget && now - cachedWidget.timestamp < CACHE_TTL_MS) {
     return cachedWidget.data;
   }
 
-  // Query discordapp.com first (unthrottled / reliable), then fallback to discord.com
+  // Query discordapp.com first, then discord.com, with cache-busting timestamp to bypass CDN edge caching
+  const cacheBust = `${now}_${Math.random().toString(36).slice(2, 7)}`;
   const endpoints = [
-    `https://discordapp.com/api/guilds/${guildId}/widget.json`,
-    `https://discord.com/api/guilds/${guildId}/widget.json`
+    `https://discordapp.com/api/guilds/${guildId}/widget.json?_t=${cacheBust}`,
+    `https://discord.com/api/guilds/${guildId}/widget.json?_t=${cacheBust}`
   ];
 
   for (const url of endpoints) {
     try {
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; SultanBioRadar/3.0; +https://sultansusu.vercel.app)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
           Accept: 'application/json'
         }
       });
@@ -90,38 +93,34 @@ export function getBotState() {
   return { ...state };
 }
 
-export async function getLiveVoiceState(guildId: string = '1306240131224571957') {
-  // 1. If WebSocket bot Gateway has active presence, return it
-  if (currentWs && currentWs.readyState === 1 && state.isOnline && state.sultanVoiceChannel?.channelId) {
-    return {
-      inVoice: true,
-      ...state.sultanVoiceChannel
-    };
-  }
-
-  // 2. Real-time query to Discord Guild Widget API with multi-domain fallback & caching
+export async function getLiveVoiceState(guildId: string = '1306240131224571957', force = false) {
+  // Query real-time Discord Guild Widget API with multi-domain fallback & cache-busting
   try {
-    const data = await fetchGuildWidgetData(guildId);
+    const data = await fetchGuildWidgetData(guildId, force);
 
     if (data && Array.isArray(data.members)) {
+      // Find Sultan: strictly match his known username patterns or Discord ID (do NOT match generic m.id === '0' which matches everyone)
       const sultanCandidates = data.members.filter((m: any) => {
         const u = (m.username || '').toLowerCase();
+        const g = (m.game?.name || '').toLowerCase();
         return (
+          m.id === '1224502828371017788' ||
+          u.includes('5susu') ||
           u.includes('sultan') ||
           u.includes('سلطان') ||
-          u.includes('5susu') ||
           m.username?.includes('𝑺𝒖𝒍𝒕𝒂𝒏') ||
-          m.username?.includes('Sultan') ||
           m.username?.includes('𓆩') ||
           m.username?.includes('𓆪') ||
-          m.username === '! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪' ||
-          m.id === '0' ||
-          m.id === '1224502828371017788'
+          g.includes('sultan') ||
+          g.includes('سلطان') ||
+          g.includes('5susu') ||
+          g.includes('𝑺𝒖𝒍𝒕𝒂𝒏')
         );
       });
 
       // Prioritize candidate actively in a voice channel
-      const sultan = sultanCandidates.find((m: any) => Boolean(m.channel_id)) || sultanCandidates[0];
+      const sultanInVoice = sultanCandidates.find((m: any) => Boolean(m.channel_id));
+      const sultan = sultanInVoice || sultanCandidates[0];
 
       const availableChannels = (data.channels || []).map((c: any) => ({
         id: c.id,
@@ -129,14 +128,21 @@ export async function getLiveVoiceState(guildId: string = '1306240131224571957')
         position: c.position
       }));
 
-      if (sultan && sultan.channel_id) {
-        const channel = (data.channels || []).find((c: any) => c.id === sultan.channel_id);
-        const channelName = channel?.name || 'غرفة صوتية خاصة 🎙️';
-        const isChannelChanged = state.sultanVoiceChannel?.channelId !== sultan.channel_id;
+      // If WebSocket bot Gateway has active presence, override or supplement Sultan's channel state
+      const isGatewayVoice = currentWs && currentWs.readyState === 1 && state.isOnline && state.sultanVoiceChannel?.channelId;
+
+      if (isGatewayVoice || (sultan && sultan.channel_id)) {
+        const targetChannelId = isGatewayVoice ? state.sultanVoiceChannel!.channelId! : sultan.channel_id;
+        const channel = (data.channels || []).find((c: any) => c.id === targetChannelId);
+        const channelName = isGatewayVoice
+          ? (state.sultanVoiceChannel!.channelName || channel?.name || 'غرفة صوتية خاصة 🎙️')
+          : (channel?.name || 'غرفة صوتية خاصة 🎙️');
+
+        const isChannelChanged = state.sultanVoiceChannel?.channelId !== targetChannelId;
 
         // Find companions in the same voice channel
         const companions = (data.members || [])
-          .filter((m: any) => m.channel_id === sultan.channel_id && m !== sultan && m.username !== sultan.username)
+          .filter((m: any) => m.channel_id === targetChannelId && m !== sultan && m.username !== sultan?.username)
           .map((m: any) => ({
             id: m.id || m.username,
             username: m.username,
@@ -160,28 +166,38 @@ export async function getLiveVoiceState(guildId: string = '1306240131224571957')
             isStreaming: Boolean(m.self_stream || m.streaming || m.self_video),
             channelId: m.channel_id,
             channelName: (data.channels || []).find((c: any) => c.id === m.channel_id)?.name || 'روم صوتي',
-            isSultan: m === sultan || m.username === sultan.username,
+            isSultan: m === sultan || m.username === sultan?.username,
             status: m.status || 'online'
           }));
 
-        const isStreaming = Boolean(
-          sultan.self_stream ||
-          sultan.streaming ||
-          (data.members || []).some((m: any) => m.id === sultan.id && (m.self_stream || m.self_video))
-        );
+        const isStreaming = isGatewayVoice
+          ? state.sultanVoiceChannel!.isStreaming
+          : Boolean(
+              sultan?.self_stream ||
+              sultan?.streaming ||
+              (data.members || []).some((m: any) => m === sultan && (m.self_stream || m.self_video))
+            );
+
+        const isMuted = isGatewayVoice
+          ? state.sultanVoiceChannel!.isMuted
+          : Boolean(sultan?.self_mute || sultan?.mute || sultan?.suppress);
+
+        const isDeafened = isGatewayVoice
+          ? state.sultanVoiceChannel!.isDeafened
+          : Boolean(sultan?.self_deaf || sultan?.deaf);
 
         const voiceInfo = {
           inVoice: true,
-          channelId: sultan.channel_id,
+          channelId: targetChannelId,
           channelName,
-          isMuted: Boolean(sultan.self_mute || sultan.mute || sultan.suppress),
-          selfMute: Boolean(sultan.self_mute),
-          serverMute: Boolean(sultan.mute),
-          isDeafened: Boolean(sultan.self_deaf || sultan.deaf),
-          selfDeaf: Boolean(sultan.self_deaf),
-          serverDeaf: Boolean(sultan.deaf),
+          isMuted,
+          selfMute: isGatewayVoice ? isMuted : Boolean(sultan?.self_mute),
+          serverMute: isGatewayVoice ? false : Boolean(sultan?.mute),
+          isDeafened,
+          selfDeaf: isGatewayVoice ? isDeafened : Boolean(sultan?.self_deaf),
+          serverDeaf: isGatewayVoice ? false : Boolean(sultan?.deaf),
           isStreaming,
-          status: sultan.status || 'online',
+          status: sultan?.status || 'online',
           serverName: data.name || '✨ Friends For Ever ✨',
           connectedAt: isChannelChanged ? new Date().toISOString() : (state.sultanVoiceChannel?.connectedAt || new Date().toISOString()),
           companions,
@@ -197,12 +213,28 @@ export async function getLiveVoiceState(guildId: string = '1306240131224571957')
           channelId: null,
           channelName: data.channels?.[1]?.name || '🎤﹒General',
           isMuted: false,
+          selfMute: false,
+          serverMute: false,
           isDeafened: false,
+          selfDeaf: false,
+          serverDeaf: false,
           isStreaming: false,
           status: sultan?.status || 'offline',
           serverName: data.name || '✨ Friends For Ever ✨',
           connectedAt: null,
           companions: [],
+          allVoiceMembers: (data.members || []).filter((m: any) => Boolean(m.channel_id)).map((m: any) => ({
+            id: m.id || m.username,
+            username: m.username,
+            avatar_url: m.avatar_url,
+            isMuted: Boolean(m.mute || m.self_mute),
+            isDeafened: Boolean(m.deaf || m.self_deaf),
+            isStreaming: Boolean(m.self_stream || m.streaming || m.self_video),
+            channelId: m.channel_id,
+            channelName: (data.channels || []).find((c: any) => c.id === m.channel_id)?.name || 'روم صوتي',
+            isSultan: false,
+            status: m.status || 'online'
+          })),
           availableChannels
         };
       }

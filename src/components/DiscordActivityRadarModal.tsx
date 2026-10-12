@@ -133,7 +133,9 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
         } catch {}
 
         try {
-          const res = await fetch(`/api/discord/bot-service?_t=${Date.now()}`);
+          const res = await fetch(`/api/discord/live-voice?bypassCache=1&_t=${Date.now()}`, {
+            headers: { 'Cache-Control': 'no-cache, no-store', 'Pragma': 'no-cache' }
+          });
           if (res.ok) {
             const data = await res.json();
             if (isMounted && data?.sultanVoiceChannel) {
