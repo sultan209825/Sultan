@@ -21,6 +21,7 @@ export const RoyalTicTacToeModal: React.FC<RoyalTicTacToeModalProps> = ({
   const [scores, setScores] = useState({ player: 0, sultan: 0, ties: 0 });
   const [winnerLine, setWinnerLine] = useState<number[] | null>(null);
   const [winner, setWinner] = useState<'X' | 'O' | 'tie' | null>(null);
+  const [unlockedReward, setUnlockedReward] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -88,6 +89,12 @@ export const RoyalTicTacToeModal: React.FC<RoyalTicTacToeModalProps> = ({
         ...prev,
         [winCheck.winner === 'X' ? 'player' : 'sultan']: prev[winCheck.winner === 'X' ? 'player' : 'sultan'] + 1
       }));
+      if (winCheck.winner === 'X' && gameMode === 'ai') {
+        try {
+          localStorage.setItem('sultan_reward_tictactoe', 'master_tactician');
+        } catch {}
+        setUnlockedReward('🏆 مكافأة استثنائية: انتصرت على الذكاء الاصطناعي وفتحت وسام داهية التكتيك الملكي! 👑');
+      }
       recordSiteLog('تحدي إكس أو ⚔️', `فوز ${winCheck.winner === 'X' ? 'اللاعب' : 'السلطان'} في اللعبة`);
       return;
     }
@@ -255,6 +262,13 @@ export const RoyalTicTacToeModal: React.FC<RoyalTicTacToeModalProps> = ({
             );
           })}
         </div>
+
+        {/* Unlocked Reward Easter Egg */}
+        {unlockedReward && (
+          <div className="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold text-center animate-bounce shadow-md">
+            {unlockedReward}
+          </div>
+        )}
 
         {/* Status & Restart */}
         <div className="flex items-center justify-between pt-2">

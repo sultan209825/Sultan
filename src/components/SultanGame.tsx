@@ -46,6 +46,7 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
   const [isScoreSaved, setIsScoreSaved] = useState<boolean>(false);
   const [savedFeedback, setSavedFeedback] = useState<string>('');
   const [recentSavedId, setRecentSavedId] = useState<string | null>(null);
+  const [unlockedReward, setUnlockedReward] = useState<string | null>(null);
 
   const gameStateRef = useRef<'idle' | 'running' | 'gameover'>('idle');
   const scoreRef = useRef<number>(0);
@@ -131,6 +132,15 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
     audioEngine.playCrashSound();
 
     const finalScore = scoreRef.current;
+    if (finalScore >= 100) {
+      try {
+        localStorage.setItem('sultan_reward_runner', 'runner_champion');
+      } catch {}
+      setUnlockedReward('👑 وسام عداء العرش الملكي: إنجاز أسطوري بتخطي 100 نقطة!');
+    } else {
+      setUnlockedReward(null);
+    }
+
     const currentHigh = parseInt(localStorage.getItem('sultan_game_highscore') || '0', 10);
     if (finalScore > currentHigh) {
       localStorage.setItem('sultan_game_highscore', finalScore.toString());
@@ -550,10 +560,16 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
                       <span>انتهت المحاولة 😅</span>
                     )}
                   </p>
-                  <p className="text-xs text-zinc-300 font-mono-custom mb-3">
+                  <p className="text-xs text-zinc-300 font-mono-custom mb-2">
                     مجموع نقاطك:{' '}
                     <span className="text-amber-400 font-bold text-base">{score}</span> نقطة
                   </p>
+
+                  {unlockedReward && (
+                    <div className="w-full max-w-xs mb-2.5 p-2 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 text-[11px] font-bold text-center animate-bounce shadow-md">
+                      {unlockedReward}
+                    </div>
+                  )}
 
                   {/* Register to Leaderboard Form */}
                   {score > 0 && !isScoreSaved ? (

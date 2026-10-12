@@ -59,7 +59,10 @@ import {
   BookOpen,
   Moon,
   ChevronDown,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  Power,
+  Volume2
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import {
@@ -528,6 +531,91 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Quick Toggles State
+  const [examMode, setExamMode] = useState<boolean>(() => {
+    return localStorage.getItem('sultan_exam_mode') === 'true';
+  });
+  const [maintenanceMode, setMaintenanceMode] = useState<boolean>(() => {
+    return localStorage.getItem('sultan_maintenance_mode') === 'true';
+  });
+  const [soundEffectsMuted, setSoundEffectsMuted] = useState<boolean>(() => {
+    return localStorage.getItem('sultan_mute_sfx') === 'true';
+  });
+  const [radarPollingEnabled, setRadarPollingEnabled] = useState<boolean>(true);
+
+  const toggleExamMode = () => {
+    audioEngine.playAdminClick();
+    const next = !examMode;
+    setExamMode(next);
+    localStorage.setItem('sultan_exam_mode', next ? 'true' : 'false');
+    showToast(next ? 'تم تفعيل وضع الامتحانات والمذاكرة 📖' : 'تم تعطيل وضع الامتحانات');
+  };
+
+  const toggleMaintenanceMode = () => {
+    audioEngine.playAdminClick();
+    const next = !maintenanceMode;
+    setMaintenanceMode(next);
+    localStorage.setItem('sultan_maintenance_mode', next ? 'true' : 'false');
+    showToast(next ? 'تم تفعيل وضع الصيانة المؤقت ⚠️' : 'تم استئناف الموقع للجميع 🟢');
+  };
+
+  const toggleSoundEffects = () => {
+    const next = !soundEffectsMuted;
+    setSoundEffectsMuted(next);
+    localStorage.setItem('sultan_mute_sfx', next ? 'true' : 'false');
+    if (next) {
+      audioEngine.setVolume(0);
+      showToast('تم كتم المؤثرات الصوتية العامة 🔇');
+    } else {
+      audioEngine.setVolume(formData.defaultVolume || 0.45);
+      audioEngine.playRoyalFanfare();
+      showToast('تم تفعيل المؤثرات الصوتية الملكية 🔊');
+    }
+  };
+
+  const handleExportBackup = () => {
+    audioEngine.playAdminClick();
+    const backupData = {
+      version: '3.0',
+      exportedAt: new Date().toISOString(),
+      config: formData
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sultan-config-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير نسخة احتياطية من الإعدادات بنجاح! 💾');
+    audioEngine.playRoyalFanfare();
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+        if (parsed.config && typeof parsed.config === 'object') {
+          setFormData(parsed.config);
+          onSaveConfig(parsed.config);
+          showToast('تمت استعادة الإعدادات بنجاح من النسخة الاحتياطية! 🔄');
+          audioEngine.playRoyalFanfare();
+        } else {
+          showToast('الملف غير صالح أو لا يحتوي على إعدادات صحيحة.');
+        }
+      } catch (err) {
+        showToast('فشل قراءة ملف النسخة الاحتياطية.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleTestDiscordWebhook = async () => {
@@ -1366,6 +1454,88 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   <KeyRound size={13} className="text-amber-400" />
                   <span>تغيير الباسورد</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Quick Administrative Toggles Bar & Backup Hub (مركز التبديل السريع والنسخ الاحتياطي) */}
+            <div className="p-3 sm:p-4 rounded-2xl bg-[#0c0d18] border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-md">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-white flex items-center gap-1.5 ml-2">
+                  <Zap size={15} className="text-amber-400" />
+                  <span>مركز التحكم السريع:</span>
+                </span>
+
+                {/* Exam Focus Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleExamMode}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    examMode
+                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-md shadow-amber-500/20'
+                      : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                  }`}
+                  title="وضع الامتحانات والمذاكرة"
+                >
+                  <BookOpen size={13} />
+                  <span>{examMode ? 'وضع المذاكرة (مفعّل 📖)' : 'وضع المذاكرة'}</span>
+                </button>
+
+                {/* Maintenance Toggle */}
+                <button
+                  type="button"
+                  onClick={toggleMaintenanceMode}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    maintenanceMode
+                      ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 shadow-md shadow-rose-500/20'
+                      : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                  }`}
+                  title="وضع الصيانة المؤقت للموقع"
+                >
+                  <Power size={13} />
+                  <span>{maintenanceMode ? 'وضع الصيانة (مفعّل ⚠️)' : 'وضع الصيانة'}</span>
+                </button>
+
+                {/* Mute Sound Effects */}
+                <button
+                  type="button"
+                  onClick={toggleSoundEffects}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+                    soundEffectsMuted
+                      ? 'bg-purple-500/20 border-purple-500/50 text-purple-300'
+                      : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                  }`}
+                  title="كتم أو تشغيل المؤثرات الصوتية العامة"
+                >
+                  {soundEffectsMuted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+                  <span>{soundEffectsMuted ? 'الأصوات مكتومة 🔇' : 'الأصوات مفعلة 🔊'}</span>
+                </button>
+              </div>
+
+              {/* Backup & Restore Controls */}
+              <div className="flex items-center gap-2 self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={handleExportBackup}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="تصدير نسخة احتياطية من الإعدادات كملف JSON"
+                >
+                  <Download size={13} className="text-cyan-400" />
+                  <span>تصدير JSON 💾</span>
+                </button>
+
+                <label
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  title="استعادة الإعدادات من ملف JSON"
+                >
+                  <Upload size={13} className="text-emerald-400" />
+                  <span>استعادة 🔄</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportBackup}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
 

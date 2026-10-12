@@ -12,11 +12,16 @@ export function useEcoMode() {
     if (saved !== null) {
       return saved === 'true';
     }
-    // Auto-detect mobile devices or prefers-reduced-motion
+    // Auto-detect mobile devices, low hardware concurrency, or prefers-reduced-motion
     if (typeof window !== 'undefined') {
       try {
         const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        return prefersReduced;
+        const isLowEndDevice = typeof navigator !== 'undefined' && (
+          (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+          ((navigator as any).deviceMemory && (navigator as any).deviceMemory <= 4) ||
+          ((navigator as any).connection && ((navigator as any).connection.saveData || (navigator as any).connection.effectiveType === '2g'))
+        );
+        return prefersReduced || Boolean(isLowEndDevice);
       } catch {}
     }
     return false;

@@ -52,6 +52,8 @@ import { EcoModeToggle } from './components/EcoModeToggle';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { SecretsMinigamesView } from './components/SecretsMinigamesView';
+import { MusicVaultView } from './components/MusicVaultView';
+import { FloatingMiniPlayer } from './components/FloatingMiniPlayer';
 import { SectionModal } from './components/SectionModal';
 import { safeLocalStorage, safeSessionStorage } from './utils/safeStorage';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from './utils/lanyard';
@@ -265,7 +267,7 @@ export default function App() {
     return window.location.hash === '#admin' || window.location.pathname === '/admin' ? 'admin' : 'home';
   });
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [activeModalSection, setActiveModalSection] = useState<'gaming' | 'secrets' | null>(null);
+  const [activeModalSection, setActiveModalSection] = useState<'gaming' | 'secrets' | 'music' | null>(null);
   const [isGameOpen, setIsGameOpen] = useState<boolean>(false);
   const [hasRated, setHasRated] = useState<'up' | 'down' | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -735,6 +737,7 @@ export default function App() {
           onMouseLeave={handleCardMouseLeave}
           cardRef={cardRef}
           isEcoMode={isEcoMode}
+          onOpenMusic={() => setActiveModalSection('music')}
           onOpenGaming={() => setActiveModalSection('gaming')}
           onOpenSecrets={() => setActiveModalSection('secrets')}
           visitorLoyalty={visitorLoyalty}
@@ -752,7 +755,24 @@ export default function App() {
       </footer>
 
       {/* Modals & Overlays */}
-      {/* Interactive Section Modals (مربعات ومستطيلات المحتوى زي الرادار) */}
+      {/* Interactive Section Modals (مربعات ومستطيلات المحتوى زي الرادار والموسيقى) */}
+      <SectionModal
+        isOpen={activeModalSection === 'music'}
+        onClose={() => setActiveModalSection(null)}
+        title="مشغل الأغاني الحصري 🎵"
+        subtitle="أغاني السلطان الحصرية المفضلة مع كلمات متزامنة ومؤثرات صوتية"
+        icon={<Music size={20} />}
+        accentColor={themeAccent}
+      >
+        <MusicVaultView
+          tracks={config.tracks}
+          accentColor={themeAccent}
+          isEcoMode={isEcoMode}
+          onApplyMoodTheme={handleApplyMoodTheme}
+          spotifyData={liveSpotify}
+        />
+      </SectionModal>
+
       <SectionModal
         isOpen={activeModalSection === 'gaming'}
         onClose={() => setActiveModalSection(null)}
@@ -844,6 +864,12 @@ export default function App() {
         tracks={config.tracks}
         countdownDate={config.countdownDate}
         countdownLabel={config.countdownLabel}
+      />
+      <FloatingMiniPlayer
+        tracks={config.tracks}
+        accentColor={themeAccent}
+        isEcoMode={isEcoMode}
+        onExpandPlayer={() => setActiveModalSection('music')}
       />
       <OfflineIndicator />
     </div>

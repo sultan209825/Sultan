@@ -46,7 +46,8 @@ interface CachedWidget {
 }
 
 let cachedWidget: CachedWidget | null = null;
-const CACHE_TTL_MS = 2500; // 2.5s cache to avoid Discord rate limits
+let lastKnownValidWidgetData: any = null;
+const CACHE_TTL_MS = 4000; // 4s cache to gracefully absorb rapid polling without Discord 429 rate-limits
 
 async function fetchGuildWidgetData(guildId: string): Promise<any> {
   const now = Date.now();
@@ -64,7 +65,7 @@ async function fetchGuildWidgetData(guildId: string): Promise<any> {
     try {
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; SultanBioRadar/2.0)',
+          'User-Agent': 'Mozilla/5.0 (compatible; SultanBioRadar/3.0; +https://sultansusu.vercel.app)',
           Accept: 'application/json'
         }
       });
@@ -72,13 +73,17 @@ async function fetchGuildWidgetData(guildId: string): Promise<any> {
         const json = await res.json();
         if (json && Array.isArray(json.channels)) {
           cachedWidget = { timestamp: now, data: json };
+          lastKnownValidWidgetData = json;
           return json;
         }
       }
     } catch {}
   }
 
-  return cachedWidget ? cachedWidget.data : null;
+  // Resilient fallback: return last known good data rather than breaking live telemetry
+  if (cachedWidget) return cachedWidget.data;
+  if (lastKnownValidWidgetData) return lastKnownValidWidgetData;
+  return null;
 }
 
 export function getBotState() {

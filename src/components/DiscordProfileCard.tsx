@@ -899,18 +899,41 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
         </div>
 
-        {/* 4. صف أيقونات الأقسام المنظم والأنيق أسفل صورة الملف الشخصي مباشرةً مع تباعد متساوٍ وتأثير هالة خفيفة ونبض بصري */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-1 pb-1 w-full">
-          {/* 1. الألعاب */}
+        {/* 4. صف كبسولات الأقسام الأربعة المنظم: الموسيقى، الألعاب، الأسرار، الرادار */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 pt-1 pb-1 w-full">
+          {/* 1. الموسيقى */}
           <div className="relative group/sec">
-            {/* تأثير الهالة الخفيفة عند تمرير الماوس */}
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-violet-600/35 to-fuchsia-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
+            <button
+              type="button"
+              onClick={() => handleSectionClick('music', onOpenMusic)}
+              onMouseEnter={playHover}
+              onTouchStart={playHover}
+              className={`relative w-full min-h-[46px] flex flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-gradient-to-b from-violet-950/40 to-black/60 border border-violet-500/30 group-hover/sec:border-violet-400/80 text-white text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(139,92,246,0.35)] cursor-pointer overflow-hidden ${
+                pulsingSection === 'music'
+                  ? 'scale-90 ring-2 ring-violet-400 bg-violet-900/60 shadow-[0_0_25px_rgba(139,92,246,0.7)]'
+                  : ''
+              }`}
+              title="مشغل الأغاني الحصري لـ سلطان"
+              data-tooltip="فتح مشغل الأغاني والكلمات المتزامنة"
+            >
+              {pulsingSection === 'music' && (
+                <span className="absolute inset-0 rounded-2xl animate-ping border-2 border-violet-400 opacity-75 pointer-events-none" />
+              )}
+              <Music size={15} className={`text-violet-400 group-hover/sec:scale-110 transition-transform shrink-0 ${isMusicPlaying ? 'animate-bounce text-violet-300' : ''}`} />
+              <span className="truncate">الموسيقى 🎵</span>
+            </button>
+          </div>
+
+          {/* 2. الألعاب */}
+          <div className="relative group/sec">
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-emerald-600/35 to-teal-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
             <button
               type="button"
               onClick={() => handleSectionClick('gaming', onOpenGaming)}
               onMouseEnter={playHover}
               onTouchStart={playHover}
-              className={`relative w-full flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-1.5 rounded-2xl bg-gradient-to-b from-emerald-950/40 to-black/60 border border-emerald-500/30 group-hover/sec:border-emerald-400/80 text-white text-[11px] sm:text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(16,185,129,0.35)] cursor-pointer overflow-hidden ${
+              className={`relative w-full min-h-[46px] flex flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-gradient-to-b from-emerald-950/40 to-black/60 border border-emerald-500/30 group-hover/sec:border-emerald-400/80 text-white text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(16,185,129,0.35)] cursor-pointer overflow-hidden ${
                 pulsingSection === 'gaming'
                   ? 'scale-90 ring-2 ring-emerald-400 bg-emerald-900/60 shadow-[0_0_25px_rgba(16,185,129,0.7)]'
                   : ''
@@ -926,16 +949,15 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
 
-          {/* 2. الأسرار */}
+          {/* 3. الأسرار */}
           <div className="relative group/sec">
-            {/* تأثير الهالة الخفيفة عند تمرير الماوس */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-amber-600/35 to-yellow-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
             <button
               type="button"
               onClick={() => handleSectionClick('secrets', onOpenSecrets)}
               onMouseEnter={playHover}
               onTouchStart={playHover}
-              className={`relative w-full flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-1.5 rounded-2xl bg-gradient-to-b from-amber-950/40 to-black/60 border border-amber-500/30 group-hover/sec:border-amber-400/80 text-white text-[11px] sm:text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(245,158,11,0.35)] cursor-pointer overflow-hidden ${
+              className={`relative w-full min-h-[46px] flex flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-gradient-to-b from-amber-950/40 to-black/60 border border-amber-500/30 group-hover/sec:border-amber-400/80 text-white text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(245,158,11,0.35)] cursor-pointer overflow-hidden ${
                 pulsingSection === 'secrets'
                   ? 'scale-90 ring-2 ring-amber-400 bg-amber-900/60 shadow-[0_0_25px_rgba(245,158,11,0.7)]'
                   : ''
@@ -951,16 +973,15 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
 
-          {/* 3. الرادار */}
+          {/* 4. الرادار */}
           <div className="relative group/sec">
-            {/* تأثير الهالة الخفيفة عند تمرير الماوس */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-600/35 to-sky-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
             <button
               type="button"
               onClick={() => handleSectionClick('radar', () => setIsRadarModalOpen(true))}
               onMouseEnter={playHover}
               onTouchStart={playHover}
-              className={`relative w-full flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-1.5 rounded-2xl bg-gradient-to-b from-cyan-950/40 to-black/60 border border-cyan-500/30 group-hover/sec:border-cyan-400/80 text-white text-[11px] sm:text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(6,182,212,0.35)] cursor-pointer overflow-hidden ${
+              className={`relative w-full min-h-[46px] flex flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-gradient-to-b from-cyan-950/40 to-black/60 border border-cyan-500/30 group-hover/sec:border-cyan-400/80 text-white text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(6,182,212,0.35)] cursor-pointer overflow-hidden ${
                 pulsingSection === 'radar'
                   ? 'scale-90 ring-2 ring-cyan-400 bg-cyan-900/60 shadow-[0_0_25px_rgba(6,182,212,0.7)]'
                   : ''
