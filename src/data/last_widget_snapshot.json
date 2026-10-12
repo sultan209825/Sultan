@@ -1,0 +1,125 @@
+{
+  "id": "1306240131224571957",
+  "name": "✨ 𝐅𝐫𝐢𝐞𝐧𝐝𝐬 𝐅𝐨𝐫 𝐄𝐯𝐞𝐫 ✨",
+  "instant_invite": null,
+  "channels": [
+    {
+      "id": "1428752107602706503",
+      "name": "➕ Creator Channel",
+      "position": 0
+    },
+    {
+      "id": "1306240131551858704",
+      "name": "🎤︱General",
+      "position": 1
+    },
+    {
+      "id": "1540800657588752395",
+      "name": "🎬︱Watching Movies",
+      "position": 4
+    },
+    {
+      "id": "1540457611701387314",
+      "name": "🎮︱Gaming",
+      "position": 2
+    },
+    {
+      "id": "1545422837618184302",
+      "name": "💤︱AFK",
+      "position": 5
+    },
+    {
+      "id": "1540457327298347170",
+      "name": "📖︱Study",
+      "position": 3
+    }
+  ],
+  "members": [
+    {
+      "id": "0",
+      "username": "! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/OlvhT4kia235tEORXp2VrCnHG6jpyuuvb_QAg_Pt7Ww/5q5QZx0_S09zkK5fSTQToFyrRzO5Ox6r6haYESbSoLU_KbOB6L6c8OeDHxSDo2fKNOSrUCZGvHggMIA4O-S_7y6vIC4KGtL8wwm1zpuwUuiBZjOiD-GWFYJ0IGs0i1b9cCgPjjmo493El78",
+      "game": {
+        "name": "! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪"
+      },
+      "deaf": false,
+      "mute": false,
+      "self_deaf": false,
+      "self_mute": false,
+      "suppress": false,
+      "channel_id": "1540457327298347170"
+    },
+    {
+      "id": "1",
+      "username": "ahmed",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/OTJXq9_gUlmjGV3qkZc74esS-xTJMDRrBRHE9n0cMaw/J9app4o6Kr67vfAurCWI_W6jGLQ7bPBEiAKtXdtwHKplbe3jM8jRIigK7thwNhX6KaNGtbqZNc4S9Nes2RyWQGza58yJDg6IOZbicF6NVKZyEkdjpLYqzNaDtlnYh9dFUmLr-pc7syf4n8o",
+      "deaf": false,
+      "mute": false,
+      "self_deaf": false,
+      "self_mute": false,
+      "suppress": false,
+      "channel_id": "1540457327298347170"
+    },
+    {
+      "id": "2",
+      "username": "Dyno",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/5wXywIu9okfO_oF4Fkaeb_SJnpq-8vPj7crpJvTQ-aQ/rF77Tj9_mlKrgA8pCGmkVxW-gH0IKw33YcGeG3ul0mEvTje4ejhoIIB1CIDlWfbd5h06waUDcFfnryEYxDyPS6NuYuAzAVEkEnc8tyID_Z3D7NUOX7-efH5PtTBhEZsz44eMusLiXRXYgA",
+      "game": {
+        "name": "Playing Battles | Use /battle"
+      }
+    },
+    {
+      "id": "3",
+      "username": "LunaBot 🌙",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "idle",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/3xfSBAIV24BaKB8S4_61KGuPdq-Pa5aP7fGZjjDqDno/LRYE1gT-MgmMv2HG1xCdN7c9hnVtY_dK1fjvq63Wk1KdEKMNUeqjYIE2UWrHaLAGYWBHO0S5UYpIudJUZs6I4VbcSHZjrPnMwwH_Cbtvmqlz5Kgn1KVsfsljeLdKKN3xkpcYnFKvSVgQoOTr"
+    },
+    {
+      "id": "4",
+      "username": "Rythm",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/_Zow_2BAVKQkWUiu-ATbHCSw2-7XcXQeyn1h8o8qu50/R7NF4XOVp80YimF8xA_izqKvhmOmvF7o0W9habi9MYKo5VCBLFcbzWIDl9eQR2Q8LLdQhdFuhIJhSPPWfWHnh9JE8pPLlXOzFMZVip4-l2xwXvah_ZmvpokQdz8cA5rK4XeXUz0UvmU-PkAq",
+      "game": {
+        "name": "rythm.fm"
+      }
+    },
+    {
+      "id": "5",
+      "username": "Sapphire",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/YgXEeECDtgv2SfTbbHI_v5tSg0sI-kLp26H79-LFJcg/_HyjN6Lo_I8E7SauS9717Qgmpx8FugIIsedhxjZXER3zYB5NQCjNFbGXurcqEqitZQQM3JhGAOsy7SaRDWrg4H_lzG2PAwXkJDCnS2GGsaGCjRs0vgJREzy47D4emyuUuZPJ2uMuAxBaGw"
+    },
+    {
+      "id": "6",
+      "username": "TempVoice",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "dnd",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/5vnujI80ppQJy0YLCvNxsGCrS_UEs8JMivEWIee9GTY/Kk1YUfkSXEMEKjCIE6DNjyiJN0ipyH73QvC67kq9ZlgUpsM-lIcHuEazYwlHSPUXpL99_KV2jOB2raik-1nS985MWfBJ8Ya5Xqitp1r1iOmS0rcqz4lFBEGCw2CI4ARTtN_h2eQdG3B8nYVr"
+    },
+    {
+      "id": "7",
+      "username": "𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/WSZ6bwPzhPLyAsLt-NAKiJD4iEcxSoe9WmBYgulOnQI/8gyvb7k_0w3dkwjQluHGaNgD69AeD-gMIUOaop4LyRccGGgw31gPYRIIomCyuJNsmLiJmD-3t_kStffGqh28TFJacvDk_apLa77Mewj1IFz1oyzZKeY14Kjibq9_PshVIYiCNwZrUcrbWLY"
+    }
+  ],
+  "presence_count": 8
+}

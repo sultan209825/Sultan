@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import JSZip from 'jszip';
 import { defineConfig, loadEnv } from 'vite';
-import { startDiscordBot, getBotState, assignRoleToMember, getLiveVoiceState } from './src/server/discordBotService.ts';
+import { startDiscordBot, getBotState, assignRoleToMember, getLiveVoiceState, syncWidgetData } from './src/server/discordBotService.ts';
 
 function discordApiPlugin() {
   return {
@@ -107,6 +107,25 @@ function discordApiPlugin() {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify(getBotState()));
           }
+          return;
+        }
+
+        // Sync client-fetched Discord widget directly to server memory cache
+        if (urlPath === '/api/discord/sync-widget' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk: any) => { body += chunk; });
+          req.on('end', async () => {
+            try {
+              const data = JSON.parse(body || '{}');
+              const synced = syncWidgetData(data);
+              const liveVoice = await getLiveVoiceState('1306240131224571957', false);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ success: synced, sultanVoiceChannel: liveVoice }));
+            } catch (err: any) {
+              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: err.message || 'Invalid JSON' }));
+            }
+          });
           return;
         }
 

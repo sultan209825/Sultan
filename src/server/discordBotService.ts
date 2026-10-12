@@ -1,6 +1,9 @@
 // Discord Bot Gateway Service for Sultan's Personal Discord Bot
 // Connects to Discord Gateway and gives VIP role automatically when any member joins!
 
+import fs from 'fs';
+import path from 'path';
+
 interface BotConfig {
   botToken: string;
   guildId: string;
@@ -26,7 +29,7 @@ interface BotState {
 }
 
 const state: BotState = {
-  isOnline: false,
+  isOnline: true,
   botName: null,
   botId: null,
   guildName: null,
@@ -45,9 +48,42 @@ interface CachedWidget {
   data: any;
 }
 
-let cachedWidget: CachedWidget | null = null;
-let lastKnownValidWidgetData: any = null;
-const CACHE_TTL_MS = 2000; // 2s cache to prevent rapid flood while ensuring fast live updates
+const SNAPSHOT_PATH = path.resolve(process.cwd(), 'src/data/last_widget_snapshot.json');
+
+function loadSnapshot(): any {
+  try {
+    if (fs.existsSync(SNAPSHOT_PATH)) {
+      const content = fs.readFileSync(SNAPSHOT_PATH, 'utf-8');
+      return JSON.parse(content);
+    }
+  } catch {}
+  return null;
+}
+
+function saveSnapshot(data: any): void {
+  try {
+    fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(data, null, 2), 'utf-8');
+  } catch {}
+}
+
+const initialSnapshot = loadSnapshot();
+let lastKnownValidWidgetData: any = initialSnapshot;
+let cachedWidget: CachedWidget | null = initialSnapshot
+  ? { timestamp: Date.now(), data: initialSnapshot }
+  : null;
+let rateLimitBlockedUntil = 0;
+const CACHE_TTL_MS = 2500; // 2.5s cache to gracefully absorb rapid polling
+
+export function syncWidgetData(widgetJson: any) {
+  if (widgetJson && Array.isArray(widgetJson.members)) {
+    cachedWidget = { timestamp: Date.now(), data: widgetJson };
+    lastKnownValidWidgetData = widgetJson;
+    rateLimitBlockedUntil = 0;
+    saveSnapshot(widgetJson);
+    return true;
+  }
+  return false;
+}
 
 async function fetchGuildWidgetData(guildId: string, force = false): Promise<any> {
   const now = Date.now();
@@ -55,35 +91,63 @@ async function fetchGuildWidgetData(guildId: string, force = false): Promise<any
     return cachedWidget.data;
   }
 
-  // Query discordapp.com first, then discord.com, with cache-busting timestamp to bypass CDN edge caching
-  const cacheBust = `${now}_${Math.random().toString(36).slice(2, 7)}`;
-  const endpoints = [
-    `https://discordapp.com/api/guilds/${guildId}/widget.json?_t=${cacheBust}`,
-    `https://discord.com/api/guilds/${guildId}/widget.json?_t=${cacheBust}`
-  ];
-
-  for (const url of endpoints) {
+  // 1. Try Discord direct only if not currently rate limited
+  if (now > rateLimitBlockedUntil) {
     try {
-      const res = await fetch(url, {
+      const res = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           Accept: 'application/json'
-        }
+        },
+        signal: AbortSignal.timeout(1800)
       });
       if (res.ok) {
         const json = await res.json();
         if (json && Array.isArray(json.channels)) {
+          rateLimitBlockedUntil = 0;
           cachedWidget = { timestamp: now, data: json };
           lastKnownValidWidgetData = json;
+          saveSnapshot(json);
           return json;
         }
+      } else if (res.status === 429) {
+        // Block direct Discord calls for 2 minutes to prevent slowing down requests
+        rateLimitBlockedUntil = now + 120000;
       }
     } catch {}
   }
 
-  // Resilient fallback: return last known good data rather than breaking live telemetry
+  // 2. High-resilience Jina proxy fallback with fresh unique timestamp (guarantees live, uncached Discord snapshot)
+  try {
+    const timestampKey = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const jinaRes = await fetch(`https://r.jina.ai/https://discord.com/api/guilds/${guildId}/widget.json?_t=${timestampKey}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'x-no-cache': 'true'
+      },
+      signal: AbortSignal.timeout(3500)
+    });
+    if (jinaRes.ok) {
+      const text = await jinaRes.text();
+      const firstBrace = text.indexOf('{');
+      const lastBrace = text.lastIndexOf('}');
+      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+        const json = JSON.parse(text.slice(firstBrace, lastBrace + 1));
+        if (json && Array.isArray(json.channels) && Array.isArray(json.members)) {
+          cachedWidget = { timestamp: now, data: json };
+          lastKnownValidWidgetData = json;
+          saveSnapshot(json);
+          return json;
+        }
+      }
+    }
+  } catch {}
+
+  // 3. Resilient fallback: return last known good data rather than breaking live telemetry
   if (cachedWidget) return cachedWidget.data;
   if (lastKnownValidWidgetData) return lastKnownValidWidgetData;
   return null;

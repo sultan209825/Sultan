@@ -37,6 +37,7 @@ import { LanyardData, SiteConfig } from '../types';
 import { audioEngine } from '../utils/audioEngine';
 import { recordSiteLog } from '../utils/siteLogger';
 import { DISCORD_USER_ID } from '../utils/lanyard';
+import { fetchLiveVoiceTelemetry } from '../utils/liveVoiceFetcher';
 
 interface DiscordActivityRadarModalProps {
   isOpen: boolean;
@@ -132,57 +133,49 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
           }
         } catch {}
 
-        try {
-          const res = await fetch(`/api/discord/live-voice?bypassCache=1&_t=${Date.now()}`, {
-            headers: { 'Cache-Control': 'no-cache, no-store', 'Pragma': 'no-cache' }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (isMounted && data?.sultanVoiceChannel) {
-              const svc = data.sultanVoiceChannel;
-              const hasStream = Boolean(
-                svc.isStreaming ||
-                lanyard?.activities?.some((a) => a.type === 1) ||
-                lanyard?.activities?.some((a) => a.name?.toLowerCase().includes('stream') || a.details?.toLowerCase().includes('stream'))
-              );
+        const svc = await fetchLiveVoiceTelemetry();
+        if (isMounted && svc) {
+          const hasStream = Boolean(
+            svc.isStreaming ||
+            lanyard?.activities?.some((a) => a.type === 1) ||
+            lanyard?.activities?.some((a) => a.name?.toLowerCase().includes('stream') || a.details?.toLowerCase().includes('stream'))
+          );
 
-              if (svc.inVoice || svc.channelId) {
-                setLiveVoiceData({
-                  inVoice: true,
-                  channelName: svc.channelName || serverVoiceChannel || '🎤﹒General',
-                  isMuted: Boolean(svc.isMuted),
-                  selfMute: Boolean(svc.selfMute),
-                  serverMute: Boolean(svc.serverMute),
-                  isDeafened: Boolean(svc.isDeafened),
-                  selfDeaf: Boolean(svc.selfDeaf),
-                  serverDeaf: Boolean(svc.serverDeaf),
-                  isStreaming: hasStream,
-                  isBotConnected: true,
-                  connectedAt: svc.connectedAt,
-                  companions: svc.companions || [],
-                  availableChannels: svc.availableChannels || []
-                });
-              } else {
-                setLiveVoiceData((prev) => ({
-                  ...prev,
-                  inVoice: false,
-                  channelName: svc.channelName || serverVoiceChannel || '🎤﹒General',
-                  isMuted: false,
-                  selfMute: false,
-                  serverMute: false,
-                  isDeafened: false,
-                  selfDeaf: false,
-                  serverDeaf: false,
-                  isStreaming: hasStream,
-                  isBotConnected: true,
-                  connectedAt: null,
-                  companions: [],
-                  availableChannels: svc.availableChannels || prev.availableChannels
-                }));
-              }
-            }
+          if (svc.inVoice || svc.channelId) {
+            setLiveVoiceData({
+              inVoice: true,
+              channelName: svc.channelName || serverVoiceChannel || '🎤﹒General',
+              isMuted: Boolean(svc.isMuted),
+              selfMute: Boolean(svc.selfMute),
+              serverMute: Boolean(svc.serverMute),
+              isDeafened: Boolean(svc.isDeafened),
+              selfDeaf: Boolean(svc.selfDeaf),
+              serverDeaf: Boolean(svc.serverDeaf),
+              isStreaming: hasStream,
+              isBotConnected: true,
+              connectedAt: svc.connectedAt,
+              companions: svc.companions || [],
+              availableChannels: svc.availableChannels || []
+            });
+          } else {
+            setLiveVoiceData((prev) => ({
+              ...prev,
+              inVoice: false,
+              channelName: svc.channelName || serverVoiceChannel || '🎤﹒General',
+              isMuted: false,
+              selfMute: false,
+              serverMute: false,
+              isDeafened: false,
+              selfDeaf: false,
+              serverDeaf: false,
+              isStreaming: hasStream,
+              isBotConnected: true,
+              connectedAt: null,
+              companions: [],
+              availableChannels: svc.availableChannels || prev.availableChannels
+            }));
           }
-        } catch {}
+        }
       } catch {}
     };
 
@@ -744,12 +737,12 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
                   }`}>
                     {liveVoiceData.inVoice
                       ? (liveVoiceData.isMuted ? 'مكتوم 🔇' : 'المايك يعمل 🎙️')
-                      : 'غير متصل'}
+                      : 'غير متصل بصوت'}
                   </p>
                   <span className="text-[9px] text-zinc-400 font-mono block mt-0.5 truncate">
                     {liveVoiceData.inVoice
                       ? (liveVoiceData.selfMute ? 'كتم يدوي (Self Mute)' : liveVoiceData.serverMute ? 'مكتوم إدارياً' : 'جاهز للتحدث')
-                      : 'في وضع الانتظار'}
+                      : 'خارج الرومات الصوتية'}
                   </span>
                 </div>
 
@@ -774,12 +767,12 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
                   }`}>
                     {liveVoiceData.inVoice
                       ? (liveVoiceData.isDeafened ? 'السماعة مكتومة 🔕' : 'السماعة تعمل 🎧')
-                      : 'غير متصل'}
+                      : 'غير متصل بصوت'}
                   </p>
                   <span className="text-[9px] text-zinc-400 font-mono block mt-0.5 truncate">
                     {liveVoiceData.inVoice
                       ? (liveVoiceData.selfDeaf ? 'ديفن شخصي (Deafen)' : liveVoiceData.serverDeaf ? 'ديفن إداري' : 'يستمع للمحادثة')
-                      : 'في وضع الانتظار'}
+                      : 'خارج الرومات الصوتية'}
                   </span>
                 </div>
 
@@ -916,71 +909,6 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
             </div>
           );
         })()}
-
-        {/* Section 2.5: Activity Timeline (المخطط الزمني للنشاط) */}
-        <div className="relative z-10 p-4 rounded-2xl bg-black/40 border border-cyan-500/20 space-y-3">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <History size={15} className="text-cyan-400" />
-              <span className="font-extrabold text-white">المخطط الزمني للنشاط (Live Activity Timeline)</span>
-            </div>
-            <span className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-              <span>مباشر</span>
-            </span>
-          </div>
-
-          <div className="relative pr-4 space-y-3 border-r-2 border-cyan-500/30 mr-2 text-right">
-            {/* 1. Voice Connection Event */}
-            <div className="relative">
-              <span className={`absolute -right-[23px] top-1 w-3 h-3 rounded-full border-2 border-[#090b14] ${
-                liveVoiceData.inVoice ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-zinc-600'
-              }`} />
-              <div className="text-xs">
-                <span className="font-bold text-white">
-                  {liveVoiceData.inVoice ? `متواجد في الغرفة الصوتية (${liveVoiceData.channelName})` : 'خارج الرومات الصوتية حالياً'}
-                </span>
-                <p className="text-[11px] text-zinc-400 mt-0.5">
-                  {liveVoiceData.inVoice
-                    ? (liveVoiceData.companions?.length ? `برفقة ${liveVoiceData.companions.length} من الأعضاء في السيرفر` : 'يتواجد بمفرده في الروم حالياً')
-                    : 'في انتظار الانضمام إلى إحدى قنوات السيرفر'}
-                </p>
-              </div>
-            </div>
-
-            {/* 2. Audio & Streaming Telemetry Event */}
-            <div className="relative">
-              <span className={`absolute -right-[23px] top-1 w-3 h-3 rounded-full border-2 border-[#090b14] ${
-                liveVoiceData.isStreaming ? 'bg-sky-400 shadow-[0_0_8px_#38bdf8]' : liveVoiceData.inVoice ? 'bg-violet-400' : 'bg-zinc-700'
-              }`} />
-              <div className="text-xs">
-                <span className="font-bold text-zinc-200">
-                  {liveVoiceData.isStreaming
-                    ? '📺 بدأ بث ومشاركة الشاشة في الروم'
-                    : liveVoiceData.inVoice
-                    ? (liveVoiceData.isMuted ? '🔇 المايكروفون مكتوم حالياً' : '🎙️ المايكروفون مفتوح وجاهز للتحدث')
-                    : 'حالة الصوت في وضع الاستعداد'}
-                </span>
-                <p className="text-[11px] text-zinc-400 mt-0.5 font-mono">
-                  {liveVoiceData.isDeafened ? 'السماعة: ديفن مفعّل 🔕' : 'السماعة: نشطة وتستمع 🎧'}
-                </p>
-              </div>
-            </div>
-
-            {/* 3. Gaming or Discord Status Event */}
-            <div className="relative">
-              <span className="absolute -right-[23px] top-1 w-3 h-3 rounded-full border-2 border-[#090b14] bg-amber-400 shadow-[0_0_8px_#f59e0b]" />
-              <div className="text-xs">
-                <span className="font-bold text-zinc-200">
-                  {gameActivity ? `🎮 نشاط الألعاب: يلعب ${gameActivity.name}` : `الحالة العامة: ${statusBadge.text}`}
-                </span>
-                <p className="text-[11px] text-zinc-400 mt-0.5 font-mono">
-                  الجهاز النشط: {activeDevice.name}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Section 3: Official Sultan Discord Server Hub */}
         <div className="relative z-10 p-4 rounded-2xl bg-indigo-950/20 border border-indigo-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
