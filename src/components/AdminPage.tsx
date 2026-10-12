@@ -49,7 +49,17 @@ import {
   TrendingUp,
   Copy,
   X,
-  Leaf
+  Leaf,
+  Mic,
+  MicOff,
+  VolumeX,
+  Tv,
+  Wifi,
+  Film,
+  BookOpen,
+  Moon,
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import {
@@ -340,6 +350,173 @@ export const AdminPage: React.FC<AdminPageProps> = ({
 
   const [onlineCount, setOnlineCount] = useState<number>(1);
   const [activeVisitorsList, setActiveVisitorsList] = useState<PresenceVisitor[]>([]);
+
+  // Live Voice Radar Telemetry State (حالة المايك والديفن والستريم والأعضاء)
+  const [adminVoiceData, setAdminVoiceData] = useState<{
+    inVoice: boolean;
+    channelName: string;
+    channelId: string | null;
+    isMuted: boolean;
+    selfMute?: boolean;
+    serverMute?: boolean;
+    isDeafened: boolean;
+    selfDeaf?: boolean;
+    serverDeaf?: boolean;
+    isStreaming: boolean;
+    serverName?: string;
+    connectedAt?: string | null;
+    companions?: Array<{ username: string; avatar_url?: string; isMuted?: boolean; isDeafened?: boolean; isStreaming?: boolean; channelName?: string; isSultan?: boolean }>;
+    allVoiceMembers?: Array<{ id?: string; username: string; avatar_url?: string; isMuted?: boolean; isDeafened?: boolean; isStreaming?: boolean; channelName?: string; isSultan?: boolean }>;
+    availableChannels?: Array<{ id: string; name: string }>;
+    loading?: boolean;
+    lastUpdated?: number;
+  }>({
+    inVoice: false,
+    channelName: '🎤﹒General',
+    channelId: null,
+    isMuted: false,
+    selfMute: false,
+    serverMute: false,
+    isDeafened: false,
+    selfDeaf: false,
+    serverDeaf: false,
+    isStreaming: false,
+    serverName: '✨ Friends For Ever ✨',
+    connectedAt: null,
+    companions: [],
+    allVoiceMembers: [],
+    availableChannels: [
+      { id: '1306240131551858704', name: '🎤﹒General' },
+      { id: '1540800657588752395', name: '🎬﹒Watching Movies' },
+      { id: '1540457611701387314', name: '🎮﹒Gaming' },
+      { id: '1540457327298347170', name: '📖﹒Study' },
+      { id: '1545422837618184302', name: '💤﹒AFK' }
+    ],
+    loading: false,
+    lastUpdated: Date.now()
+  });
+
+  // Filter members in radar by status: 'all' | 'unmuted' | 'muted' | 'streaming'
+  const [radarMemberFilter, setRadarMemberFilter] = useState<'all' | 'unmuted' | 'muted' | 'streaming'>('all');
+  // Visual pulse alert state for members whose status changed (mute, streaming, deafen)
+  const [alertPulseMemberIds, setAlertPulseMemberIds] = useState<Record<string, { type: string; timestamp: number }>>({});
+  // Previous states ref to detect member state changes
+  const prevVoiceMembersRef = React.useRef<Map<string, { isMuted: boolean; isDeafened: boolean; isStreaming: boolean }>>(new Map());
+
+  const fetchAdminLiveVoice = async (silent = true) => {
+    if (!silent) {
+      setAdminVoiceData((prev) => ({ ...prev, loading: true }));
+    }
+    try {
+      const res = await fetch(`/api/discord/live-voice?_t=${Date.now()}`, {
+        headers: { 'Cache-Control': 'no-cache, no-store' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const svc = data?.sultanVoiceChannel || data;
+        if (svc) {
+          // Detect member state changes and trigger visual alert pulse
+          const incomingMembers = (svc.allVoiceMembers && svc.allVoiceMembers.length > 0)
+            ? svc.allVoiceMembers
+            : (svc.companions || []);
+
+          const changedMap: Record<string, { type: string; timestamp: number }> = {};
+          const currentMap = new Map<string, { isMuted: boolean; isDeafened: boolean; isStreaming: boolean }>();
+
+          // Also check Sultan's own status changes
+          const sultanKey = 'sultan_self';
+          const sultanState = {
+            isMuted: Boolean(svc.isMuted),
+            isDeafened: Boolean(svc.isDeafened),
+            isStreaming: Boolean(svc.isStreaming)
+          };
+          if (prevVoiceMembersRef.current.has(sultanKey)) {
+            const prevS = prevVoiceMembersRef.current.get(sultanKey)!;
+            if (prevS.isStreaming !== sultanState.isStreaming) {
+              changedMap[sultanKey] = { type: sultanState.isStreaming ? 'stream_started' : 'stream_stopped', timestamp: Date.now() };
+            } else if (prevS.isMuted !== sultanState.isMuted) {
+              changedMap[sultanKey] = { type: sultanState.isMuted ? 'muted' : 'unmuted', timestamp: Date.now() };
+            } else if (prevS.isDeafened !== sultanState.isDeafened) {
+              changedMap[sultanKey] = { type: sultanState.isDeafened ? 'deafened' : 'undeafened', timestamp: Date.now() };
+            }
+          }
+          currentMap.set(sultanKey, sultanState);
+
+          incomingMembers.forEach((m: any) => {
+            const key = m.username || m.id;
+            const mState = {
+              isMuted: Boolean(m.isMuted),
+              isDeafened: Boolean(m.isDeafened),
+              isStreaming: Boolean(m.isStreaming)
+            };
+            if (prevVoiceMembersRef.current.has(key)) {
+              const prevM = prevVoiceMembersRef.current.get(key)!;
+              if (prevM.isStreaming !== mState.isStreaming) {
+                changedMap[key] = { type: mState.isStreaming ? 'stream_started' : 'stream_stopped', timestamp: Date.now() };
+              } else if (prevM.isMuted !== mState.isMuted) {
+                changedMap[key] = { type: mState.isMuted ? 'muted' : 'unmuted', timestamp: Date.now() };
+              } else if (prevM.isDeafened !== mState.isDeafened) {
+                changedMap[key] = { type: mState.isDeafened ? 'deafened' : 'undeafened', timestamp: Date.now() };
+              }
+            }
+            currentMap.set(key, mState);
+          });
+
+          prevVoiceMembersRef.current = currentMap;
+
+          if (Object.keys(changedMap).length > 0) {
+            setAlertPulseMemberIds((prev) => ({ ...prev, ...changedMap }));
+            // Clear pulse after 8 seconds
+            setTimeout(() => {
+              setAlertPulseMemberIds((prev) => {
+                const next = { ...prev };
+                Object.keys(changedMap).forEach((k) => delete next[k]);
+                return next;
+              });
+            }, 8000);
+          }
+
+          setAdminVoiceData({
+            inVoice: Boolean(svc.inVoice),
+            channelName: svc.channelName || '🎤﹒General',
+            channelId: svc.channelId || null,
+            isMuted: Boolean(svc.isMuted),
+            selfMute: Boolean(svc.selfMute),
+            serverMute: Boolean(svc.serverMute),
+            isDeafened: Boolean(svc.isDeafened),
+            selfDeaf: Boolean(svc.selfDeaf),
+            serverDeaf: Boolean(svc.serverDeaf),
+            isStreaming: Boolean(svc.isStreaming),
+            serverName: svc.serverName || '✨ Friends For Ever ✨',
+            connectedAt: svc.connectedAt || null,
+            companions: svc.companions || [],
+            allVoiceMembers: svc.allVoiceMembers || [],
+            availableChannels: svc.availableChannels || [
+              { id: '1306240131551858704', name: '🎤﹒General' },
+              { id: '1540800657588752395', name: '🎬﹒Watching Movies' },
+              { id: '1540457611701387314', name: '🎮﹒Gaming' },
+              { id: '1540457327298347170', name: '📖﹒Study' },
+              { id: '1545422837618184302', name: '💤﹒AFK' }
+            ],
+            loading: false,
+            lastUpdated: Date.now()
+          });
+        }
+      }
+    } catch {
+      setAdminVoiceData((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Automatic Polling every 10 seconds for real-time live Discord radar synchronization
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchAdminLiveVoice(true);
+    const interval = setInterval(() => {
+      fetchAdminLiveVoice(true);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   const [webhookTestStatus, setWebhookTestStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -975,7 +1152,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   }, [logs, searchTerm, filterDevice, filterCountry, filterTimeRange, customStartDate, customEndDate]);
 
   return (
-    <div className="min-h-screen bg-[#07070d] text-white flex flex-col selection:bg-red-500/30 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-[#07070d] text-white flex flex-col selection:bg-red-500/30 selection:text-white overflow-x-hidden max-w-full" dir="rtl">
       {/* Top Navbar */}
       <header className="sticky top-0 z-30 w-full border-b border-white/10 bg-black/80 backdrop-blur-xl px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
@@ -1023,7 +1200,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl mx-auto w-full p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 max-w-6xl mx-auto w-full p-4 sm:p-6 lg:p-8 overflow-x-hidden">
         {!isAuthenticated ? (
           /* Login Screen Card */
           <div className="max-w-md mx-auto my-12 p-6 sm:p-8 rounded-3xl bg-[#0e0e1a]/90 border border-red-500/30 shadow-2xl backdrop-blur-2xl text-center space-y-6">
@@ -2284,25 +2461,512 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   </div>
                 </div>
 
-                {/* Section 2: Live Activity Radar Overview */}
-                <div className="p-5 rounded-2xl bg-black/40 border border-cyan-500/30 space-y-4">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-2">
-                      <Radio size={20} className="text-cyan-400 animate-pulse" />
-                      <div>
-                        <h4 className="text-sm font-bold text-white">رادار نشاط السلطان بالديسكورد (Live Activity Radar)</h4>
-                        <p className="text-[11px] text-zinc-400">مرتبط بآيدي الديسكورد الرسمي: 1224502828371017788</p>
+                {/* Section 2: Live Activity Radar & Realtime Voice Control Panel (لوحة تحكم تفاعلية لرادار الروم والمايك والديفن والستريم والأعضاء) */}
+                <div className="p-5 sm:p-6 rounded-3xl bg-black/60 border border-cyan-500/40 shadow-2xl space-y-5 max-w-full overflow-hidden">
+                  {/* Radar Header with Live Badge, 10s Polling Indicator & Refresh Button */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-400 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0">
+                        <Radio size={22} className="animate-pulse" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-base font-extrabold text-white">
+                            لوحة تحكم رادار الديسكورد والصوت الحي (Live Voice Radar)
+                          </h4>
+                          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-300 font-mono font-bold border border-cyan-500/30">
+                            تحديث تلقائي كل 10 ثوانٍ ⏱️
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          تحديث حي للمايك والديفن والستريم والأعضاء مباشرة عبر <span className="font-mono text-cyan-300">/api/discord/live-voice</span>
+                        </p>
                       </div>
                     </div>
 
-                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                      LIVE RADAR ONLINE 🟢
-                    </span>
+                    <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                      <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold border flex items-center gap-1.5 ${
+                        adminVoiceData.inVoice
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                          : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full ${adminVoiceData.inVoice ? 'bg-emerald-400 animate-ping' : 'bg-zinc-500'}`} />
+                        <span>{adminVoiceData.inVoice ? '🟢 متصل بالروم الصوتي' : '⚪ غير متصل بصوت'}</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          audioEngine.playAdminClick();
+                          fetchAdminLiveVoice(false);
+                          showToast('تم تحديث بيانات رادار الصوت المباشر 🔄');
+                        }}
+                        disabled={adminVoiceData.loading}
+                        className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                        title="تحديث البيانات فوراً"
+                      >
+                        <RefreshCw size={13} className={adminVoiceData.loading ? 'animate-spin text-cyan-400' : ''} />
+                        <span>تحديث فوري</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <p className="text-xs text-zinc-300 leading-relaxed">
-                    يعمل الرادار تلقائياً عبر اتصال WebSocket بخوادم Lanyard. يعرض للزوار ما تلعبه الآن على الكمبيوتر أو الموبايل، أو الأغنية التي تسمعها على Spotify، مع إمكانية إرسال رسائل خاصة لك بالديسكورد مباشرة.
-                  </p>
+                  {/* Spotlight Banner: Current Voice Channel with Visual Pulse Alerts */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    alertPulseMemberIds['sultan_self']
+                      ? 'bg-gradient-to-r from-amber-950/60 via-cyan-950/40 to-black/70 border-amber-400 ring-2 ring-amber-400/50 shadow-2xl animate-pulse'
+                      : adminVoiceData.inVoice
+                      ? 'bg-gradient-to-r from-cyan-950/40 via-indigo-950/30 to-black/60 border-cyan-500/40 shadow-lg'
+                      : 'bg-white/[0.02] border-white/10'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border shadow-inner shrink-0 ${
+                          alertPulseMemberIds['sultan_self']
+                            ? 'bg-amber-500/30 border-amber-400 text-amber-300 animate-bounce'
+                            : adminVoiceData.inVoice
+                            ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300'
+                            : 'bg-zinc-800 border-zinc-700 text-zinc-500'
+                        }`}>
+                          <Mic size={22} className={adminVoiceData.inVoice ? 'animate-pulse text-cyan-400' : ''} />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-zinc-400 font-bold">الروم الصوتي الحالي:</span>
+                            <span className={`text-sm sm:text-base font-black truncate ${adminVoiceData.inVoice ? 'text-white' : 'text-zinc-400'}`}>
+                              {adminVoiceData.inVoice ? adminVoiceData.channelName : 'سلطان ليس في أي روم حالياً'}
+                            </span>
+                            {alertPulseMemberIds['sultan_self'] && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse flex items-center gap-1">
+                                <Sparkles size={10} />
+                                <span>تغيرت الحالة للتو!</span>
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-zinc-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                            <span>السيرفر: <strong className="text-zinc-200">{adminVoiceData.serverName || '✨ Friends For Ever ✨'}</strong></span>
+                            {adminVoiceData.connectedAt && (
+                              <>
+                                <span>•</span>
+                                <span>متصل منذ: {new Date(adminVoiceData.connectedAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+
+                      <a
+                        href={formData.socials?.discord || 'https://discord.gg/TUU6EeC6pb'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => audioEngine.playClickSound()}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/30 transition-transform active:scale-95 self-start sm:self-center shrink-0"
+                      >
+                        <span>فتح سيرفر الديسكورد 💬</span>
+                        <Share2 size={12} />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* 4 Interactive Telemetry Badges (المايك، الديفن، الستريم، الجودة) مع أيقونات واضحة وتأثير نبض بصري */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* 1. Mic Status (Muted/Unmuted with clear icon) */}
+                    <div className={`p-3.5 rounded-2xl border text-right transition-all ${
+                      alertPulseMemberIds['sultan_self']?.type?.includes('mute')
+                        ? 'ring-2 ring-amber-400 bg-amber-950/50 border-amber-400 animate-pulse'
+                        : adminVoiceData.inVoice
+                        ? (adminVoiceData.isMuted
+                            ? 'bg-amber-950/30 border-amber-500/40 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
+                            : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.15)]')
+                        : 'bg-white/[0.02] border-white/5 text-zinc-400'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          {adminVoiceData.isMuted ? <MicOff size={14} className="text-amber-400" /> : <Mic size={14} className="text-emerald-400" />}
+                          <span>حالة المايك (Mic)</span>
+                        </span>
+                        {adminVoiceData.isMuted ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-black border border-amber-500/40 flex items-center gap-1">
+                            <MicOff size={11} /> Muted
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-black border border-emerald-500/40 flex items-center gap-1">
+                            <Mic size={11} className={adminVoiceData.inVoice ? 'animate-pulse' : ''} /> Unmuted
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-black flex items-center gap-1.5 mt-1">
+                        {adminVoiceData.inVoice ? (
+                          adminVoiceData.isMuted ? (
+                            <>
+                              <MicOff size={15} className="text-amber-400" />
+                              <span>مكتوم (Muted) 🔇</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mic size={15} className="text-emerald-400 animate-pulse" />
+                              <span>المايك مفتوح (Unmuted) 🎙️</span>
+                            </>
+                          )
+                        ) : (
+                          <span>غير متصل بصوت</span>
+                        )}
+                      </p>
+                      <span className="text-[10px] text-zinc-400 font-mono block mt-1">
+                        {adminVoiceData.inVoice
+                          ? (adminVoiceData.selfMute ? 'كتم يدوي (Self Mute)' : adminVoiceData.serverMute ? 'مكتوم إدارياً' : 'جاهز للتحدث في الروم')
+                          : 'خارج الرومات'}
+                      </span>
+                    </div>
+
+                    {/* 2. Deafen Status (Deafened / Normal with clear icon) */}
+                    <div className={`p-3.5 rounded-2xl border text-right transition-all ${
+                      alertPulseMemberIds['sultan_self']?.type?.includes('deaf')
+                        ? 'ring-2 ring-rose-400 bg-rose-950/50 border-rose-400 animate-pulse'
+                        : adminVoiceData.inVoice
+                        ? (adminVoiceData.isDeafened
+                            ? 'bg-rose-950/30 border-rose-500/40 text-rose-200 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
+                            : 'bg-indigo-950/30 border-indigo-500/40 text-indigo-200 shadow-[0_0_20px_rgba(99,102,241,0.15)]')
+                        : 'bg-white/[0.02] border-white/5 text-zinc-400'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          {adminVoiceData.isDeafened ? <VolumeX size={14} className="text-rose-400" /> : <Headphones size={14} className="text-indigo-400" />}
+                          <span>حالة الديفن (Deaf)</span>
+                        </span>
+                        {adminVoiceData.isDeafened ? (
+                          <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-mono font-black border border-rose-500/40 flex items-center gap-1">
+                            <VolumeX size={11} /> Deafened
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-black border border-indigo-500/40 flex items-center gap-1">
+                            <Headphones size={11} /> Hearing
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-black flex items-center gap-1.5 mt-1">
+                        {adminVoiceData.inVoice ? (
+                          adminVoiceData.isDeafened ? (
+                            <>
+                              <VolumeX size={15} className="text-rose-400" />
+                              <span>ديفن مكتوم (Deafened) 🔕</span>
+                            </>
+                          ) : (
+                            <>
+                              <Headphones size={15} className="text-indigo-400" />
+                              <span>السماعة تعمل 🎧</span>
+                            </>
+                          )
+                        ) : (
+                          <span>غير متصل بصوت</span>
+                        )}
+                      </p>
+                      <span className="text-[10px] text-zinc-400 font-mono block mt-1">
+                        {adminVoiceData.inVoice
+                          ? (adminVoiceData.selfDeaf ? 'ديفن شخصي (Self Deafen)' : adminVoiceData.serverDeaf ? 'ديفن إداري' : 'يستمع للمحادثة بوضوح')
+                          : 'خارج الرومات'}
+                      </span>
+                    </div>
+
+                    {/* 3. Screen Stream Status (Streaming / Inactive with clear icon) */}
+                    <div className={`p-3.5 rounded-2xl border text-right transition-all ${
+                      alertPulseMemberIds['sultan_self']?.type?.includes('stream')
+                        ? 'ring-2 ring-sky-400 bg-sky-950/60 border-sky-400 animate-pulse'
+                        : adminVoiceData.isStreaming
+                        ? 'bg-sky-950/30 border-sky-400/50 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.25)]'
+                        : 'bg-white/[0.02] border-white/5 text-zinc-400'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          <Tv size={14} className={adminVoiceData.isStreaming ? 'text-sky-400 animate-pulse' : 'text-zinc-500'} />
+                          <span>بث الشاشة (Stream)</span>
+                        </span>
+                        {adminVoiceData.isStreaming ? (
+                          <span className="px-2 py-0.5 rounded-full bg-sky-500/25 text-sky-300 text-[10px] font-mono font-black border border-sky-400/40 flex items-center gap-1 shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping" />
+                            Streaming
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[10px] font-mono font-black border border-zinc-700">
+                            Offline
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-black flex items-center gap-1.5 mt-1">
+                        {adminVoiceData.isStreaming ? (
+                          <>
+                            <Tv size={15} className="text-sky-400 animate-pulse" />
+                            <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
+                            <span>بث شاشة مباشر (Streaming) 📺</span>
+                          </>
+                        ) : (
+                          <>
+                            <Tv size={15} className="text-zinc-500" />
+                            <span>لا يوجد بث 📡</span>
+                          </>
+                        )}
+                      </p>
+                      <span className="text-[10px] text-zinc-400 font-mono block mt-1">
+                        {adminVoiceData.isStreaming ? 'مشارك شاشة اللعب أو البرامج مباشرة' : 'البث متوقف'}
+                      </span>
+                    </div>
+
+                    {/* 4. Connection Stability */}
+                    <div className={`p-3.5 rounded-2xl border text-right transition-all ${
+                      adminVoiceData.inVoice
+                        ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-200'
+                        : 'bg-white/[0.02] border-white/5 text-zinc-400'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold flex items-center gap-1.5">
+                          <Wifi size={14} className={adminVoiceData.inVoice ? 'text-emerald-400' : 'text-zinc-500'} />
+                          <span>حالة الاتصال</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {new Date(adminVoiceData.lastUpdated || Date.now()).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-sm font-black flex items-center gap-1.5 mt-1">
+                        <Wifi size={15} className={adminVoiceData.inVoice ? 'text-emerald-400' : 'text-zinc-500'} />
+                        <span>{adminVoiceData.inVoice ? 'اتصال مستقر 📶' : 'في وضع الانتظار'}</span>
+                      </p>
+                      <span className="text-[10px] text-zinc-400 font-mono block mt-1">
+                        {adminVoiceData.inVoice ? 'صوت عالي الجودة HD • تحديث 10s' : 'جاهز للرصد التلقائي'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Companions & Voice Members Panel with Dropdown Filter & Visual Alert Pulses */}
+                  {(() => {
+                    // Combine all voice members or companions for display
+                    const rawList = (adminVoiceData.allVoiceMembers && adminVoiceData.allVoiceMembers.length > 0)
+                      ? adminVoiceData.allVoiceMembers
+                      : (adminVoiceData.companions || []);
+
+                    // Filter members based on dropdown selection
+                    const filteredMembers = rawList.filter((m) => {
+                      if (radarMemberFilter === 'unmuted') return !m.isMuted;
+                      if (radarMemberFilter === 'muted') return Boolean(m.isMuted);
+                      if (radarMemberFilter === 'streaming') return Boolean(m.isStreaming);
+                      return true; // 'all'
+                    });
+
+                    return (
+                      <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2">
+                            <Users size={16} className="text-emerald-400 shrink-0" />
+                            <span className="font-extrabold text-xs sm:text-sm text-zinc-200">
+                              أعضاء قنوات الديسكورد الصوتية وتفاصيل نشاطهم:
+                            </span>
+                            <span className="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                              {rawList.length} أعضاء
+                            </span>
+                          </div>
+
+                          {/* Dropdown Filter for Members (الكل، المايك مفتوح، الميوت، في الستريم) */}
+                          <div className="flex items-center gap-2 self-start sm:self-center">
+                            <label className="text-[11px] font-bold text-zinc-400 flex items-center gap-1">
+                              <Filter size={12} className="text-cyan-400" />
+                              <span>فلترة الحالة:</span>
+                            </label>
+                            <div className="relative">
+                              <select
+                                value={radarMemberFilter}
+                                onChange={(e) => {
+                                  audioEngine.playClickSound();
+                                  setRadarMemberFilter(e.target.value as any);
+                                }}
+                                className="appearance-none pr-8 pl-3 py-1.5 rounded-xl bg-black/80 border border-cyan-500/40 text-white text-xs font-bold focus:outline-none focus:border-cyan-400 cursor-pointer shadow-sm hover:border-cyan-400 transition-colors"
+                              >
+                                <option value="all" className="bg-zinc-900 text-white">الكل (جميع الأعضاء)</option>
+                                <option value="unmuted" className="bg-zinc-900 text-emerald-300">المايك مفتوح (Unmuted 🎙️)</option>
+                                <option value="muted" className="bg-zinc-900 text-amber-300">المكتومين (Muted 🔇)</option>
+                                <option value="streaming" className="bg-zinc-900 text-sky-300">في البث (Streaming 📺)</option>
+                              </select>
+                              <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-cyan-400 pointer-events-none" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Members Grid or Empty State */}
+                        {filteredMembers.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                            {filteredMembers.map((comp, idx) => {
+                              const memberKey = comp.username || (comp as any).id || String(idx);
+                              const pulseAlert = alertPulseMemberIds[memberKey];
+
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`p-3 rounded-2xl border text-xs text-white transition-all flex items-center justify-between gap-3 ${
+                                    pulseAlert
+                                      ? 'bg-gradient-to-r from-amber-950/50 via-zinc-900 to-black/80 border-amber-400 ring-2 ring-amber-400/50 shadow-xl shadow-amber-500/20 animate-pulse'
+                                      : comp.isStreaming
+                                      ? 'bg-gradient-to-r from-sky-950/30 to-black/60 border-sky-500/40 shadow-sm'
+                                      : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/10'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="relative shrink-0">
+                                      {comp.avatar_url ? (
+                                        <img src={comp.avatar_url} alt={comp.username} className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-xs font-bold border border-white/10">
+                                          {comp.username.charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
+                                      {/* Status dot */}
+                                      <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-black ${
+                                        comp.isStreaming ? 'bg-sky-400 animate-ping' : comp.isMuted ? 'bg-amber-400' : 'bg-emerald-400'
+                                      }`} />
+                                    </div>
+
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="font-extrabold text-white truncate max-w-[120px] block">
+                                          {comp.username}
+                                        </span>
+                                        {comp.isSultan && (
+                                          <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 text-[9px] font-black border border-amber-500/40">
+                                            السلطان 👑
+                                          </span>
+                                        )}
+                                      </div>
+                                      {comp.channelName && (
+                                        <span className="text-[10px] text-zinc-400 truncate block mt-0.5">
+                                          {comp.channelName}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Right side telemetry tags with clear icons & visual pulse notice */}
+                                  <div className="flex flex-col items-end gap-1 shrink-0">
+                                    <div className="flex items-center gap-1">
+                                      {/* Mic Icon & Badge */}
+                                      {comp.isMuted ? (
+                                        <span className="px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-300 text-[10px] font-mono font-bold border border-amber-500/30 flex items-center gap-0.5" title="المايك مكتوم">
+                                          <MicOff size={10} />
+                                          <span>Muted</span>
+                                        </span>
+                                      ) : (
+                                        <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-500/30 flex items-center gap-0.5" title="المايك مفتوح ويتحدث">
+                                          <Mic size={10} className="animate-pulse" />
+                                          <span>Live</span>
+                                        </span>
+                                      )}
+
+                                      {/* Deafen Icon & Badge */}
+                                      {comp.isDeafened && (
+                                        <span className="px-1.5 py-0.5 rounded-md bg-rose-500/15 text-rose-300 text-[10px] font-mono font-bold border border-rose-500/30 flex items-center gap-0.5" title="السماعة مقفلة ديفن">
+                                          <VolumeX size={10} />
+                                          <span>Deaf</span>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Streaming Icon & Badge */}
+                                    {comp.isStreaming && (
+                                      <span className="px-1.5 py-0.5 rounded-md bg-sky-500/20 text-sky-300 text-[10px] font-mono font-black border border-sky-400/40 flex items-center gap-1 shadow-sm animate-pulse">
+                                        <Tv size={10} />
+                                        <span>Streaming 📺</span>
+                                      </span>
+                                    )}
+
+                                    {/* Alert pulse banner */}
+                                    {pulseAlert && (
+                                      <span className="text-[9px] text-amber-300 font-extrabold flex items-center gap-0.5 animate-pulse">
+                                        <Sparkles size={8} /> حالة محدثة!
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center text-xs text-zinc-400">
+                            {radarMemberFilter !== 'all' ? (
+                              <span>لا يوجد أعضاء يطابقون فلتر ({radarMemberFilter}) حالياً في الرومات الصوتية.</span>
+                            ) : adminVoiceData.inVoice ? (
+                              <span>سلطان متواجد بمفرده في هذا الروم حالياً 🎧</span>
+                            ) : (
+                              <span>لا يوجد أعضاء في الروم الصوتي حالياً. الرادار ينتظر انضمام الأعضاء 📡</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Server Voice Channels Grid */}
+                  <div className="pt-2 border-t border-white/10 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-zinc-300 flex items-center gap-1.5">
+                        <Radio size={14} className="text-indigo-400" />
+                        <span>قنوات ورومات السيرفر الصوتية المتاحة:</span>
+                      </span>
+                      <span className="text-[11px] text-zinc-400 font-mono">
+                        {(adminVoiceData.availableChannels || []).length} قنوات
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                      {(adminVoiceData.availableChannels || []).map((ch) => {
+                        const lower = ch.name.toLowerCase();
+                        let Icon = Mic;
+                        let badgeColor = 'text-zinc-400';
+                        let cleanName = ch.name.replace(/^[^\w\u0600-\u06FF]+/, '').trim() || ch.name;
+
+                        if (lower.includes('movie') || lower.includes('watching') || lower.includes('سينما') || lower.includes('🎬')) {
+                          Icon = Film;
+                          badgeColor = 'text-purple-400';
+                          cleanName = 'Watching Movies';
+                        } else if (lower.includes('general') || lower.includes('عام') || lower.includes('🎤')) {
+                          Icon = Users;
+                          badgeColor = 'text-indigo-400';
+                          cleanName = 'General';
+                        } else if (lower.includes('gaming') || lower.includes('لعب') || lower.includes('🎮')) {
+                          Icon = Gamepad2;
+                          badgeColor = 'text-emerald-400';
+                          cleanName = 'Gaming';
+                        } else if (lower.includes('study') || lower.includes('chill') || lower.includes('📖')) {
+                          Icon = BookOpen;
+                          badgeColor = 'text-cyan-400';
+                          cleanName = 'Study';
+                        } else if (lower.includes('afk') || lower.includes('خامل') || lower.includes('💤')) {
+                          Icon = Moon;
+                          badgeColor = 'text-amber-400';
+                          cleanName = 'AFK';
+                        }
+
+                        const cleanCh = ch.name.replace(/^[^\w\u0600-\u06FF]+/, '').trim().toLowerCase();
+                        const cleanCur = (adminVoiceData.channelName || '').replace(/^[^\w\u0600-\u06FF]+/, '').trim().toLowerCase();
+                        const isCurrent = adminVoiceData.inVoice && (cleanCur.includes(cleanCh) || cleanCh.includes(cleanCur));
+
+                        return (
+                          <div
+                            key={ch.id}
+                            className={`p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between gap-2 ${
+                              isCurrent
+                                ? 'bg-cyan-950/40 border-cyan-400/60 text-white font-extrabold shadow-md shadow-cyan-500/20 scale-[1.02]'
+                                : 'bg-black/40 border-white/5 text-zinc-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Icon size={14} className={isCurrent ? 'text-cyan-300 animate-pulse' : badgeColor} />
+                              <span className="truncate">{cleanName}</span>
+                            </div>
+                            {isCurrent && (
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Save button bar */}

@@ -33,6 +33,8 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'game' | 'leaderboard'>('game');
   const [score, setScore] = useState<number>(0);
   const [highScore, setHighScore] = useState<number>(0);
+  const [combo, setCombo] = useState<number>(0);
+  const [isShieldActive, setIsShieldActive] = useState<boolean>(false);
   const [gameState, setGameState] = useState<'idle' | 'running' | 'gameover'>('idle');
   const [isNewRecord, setIsNewRecord] = useState<boolean>(false);
 
@@ -47,6 +49,8 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
 
   const gameStateRef = useRef<'idle' | 'running' | 'gameover'>('idle');
   const scoreRef = useRef<number>(0);
+  const comboRef = useRef<number>(0);
+  const shieldRef = useRef<boolean>(false);
   const animFrameRef = useRef<number | null>(null);
 
   // Game physics state
@@ -58,7 +62,8 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
     vy: 0,
     isGrounded: true
   });
-  const obstaclesRef = useRef<Array<{ x: number; w: number; h: number; color: string }>>([]);
+  const obstaclesRef = useRef<Array<{ x: number; w: number; h: number; color: string; passed?: boolean }>>([]);
+  const collectiblesRef = useRef<Array<{ x: number; y: number; type: 'crown' | 'shield'; collected?: boolean }>>([]);
   const frameCountRef = useRef<number>(0);
   const speedRef = useRef<number>(3.6);
 
@@ -89,15 +94,20 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
       isGrounded: true
     };
     obstaclesRef.current = [];
+    collectiblesRef.current = [];
     frameCountRef.current = 0;
     speedRef.current = 3.6;
     scoreRef.current = 0;
+    comboRef.current = 0;
+    shieldRef.current = false;
     setScore(0);
+    setCombo(0);
+    setIsShieldActive(false);
     setIsNewRecord(false);
     setIsScoreSaved(false);
     gameStateRef.current = 'running';
     setGameState('running');
-    recordSiteLog('بدء اللعبة 🎮', 'بدء جولة جديدة في لعبة ركض السلطان وتخطي الحواجز');
+    recordSiteLog('بدء اللعبة 🎮', 'بدء جولة جديدة في لعبة ركض السلطان Arcade 2.0');
   };
 
   const jump = () => {
@@ -227,6 +237,18 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
         p.isGrounded = true;
       }
 
+      // Draw Shield Aura if active
+      if (shieldRef.current) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(p.x + p.w / 2, p.y + p.h / 2, 18, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+
       // Draw Player (Crown Character)
       ctx.fillStyle = '#ef4444';
       ctx.beginPath();
@@ -256,8 +278,54 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
           x: W,
           w: 14,
           h: height,
-          color: Math.random() > 0.5 ? '#26d9ff' : '#7c5cff'
+          color: Math.random() > 0.5 ? '#26d9ff' : '#7c5cff',
+          passed: false
         });
+
+        // 20% chance to spawn Crown collectible (+50 pts) or Shield Powerup
+        if (Math.random() < 0.22) {
+          const type = Math.random() < 0.75 ? 'crown' : 'shield';
+          collectiblesRef.current.push({
+            x: W + 35,
+            y: groundY - 35 - Math.random() * 30,
+            type
+          });
+        }
+      }
+
+      // Move & Draw Collectibles
+      for (let c = collectiblesRef.current.length - 1; c >= 0; c--) {
+        const col = collectiblesRef.current[c];
+        col.x -= speedRef.current;
+
+        // Draw Collectible
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(col.type === 'crown' ? '👑' : '🛡️', col.x, col.y);
+
+        // Collectible pickup collision
+        if (
+          !col.collected &&
+          Math.abs(p.x + p.w / 2 - col.x) < 20 &&
+          Math.abs(p.y + p.h / 2 - col.y) < 22
+        ) {
+          col.collected = true;
+          if (col.type === 'crown') {
+            scoreRef.current += 50;
+            setScore(scoreRef.current);
+            audioEngine.playPowerUpSound();
+          } else {
+            shieldRef.current = true;
+            setIsShieldActive(true);
+            audioEngine.playPowerUpSound();
+          }
+          collectiblesRef.current.splice(c, 1);
+          continue;
+        }
+
+        if (col.x < -20) {
+          collectiblesRef.current.splice(c, 1);
+        }
       }
 
       // Move & Draw Obstacles
@@ -272,6 +340,13 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
         ctx.fillRect(obs.x, obsY, obs.w, obs.h);
         ctx.shadowBlur = 0;
 
+        // Combo increment when obstacle is successfully passed
+        if (!obs.passed && obs.x + obs.w < p.x) {
+          obs.passed = true;
+          comboRef.current++;
+          setCombo(comboRef.current);
+        }
+
         // Collision Check
         if (
           p.x + 4 < obs.x + obs.w &&
@@ -279,8 +354,16 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
           p.y + 4 < obsY + obs.h &&
           p.y + p.h > obsY
         ) {
-          gameOver();
-          return;
+          if (shieldRef.current) {
+            // Shield absorbs the crash!
+            shieldRef.current = false;
+            setIsShieldActive(false);
+            obs.x = -100; // destroy obstacle
+            audioEngine.playPowerUpSound();
+          } else {
+            gameOver();
+            return;
+          }
         }
 
         // Clean offscreen
@@ -289,12 +372,21 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
         }
       }
 
-      // Score increment & speedup
+      // Score increment with dynamic combo multiplier
       if (frameCountRef.current % 4 === 0) {
-        scoreRef.current++;
+        const mult = comboRef.current >= 20 ? 5 : comboRef.current >= 10 ? 3 : comboRef.current >= 5 ? 2 : 1;
+        scoreRef.current += mult;
         setScore(scoreRef.current);
       }
       speedRef.current += 0.0018;
+
+      // Draw Live Combo on Canvas Top Left
+      if (comboRef.current >= 3) {
+        ctx.fillStyle = comboRef.current >= 10 ? '#ffd700' : '#f97316';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`COMBO x${comboRef.current >= 20 ? 5 : comboRef.current >= 10 ? 3 : comboRef.current >= 5 ? 2 : 1} 🔥 (${comboRef.current})`, 12, 22);
+      }
 
       animFrameRef.current = requestAnimationFrame(loop);
     };
@@ -405,15 +497,25 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
         {activeTab === 'game' && (
           <div className="space-y-4">
             {/* Score Board */}
-            <div className="flex items-center justify-center gap-6 text-xs font-mono-custom bg-white/5 py-2 px-4 rounded-2xl border border-white/10">
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs font-mono-custom bg-white/5 py-2 px-4 rounded-2xl border border-white/10">
               <div className="text-zinc-300">
-                النقاط الحالية: <span className="text-red-400 font-bold text-base">{score}</span>
+                النقاط: <span className="text-red-400 font-bold text-base">{score}</span>
               </div>
-              <div className="h-4 w-px bg-white/10" />
+              <div className="h-4 w-px bg-white/10 hidden sm:block" />
               <div className="flex items-center gap-1.5 text-amber-300">
                 <Trophy size={14} />
-                أعلى رقم قياسي: <span className="font-bold text-base">{highScore}</span>
+                الرقم القياسي: <span className="font-bold text-base">{highScore}</span>
               </div>
+              {combo >= 3 && (
+                <div className="flex items-center gap-1 text-orange-400 font-bold animate-pulse">
+                  <span>🔥 كومبو x{combo >= 20 ? 5 : combo >= 10 ? 3 : combo >= 5 ? 2 : 1}</span>
+                </div>
+              )}
+              {isShieldActive && (
+                <div className="flex items-center gap-1 text-sky-400 font-bold">
+                  <span>🛡️ الدرع مفعّل</span>
+                </div>
+              )}
             </div>
 
             {/* Game Canvas Container */}

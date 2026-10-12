@@ -19,7 +19,15 @@ import {
   User,
   Trophy,
   Radio,
-  Music
+  Music,
+  Mic,
+  Volume2,
+  Film,
+  BookOpen,
+  Moon,
+  Coffee,
+  Clapperboard,
+  Tv
 } from 'lucide-react';
 import { LanyardData, SiteConfig, DailyStory } from '../types';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from '../utils/lanyard';
@@ -84,6 +92,30 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   const [isStoryModalOpen, setIsStoryModalOpen] = useState<boolean>(false);
   const [isRadarModalOpen, setIsRadarModalOpen] = useState<boolean>(false);
   const [pulsingSection, setPulsingSection] = useState<string | null>(null);
+  const [serverVoiceChannel, setServerVoiceChannel] = useState<string>('🎤﹒General');
+  const [currentVoiceRoom, setCurrentVoiceRoom] = useState<string | null>(null);
+  const [voiceCompanions, setVoiceCompanions] = useState<Array<{ username: string; avatar_url?: string }>>([]);
+  const [voiceStateDetails, setVoiceStateDetails] = useState<{
+    inVoice: boolean;
+    isMuted: boolean;
+    isDeafened: boolean;
+    isStreaming: boolean;
+    channelName: string;
+    availableChannels?: Array<{ id: string; name: string }>;
+  }>({
+    inVoice: false,
+    isMuted: false,
+    isDeafened: false,
+    isStreaming: false,
+    channelName: '🎤﹒General',
+    availableChannels: [
+      { id: '1306240131551858704', name: '🎤﹒General' },
+      { id: '1540800657588752395', name: '🎬﹒Watching Movies' },
+      { id: '1540457611701387314', name: '🎮﹒Gaming' },
+      { id: '1540457327298347170', name: '📖﹒Study' },
+      { id: '1545422837618184302', name: '💤﹒AFK' }
+    ]
+  });
   const dailyStory = config.dailyStory || defaultDailyStory;
 
   const handleSectionClick = (sectionKey: string, action?: () => void) => {
@@ -100,10 +132,44 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   };
 
   useEffect(() => {
-    // 1. Initial fetch from Lanyard
+    // 1. Initial fetch from Lanyard & Bot Voice Service (scheduled every 5 seconds as requested)
     const loadUser = async () => {
-      const data = await fetchLanyardUser(DISCORD_USER_ID);
-      if (data) setLanyard(data);
+      try {
+        const data = await fetchLanyardUser(DISCORD_USER_ID);
+        if (data) setLanyard(data);
+      } catch {}
+
+      try {
+        const res = await fetch(`/api/discord/bot-service?_t=${Date.now()}`);
+        if (res.ok) {
+          const botData = await res.json();
+          const svc = botData?.sultanVoiceChannel;
+          if (svc?.inVoice) {
+            const chName = svc.channelName || 'غرفة صوتية';
+            setCurrentVoiceRoom(chName);
+            setVoiceCompanions(svc.companions || []);
+            setVoiceStateDetails({
+              inVoice: true,
+              channelName: chName,
+              isMuted: Boolean(svc.isMuted),
+              isDeafened: Boolean(svc.isDeafened),
+              isStreaming: Boolean(svc.isStreaming),
+              availableChannels: svc.availableChannels || []
+            });
+          } else {
+            setCurrentVoiceRoom(null);
+            setVoiceCompanions([]);
+            setVoiceStateDetails({
+              inVoice: false,
+              channelName: svc?.channelName || serverVoiceChannel || '🎤﹒General',
+              isMuted: false,
+              isDeafened: false,
+              isStreaming: false,
+              availableChannels: svc?.availableChannels || []
+            });
+          }
+        }
+      } catch {}
     };
     loadUser();
 
@@ -112,8 +178,8 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
       setLanyard(data);
     });
 
-    // 3. Periodic poll fallback
-    const liveSyncInterval = setInterval(loadUser, 15000);
+    // 3. Periodic poll scheduled every 5 seconds (5000ms) for high resilience & instant room detection
+    const liveSyncInterval = setInterval(loadUser, 5000);
 
     // 4. Fetch exact Discord guild stats
     const fetchExactGuildStats = async () => {
@@ -129,6 +195,9 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           }
           if (data.guild?.name) {
             setServerName(data.guild.name);
+          }
+          if (data.channel?.name) {
+            setServerVoiceChannel(data.channel.name);
           }
         }
       } catch (err) {
@@ -234,6 +303,16 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   const gameActivity = lanyard?.activities?.find((a) => a.type === 0);
   const spotify = lanyard?.listening_to_spotify ? lanyard.spotify : null;
 
+  // Active game or rich activity from Lanyard
+  const activeActivity = useMemo(() => {
+    if (!lanyard?.activities || lanyard.activities.length === 0) return null;
+    return (
+      lanyard.activities.find((a) => a.type === 0 || a.type === 1 || a.type === 5) ||
+      lanyard.activities.find((a) => a.type !== 4) ||
+      lanyard.activities[0]
+    );
+  }, [lanyard?.activities]);
+
   // Real Discord avatar
   const avatarUrl = useMemo(() => {
     if (lanyard?.discord_user?.avatar && lanyard?.discord_user?.id) {
@@ -264,6 +343,320 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   const displayName = lanyard?.discord_user?.global_name || config.username || '! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪';
   const username = lanyard?.discord_user?.username || config.handle || '5susu';
   const [isCardHovered, setIsCardHovered] = useState<boolean>(false);
+
+  // Dynamic Room State Detection (Gaming / Movies / General / Chill / AFK) based on Lanyard & Voice Room Data
+  type RoomState = 'Gaming' | 'Movies' | 'General' | 'Chill' | 'AFK' | 'Default';
+
+  const roomCategory = useMemo<RoomState>(() => {
+    const roomLower = (currentVoiceRoom || '').toLowerCase();
+
+    // 1. Direct Voice Room Check
+    if (roomLower.includes('gaming') || roomLower.includes('لعب') || roomLower.includes('🎮')) {
+      return 'Gaming';
+    }
+    if (
+      roomLower.includes('movie') ||
+      roomLower.includes('watching') ||
+      roomLower.includes('سينما') ||
+      roomLower.includes('أفلام') ||
+      roomLower.includes('🎬')
+    ) {
+      return 'Movies';
+    }
+    if (roomLower.includes('general') || roomLower.includes('عام') || roomLower.includes('سيرفر') || roomLower.includes('🎤')) {
+      return 'General';
+    }
+    if (roomLower.includes('afk') || roomLower.includes('خامل') || roomLower.includes('away') || roomLower.includes('💤')) {
+      return 'AFK';
+    }
+    if (
+      roomLower.includes('study') ||
+      roomLower.includes('chill') ||
+      roomLower.includes('مذاكرة') ||
+      roomLower.includes('روقان') ||
+      roomLower.includes('📖') ||
+      roomLower.includes('🎧')
+    ) {
+      return 'Chill';
+    }
+
+    // 2. Lanyard API activities & presence detection fallback
+    const hasGame = lanyard?.activities?.some((a) => a.type === 0);
+    if (hasGame) {
+      return 'Gaming';
+    }
+
+    const hasStreamOrMovie = lanyard?.activities?.some(
+      (a) => a.type === 3 || a.type === 1 || a.name?.toLowerCase().includes('movie') || a.details?.toLowerCase().includes('movie')
+    );
+    if (hasStreamOrMovie) {
+      return 'Movies';
+    }
+
+    if (lanyard?.discord_status === 'idle') {
+      return 'AFK';
+    }
+
+    if (lanyard?.listening_to_spotify || lanyard?.activities?.some((a) => a.type === 2)) {
+      return 'Chill';
+    }
+
+    return 'Default';
+  }, [currentVoiceRoom, lanyard?.activities, lanyard?.discord_status, lanyard?.listening_to_spotify]);
+
+  const currentRoomConfig = useMemo(() => {
+    switch (roomCategory) {
+      case 'Gaming':
+        return {
+          cardBg: 'bg-gradient-to-b from-[#061811]/95 via-[#09151e]/95 to-[#080812]/95 border-emerald-500/40 shadow-[0_0_50px_rgba(16,185,129,0.25)]',
+          ambientGlow: 'from-emerald-500/45 via-teal-500/35 to-cyan-500/45',
+          badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.3)]',
+          label: currentVoiceRoom ? `🎮 ${currentVoiceRoom}` : '🎮 روم الألعاب (Gaming)',
+          bannerAura: 'bg-emerald-500/45'
+        };
+      case 'Movies':
+        return {
+          cardBg: 'bg-gradient-to-b from-[#1b0a24]/95 via-[#130d22]/95 to-[#080812]/95 border-purple-500/40 shadow-[0_0_50px_rgba(168,85,247,0.25)]',
+          ambientGlow: 'from-purple-600/45 via-pink-600/35 to-rose-600/45',
+          badgeBg: 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.3)]',
+          label: currentVoiceRoom ? `🎬 ${currentVoiceRoom}` : '🎬 روم الأفلام (Watching Movies)',
+          bannerAura: 'bg-purple-600/45'
+        };
+      case 'General':
+        return {
+          cardBg: 'bg-gradient-to-b from-[#0c122b]/95 via-[#0e1026]/95 to-[#080812]/95 border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.25)]',
+          ambientGlow: 'from-indigo-600/45 via-blue-600/35 to-violet-600/45',
+          badgeBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.3)]',
+          label: currentVoiceRoom ? `🎤 ${currentVoiceRoom}` : '🎤 الروم الصوتي العام (General)',
+          bannerAura: 'bg-indigo-600/45'
+        };
+      case 'Chill':
+        return {
+          cardBg: 'bg-gradient-to-b from-[#091426]/95 via-[#0d132b]/95 to-[#080812]/95 border-cyan-500/40 shadow-[0_0_50px_rgba(6,182,212,0.25)]',
+          ambientGlow: 'from-cyan-500/45 via-indigo-500/35 to-sky-500/45',
+          badgeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.3)]',
+          label: currentVoiceRoom ? `📖 ${currentVoiceRoom}` : '🎧 روم الروقان والمذاكرة (Study / Chill)',
+          bannerAura: 'bg-cyan-500/45'
+        };
+      case 'AFK':
+        return {
+          cardBg: 'bg-gradient-to-b from-[#1a1207]/95 via-[#131118]/95 to-[#080812]/95 border-amber-500/40 shadow-[0_0_50px_rgba(245,158,11,0.25)]',
+          ambientGlow: 'from-amber-500/45 via-orange-500/35 to-yellow-500/45',
+          badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]',
+          label: currentVoiceRoom ? `💤 ${currentVoiceRoom}` : '💤 وضع الخمول والراحة (AFK)',
+          bannerAura: 'bg-amber-500/45'
+        };
+      default:
+        return {
+          cardBg: 'bg-[#0b0b14]/95 border-white/10 shadow-2xl shadow-black/80',
+          ambientGlow: 'from-red-600/25 via-purple-600/20 to-indigo-600/25',
+          badgeBg: '',
+          label: '',
+          bannerAura: 'bg-red-600/35'
+        };
+    }
+  }, [roomCategory, currentVoiceRoom]);
+
+  // Distinct room metadata and icons helper (Users for General, Film for Movies, Gamepad2 for Gaming, BookOpen for Study, Moon for AFK)
+  type RoomType = 'general' | 'movies' | 'gaming' | 'study' | 'afk' | 'other';
+
+  interface ServerRoomMeta {
+    id: string;
+    name: string;
+    cleanName: string;
+    type: RoomType;
+    IconComponent: React.ComponentType<{ size?: number; className?: string }>;
+    accentColor: string;
+    badgeBg: string;
+    activeBorder: string;
+    activeBg: string;
+    activeGlow: string;
+    description: string;
+  }
+
+  const getRoomMeta = (roomName: string, id: string = ''): ServerRoomMeta => {
+    const lower = (roomName || '').toLowerCase();
+
+    // 1. Watching Movies (Film / Movie icon 🎬)
+    if (
+      lower.includes('movie') ||
+      lower.includes('watching') ||
+      lower.includes('سينما') ||
+      lower.includes('أفلام') ||
+      lower.includes('🎬')
+    ) {
+      return {
+        id: id || 'watching_movies',
+        name: roomName || '🎬﹒Watching Movies',
+        cleanName: 'Watching Movies',
+        type: 'movies',
+        IconComponent: Film,
+        accentColor: 'text-purple-400',
+        badgeBg: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        activeBorder: 'border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.4)]',
+        activeBg: 'bg-gradient-to-r from-purple-950/70 via-fuchsia-950/50 to-black/80',
+        activeGlow: 'from-purple-600/40 via-pink-600/30 to-rose-600/40',
+        description: 'مشاهدة الأفلام والسينما 🎬'
+      };
+    }
+
+    // 2. General (Users icon 👥)
+    if (
+      lower.includes('general') ||
+      lower.includes('عام') ||
+      lower.includes('سيرفر') ||
+      lower.includes('🎤')
+    ) {
+      return {
+        id: id || 'general',
+        name: roomName || '🎤﹒General',
+        cleanName: 'General',
+        type: 'general',
+        IconComponent: Users,
+        accentColor: 'text-indigo-400',
+        badgeBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+        activeBorder: 'border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)]',
+        activeBg: 'bg-gradient-to-r from-indigo-950/70 via-blue-950/50 to-black/80',
+        activeGlow: 'from-indigo-600/40 via-blue-600/30 to-violet-600/40',
+        description: 'الروم الصوتي العام للتجمع 👥'
+      };
+    }
+
+    // 3. Gaming (Gamepad2 icon 🎮)
+    if (
+      lower.includes('gaming') ||
+      lower.includes('لعب') ||
+      lower.includes('ألعاب') ||
+      lower.includes('🎮')
+    ) {
+      return {
+        id: id || 'gaming',
+        name: roomName || '🎮﹒Gaming',
+        cleanName: 'Gaming',
+        type: 'gaming',
+        IconComponent: Gamepad2,
+        accentColor: 'text-emerald-400',
+        badgeBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        activeBorder: 'border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)]',
+        activeBg: 'bg-gradient-to-r from-emerald-950/70 via-teal-950/50 to-black/80',
+        activeGlow: 'from-emerald-500/40 via-teal-500/30 to-cyan-500/40',
+        description: 'روم الألعاب والبطولات 🎮'
+      };
+    }
+
+    // 4. Study / Chill (BookOpen icon 📖)
+    if (
+      lower.includes('study') ||
+      lower.includes('chill') ||
+      lower.includes('مذاكرة') ||
+      lower.includes('روقان') ||
+      lower.includes('📖') ||
+      lower.includes('🎧')
+    ) {
+      return {
+        id: id || 'study',
+        name: roomName || '📖﹒Study',
+        cleanName: 'Study / Chill',
+        type: 'study',
+        IconComponent: BookOpen,
+        accentColor: 'text-cyan-400',
+        badgeBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+        activeBorder: 'border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)]',
+        activeBg: 'bg-gradient-to-r from-cyan-950/70 via-blue-950/50 to-black/80',
+        activeGlow: 'from-cyan-500/40 via-indigo-500/30 to-sky-500/40',
+        description: 'مذاكرة وروقان وهدوء 📖'
+      };
+    }
+
+    // 5. AFK (Moon icon 💤)
+    if (
+      lower.includes('afk') ||
+      lower.includes('خامل') ||
+      lower.includes('away') ||
+      lower.includes('💤')
+    ) {
+      return {
+        id: id || 'afk',
+        name: roomName || '💤﹒AFK',
+        cleanName: 'AFK',
+        type: 'afk',
+        IconComponent: Moon,
+        accentColor: 'text-amber-400',
+        badgeBg: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        activeBorder: 'border-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.4)]',
+        activeBg: 'bg-gradient-to-r from-amber-950/70 via-orange-950/50 to-black/80',
+        activeGlow: 'from-amber-500/40 via-orange-500/30 to-yellow-500/40',
+        description: 'وضع الراحة والخمول 💤'
+      };
+    }
+
+    return {
+      id: id || 'other',
+      name: roomName || 'غرفة صوتية',
+      cleanName: roomName.replace(/^[^\w\u0600-\u06FF]+/, '').trim() || 'غرفة صوتية',
+      type: 'other',
+      IconComponent: Radio,
+      accentColor: 'text-zinc-400',
+      badgeBg: 'bg-white/10 text-zinc-300 border-white/10',
+      activeBorder: 'border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.25)]',
+      activeBg: 'bg-white/[0.06]',
+      activeGlow: 'from-zinc-600/30 via-zinc-500/20 to-zinc-600/30',
+      description: 'غرفة صوتية بالسيرفر 🎙️'
+    };
+  };
+
+  // Dynamic server rooms merging canonical rooms (General, Watching Movies, Gaming, Study, AFK) with live API
+  const serverRooms = useMemo<ServerRoomMeta[]>(() => {
+    const canonicalRooms = [
+      { id: '1306240131551858704', name: '🎤﹒General' },
+      { id: '1540800657588752395', name: '🎬﹒Watching Movies' },
+      { id: '1540457611701387314', name: '🎮﹒Gaming' },
+      { id: '1540457327298347170', name: '📖﹒Study' },
+      { id: '1545422837618184302', name: '💤﹒AFK' }
+    ];
+
+    const liveChannels = (voiceStateDetails.availableChannels && voiceStateDetails.availableChannels.length > 0)
+      ? voiceStateDetails.availableChannels
+      : [];
+
+    const merged = [...canonicalRooms];
+    for (const ch of liveChannels) {
+      if (!ch || !ch.name) continue;
+      if (ch.name.includes('Creator')) continue;
+      const cleanApi = ch.name.replace(/^[^\w\u0600-\u06FF]+/, '').trim().toLowerCase();
+      const exists = merged.some((m) => {
+        const cleanM = m.name.replace(/^[^\w\u0600-\u06FF]+/, '').trim().toLowerCase();
+        return m.id === ch.id || cleanM === cleanApi;
+      });
+      if (!exists) {
+        merged.push({ id: ch.id, name: ch.name });
+      }
+    }
+
+    return merged.map((ch) => getRoomMeta(ch.name, ch.id));
+  }, [voiceStateDetails.availableChannels]);
+
+  // Current active room metadata
+  const currentActiveRoomMeta = useMemo(() => {
+    const targetRoomName = (voiceStateDetails.inVoice && currentVoiceRoom)
+      ? currentVoiceRoom
+      : (voiceStateDetails.channelName || serverVoiceChannel || '🎤﹒General');
+    return getRoomMeta(targetRoomName);
+  }, [voiceStateDetails.inVoice, currentVoiceRoom, voiceStateDetails.channelName, serverVoiceChannel]);
+
+  const isRoomActive = (room: ServerRoomMeta) => {
+    if (!voiceStateDetails.inVoice || !currentVoiceRoom) return false;
+    const cleanCurrent = currentVoiceRoom.replace(/^[^\w\u0600-\u06FF]+/, '').trim().toLowerCase();
+    const cleanRoomName = room.name.replace(/^[^\w\u0600-\u06FF]+/, '').trim().toLowerCase();
+    const cleanCleanName = room.cleanName.toLowerCase();
+
+    return (
+      cleanCurrent.includes(cleanRoomName) ||
+      cleanRoomName.includes(cleanCurrent) ||
+      cleanCurrent.includes(cleanCleanName) ||
+      room.type === currentActiveRoomMeta.type
+    );
+  };
 
   // Clear hover state immediately on card close, modal dismissal, or blur
   useEffect(() => {
@@ -304,6 +697,11 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           isCardHovered ? 'animate-sultan-hover-float' : 'animate-sultan-float'
         }`}
       >
+        {/* Dynamic Ambient Room Aura Glow (يعكس حالة ولون الروم الحالي: ألعاب / روقان / خمول) */}
+        <div
+          className={`absolute -inset-1.5 rounded-[32px] bg-gradient-to-r ${currentRoomConfig.ambientGlow} blur-2xl opacity-70 pointer-events-none transition-all duration-700`}
+        />
+
         <div
           ref={cardRef}
           onMouseMove={onMouseMove}
@@ -314,7 +712,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             setIsCardHovered(false);
             onMouseLeave();
           }}
-          className={`w-full relative rounded-3xl bg-[#0b0b14]/95 border backdrop-blur-2xl transition-all duration-500 overflow-hidden text-right z-20 border-white/10 ${statusConfig.borderGlow} shadow-2xl shadow-black/80`}
+          className={`w-full relative rounded-3xl ${currentRoomConfig.cardBg} border backdrop-blur-2xl transition-all duration-700 overflow-hidden text-right z-20 ${statusConfig.borderGlow}`}
           dir="rtl"
         >
       {/* Dynamic Profile Effect: Floating particles */}
@@ -347,7 +745,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         />
 
         {/* Discord Nitro Banner Aura Glows */}
-        <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-red-600/35 blur-2xl pointer-events-none" />
+        <div className={`absolute -top-10 -right-10 w-48 h-48 rounded-full ${currentRoomConfig.bannerAura} blur-2xl pointer-events-none transition-all duration-700`} />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-indigo-600/35 blur-2xl pointer-events-none" />
 
         {/* Status Pill Badge (Top Left) */}
@@ -355,6 +753,16 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           <span className={`w-2 h-2 rounded-full ${statusConfig.color} animate-pulse ${statusConfig.glow}`} />
           <span className={`font-bold ${statusConfig.text}`}>{statusConfig.label}</span>
         </div>
+
+        {/* Dynamic Room State Pill Badge (Gaming / Chill / AFK) */}
+        {currentRoomConfig.label && (
+          <div
+            className={`absolute top-3 left-28 xs:left-32 sm:left-36 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full border backdrop-blur-md text-[10px] font-bold transition-all duration-500 shadow-md ${currentRoomConfig.badgeBg}`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping" />
+            <span className="truncate max-w-[120px] sm:max-w-none">{currentRoomConfig.label}</span>
+          </div>
+        )}
 
         {/* Share Button (Top Right) with tactile CSS scale */}
         <div className="absolute top-3 right-3 z-10">
@@ -492,42 +900,8 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         </div>
 
         {/* 4. صف أيقونات الأقسام المنظم والأنيق أسفل صورة الملف الشخصي مباشرةً مع تباعد متساوٍ وتأثير هالة خفيفة ونبض بصري */}
-        <div className="grid grid-cols-4 gap-2 sm:gap-2.5 pt-1 pb-1 w-full">
-          {/* 1. الموسيقى */}
-          <div className="relative group/sec">
-            {/* تأثير الهالة الخفيفة عند تمرير الماوس أو أثناء التشغيل */}
-            <div className={`absolute -inset-1 rounded-2xl bg-gradient-to-r from-red-600/35 to-rose-600/35 transition-opacity duration-300 blur-md pointer-events-none ${
-              isMusicPlaying ? 'opacity-100 animate-pulse' : 'opacity-0 group-hover/sec:opacity-100'
-            }`} />
-            <button
-              type="button"
-              onClick={() => handleSectionClick('music', onOpenMusic)}
-              onMouseEnter={playHover}
-              onTouchStart={playHover}
-              className={`relative w-full flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-1.5 rounded-2xl bg-gradient-to-b from-red-950/40 to-black/60 border text-white text-[11px] sm:text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm cursor-pointer overflow-hidden ${
-                pulsingSection === 'music'
-                  ? 'scale-90 ring-2 ring-red-400 bg-red-900/60 shadow-[0_0_25px_rgba(239,68,68,0.7)]'
-                  : ''
-              } ${
-                isMusicPlaying
-                  ? 'border-red-400/90 shadow-[0_0_20px_rgba(239,68,68,0.45)] bg-gradient-to-b from-red-900/60 to-black/70'
-                  : 'border-red-500/30 group-hover/sec:border-red-400/80 group-hover/sec:shadow-[0_0_20px_rgba(239,68,68,0.35)]'
-              }`}
-              title="مكتبة الموسيقى والأغاني الملكية"
-              data-tooltip={isMusicPlaying ? 'الموسيقى تعمل الآن 🎵 انقر للتحكم' : 'فتح مكتبة ومشغل الموسيقى'}
-            >
-              {pulsingSection === 'music' && (
-                <span className="absolute inset-0 rounded-2xl animate-ping border-2 border-red-400 opacity-75 pointer-events-none" />
-              )}
-              {isMusicPlaying && (
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping absolute top-2 right-2 pointer-events-none" />
-              )}
-              <Music size={15} className={`text-red-400 group-hover/sec:scale-110 transition-transform shrink-0 ${isMusicPlaying ? 'animate-pulse' : ''} ${pulsingSection === 'music' ? 'animate-bounce' : ''}`} />
-              <span className="truncate">{isMusicPlaying ? 'يعمل الآن 🎵' : 'الموسيقى 🎵'}</span>
-            </button>
-          </div>
-
-          {/* 2. الألعاب */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-1 pb-1 w-full">
+          {/* 1. الألعاب */}
           <div className="relative group/sec">
             {/* تأثير الهالة الخفيفة عند تمرير الماوس */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-emerald-600/35 to-teal-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
@@ -552,7 +926,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
 
-          {/* 3. الأسرار */}
+          {/* 2. الأسرار */}
           <div className="relative group/sec">
             {/* تأثير الهالة الخفيفة عند تمرير الماوس */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-amber-600/35 to-yellow-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
@@ -577,7 +951,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
 
-          {/* 4. الرادار */}
+          {/* 3. الرادار */}
           <div className="relative group/sec">
             {/* تأثير الهالة الخفيفة عند تمرير الماوس */}
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-600/35 to-sky-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
@@ -602,6 +976,50 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Real-time Spotify Live Listening Card (مزامنة مباشرة مع سبوتيفاي السلطان) */}
+        {spotify && (
+          <a
+            href={spotify.track_id ? `https://open.spotify.com/track/${spotify.track_id}` : 'https://open.spotify.com'}
+            target="_blank"
+            rel="noopener noreferrer"
+            onMouseEnter={playHover}
+            className="group/spot w-full relative flex items-center justify-between gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-black/80 to-zinc-950 border border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)] hover:border-emerald-400 hover:shadow-[0_0_30px_rgba(16,185,129,0.35)] transition-all duration-200"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative shrink-0 w-11 h-11 rounded-xl overflow-hidden border border-emerald-500/40 shadow-sm bg-black">
+                {spotify.album_art_url ? (
+                  <img
+                    src={spotify.album_art_url}
+                    alt={spotify.song || 'Spotify Album'}
+                    className="w-full h-full object-cover group-hover/spot:scale-110 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-emerald-400">
+                    <Music size={20} />
+                  </div>
+                )}
+                <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-black animate-ping" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  <span>يستمع الآن على Spotify 🎧</span>
+                </div>
+                <p className="text-xs sm:text-sm font-extrabold text-white truncate group-hover/spot:text-emerald-300 transition-colors">
+                  {spotify.song}
+                </p>
+                <p className="text-[11px] text-zinc-300 truncate font-medium">
+                  {spotify.artist}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold group-hover/spot:bg-emerald-500/30 transition-all">
+              <span className="hidden sm:inline">تشغيل في سبوتيفاي</span>
+              <ExternalLink size={13} />
+            </div>
+          </a>
+        )}
 
         {/* 5. Discord Badges Row (عضو منذ 2020 + رادار الألعاب المباشر + شارة الولاء) */}
         <div className="flex flex-wrap items-center gap-2 pt-0.5 pb-0.5">

@@ -51,10 +51,10 @@ import { useEcoMode } from './hooks/useEcoMode';
 import { EcoModeToggle } from './components/EcoModeToggle';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
-import { MusicVaultView } from './components/MusicVaultView';
 import { SecretsMinigamesView } from './components/SecretsMinigamesView';
 import { SectionModal } from './components/SectionModal';
 import { safeLocalStorage, safeSessionStorage } from './utils/safeStorage';
+import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from './utils/lanyard';
 import {
   subscribeToGlobalConfig,
   saveGlobalConfigToCloud,
@@ -265,7 +265,7 @@ export default function App() {
     return window.location.hash === '#admin' || window.location.pathname === '/admin' ? 'admin' : 'home';
   });
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [activeModalSection, setActiveModalSection] = useState<'music' | 'gaming' | 'secrets' | null>(null);
+  const [activeModalSection, setActiveModalSection] = useState<'gaming' | 'secrets' | null>(null);
   const [isGameOpen, setIsGameOpen] = useState<boolean>(false);
   const [hasRated, setHasRated] = useState<'up' | 'down' | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -275,6 +275,38 @@ export default function App() {
   const [isGeneratingZip, setIsGeneratingZip] = useState<boolean>(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState<boolean>(false);
   const [musicTempo, setMusicTempo] = useState<number>(128);
+  const [liveSpotify, setLiveSpotify] = useState<{
+    song?: string;
+    artist?: string;
+    album_art_url?: string;
+    track_id?: string;
+  } | null>(null);
+
+  // Ensure all music playback is stopped
+  useEffect(() => {
+    audioEngine.stop();
+  }, []);
+
+  // Sync Discord presence & Spotify live in App
+  useEffect(() => {
+    fetchLanyardUser(DISCORD_USER_ID).then((data) => {
+      if (data?.listening_to_spotify && data.spotify) {
+        setLiveSpotify(data.spotify);
+      } else {
+        setLiveSpotify(null);
+      }
+    });
+
+    const unsub = subscribeToLanyard(DISCORD_USER_ID, (data) => {
+      if (data?.listening_to_spotify && data.spotify) {
+        setLiveSpotify(data.spotify);
+      } else {
+        setLiveSpotify(null);
+      }
+    });
+
+    return unsub;
+  }, []);
 
   // Sync music playing state globally from audioEngine
   useEffect(() => {
@@ -282,6 +314,69 @@ export default function App() {
       setIsMusicPlaying(playing);
     });
   }, []);
+
+  // Phone hardware/gesture Back Button support via History API
+  useEffect(() => {
+    const isAnyModalOpen =
+      Boolean(activeModalSection) ||
+      isGameOpen ||
+      isTicTacToeOpen ||
+      isSecretRoleModalOpen ||
+      isLoyaltyModalOpen ||
+      isZenMode;
+
+    if (isAnyModalOpen) {
+      window.history.pushState({ sultanModalOpen: true }, '');
+    }
+
+    const handlePopState = () => {
+      if (activeModalSection) {
+        setActiveModalSection(null);
+      } else if (isGameOpen) {
+        setIsGameOpen(false);
+      } else if (isTicTacToeOpen) {
+        setIsTicTacToeOpen(false);
+      } else if (isSecretRoleModalOpen) {
+        setIsSecretRoleModalOpen(false);
+      } else if (isLoyaltyModalOpen) {
+        setIsLoyaltyModalOpen(false);
+      } else if (isZenMode) {
+        setIsZenMode(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [
+    activeModalSection,
+    isGameOpen,
+    isTicTacToeOpen,
+    isSecretRoleModalOpen,
+    isLoyaltyModalOpen,
+    isZenMode
+  ]);
+
+  // Dynamic Mood-based Theme Extraction from playing song
+  const handleApplyMoodTheme = (palette: { accent: string; secondary: string; mood: string }) => {
+    setConfig((prev) => {
+      const updated = {
+        ...prev,
+        theme: 'custom' as ThemeId,
+        customTheme: {
+          id: 'custom' as const,
+          name: palette.mood,
+          accentHex: palette.accent,
+          secondaryHex: palette.secondary,
+          badgeStyle: 'red'
+        }
+      };
+      try {
+        safeLocalStorage.setItem('sultan_site_config', JSON.stringify(updated));
+        safeLocalStorage.setItem('sultan_theme', 'custom');
+      } catch {}
+      return updated;
+    });
+  };
   // Dispatch visitor entry and persist live stats safely
   useEffect(() => {
     // Record real visit once per user session
@@ -550,7 +645,9 @@ export default function App() {
       <header className="relative z-20 w-full border-b border-white/5 bg-black/75 backdrop-blur-xl px-3 sm:px-6 py-2 sm:py-2.5">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2.5 sm:gap-4 text-xs">
           {/* Brand & Live status */}
-          <div className="flex items-center gap-2 text-zinc-300 min-w-0">
+          <div
+            className="flex items-center gap-2 text-zinc-300 min-w-0 select-none"
+          >
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0 shadow-[0_0_8px_#10b981]" />
             <div className="flex items-baseline gap-1.5 truncate">
               <span className="font-black text-white text-xs sm:text-sm tracking-wide">سلطان • SULTAN</span>
@@ -638,7 +735,6 @@ export default function App() {
           onMouseLeave={handleCardMouseLeave}
           cardRef={cardRef}
           isEcoMode={isEcoMode}
-          onOpenMusic={() => setActiveModalSection('music')}
           onOpenGaming={() => setActiveModalSection('gaming')}
           onOpenSecrets={() => setActiveModalSection('secrets')}
           visitorLoyalty={visitorLoyalty}
@@ -657,17 +753,6 @@ export default function App() {
 
       {/* Modals & Overlays */}
       {/* Interactive Section Modals (مربعات ومستطيلات المحتوى زي الرادار) */}
-      <SectionModal
-        isOpen={activeModalSection === 'music'}
-        onClose={() => setActiveModalSection(null)}
-        title="مكتبة الموسيقى والأغاني الملكية 🎵"
-        subtitle="تصفح مشغل الأغاني، الكلمات الحصرية، والتحكم بالصوت"
-        icon={<Music size={20} />}
-        accentColor={themeAccent}
-      >
-        <MusicVaultView tracks={config.tracks} accentColor={themeAccent} isEcoMode={isEcoMode} />
-      </SectionModal>
-
       <SectionModal
         isOpen={activeModalSection === 'gaming'}
         onClose={() => setActiveModalSection(null)}

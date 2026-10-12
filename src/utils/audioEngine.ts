@@ -17,11 +17,16 @@ class AudioEngine {
 
   public subscribePlayState(listener: (isPlaying: boolean) => void): () => void {
     this.playStateListeners.add(listener);
-    try {
-      listener(this.isPlaying);
-    } catch {
-      // ignore
-    }
+    // Defer initial notification to avoid updating another component during render
+    Promise.resolve().then(() => {
+      if (this.playStateListeners.has(listener)) {
+        try {
+          listener(this.isPlaying);
+        } catch {
+          // ignore
+        }
+      }
+    });
     return () => {
       this.playStateListeners.delete(listener);
     };

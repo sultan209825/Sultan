@@ -15,6 +15,14 @@ interface BotState {
   roleName: string | null;
   lastError: string | null;
   assignedCount: number;
+  sultanVoiceChannel: {
+    channelId: string | null;
+    channelName: string | null;
+    isMuted: boolean;
+    isDeafened: boolean;
+    isStreaming: boolean;
+    connectedAt: string | null;
+  } | null;
 }
 
 const state: BotState = {
@@ -24,15 +32,198 @@ const state: BotState = {
   guildName: null,
   roleName: null,
   lastError: null,
-  assignedCount: 0
+  assignedCount: 0,
+  sultanVoiceChannel: null
 };
 
 let currentWs: any = null;
 let heartbeatIntervalId: any = null;
 let activeConfig: BotConfig | null = null;
 
+interface CachedWidget {
+  timestamp: number;
+  data: any;
+}
+
+let cachedWidget: CachedWidget | null = null;
+const CACHE_TTL_MS = 2500; // 2.5s cache to avoid Discord rate limits
+
+async function fetchGuildWidgetData(guildId: string): Promise<any> {
+  const now = Date.now();
+  if (cachedWidget && now - cachedWidget.timestamp < CACHE_TTL_MS) {
+    return cachedWidget.data;
+  }
+
+  // Query discordapp.com first (unthrottled / reliable), then fallback to discord.com
+  const endpoints = [
+    `https://discordapp.com/api/guilds/${guildId}/widget.json`,
+    `https://discord.com/api/guilds/${guildId}/widget.json`
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; SultanBioRadar/2.0)',
+          Accept: 'application/json'
+        }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json && Array.isArray(json.channels)) {
+          cachedWidget = { timestamp: now, data: json };
+          return json;
+        }
+      }
+    } catch {}
+  }
+
+  return cachedWidget ? cachedWidget.data : null;
+}
+
 export function getBotState() {
   return { ...state };
+}
+
+export async function getLiveVoiceState(guildId: string = '1306240131224571957') {
+  // 1. If WebSocket bot Gateway has active presence, return it
+  if (currentWs && currentWs.readyState === 1 && state.isOnline && state.sultanVoiceChannel?.channelId) {
+    return {
+      inVoice: true,
+      ...state.sultanVoiceChannel
+    };
+  }
+
+  // 2. Real-time query to Discord Guild Widget API with multi-domain fallback & caching
+  try {
+    const data = await fetchGuildWidgetData(guildId);
+
+    if (data && Array.isArray(data.members)) {
+      const sultanCandidates = data.members.filter((m: any) => {
+        const u = (m.username || '').toLowerCase();
+        return (
+          u.includes('sultan') ||
+          u.includes('سلطان') ||
+          u.includes('5susu') ||
+          m.username?.includes('𝑺𝒖𝒍𝒕𝒂𝒏') ||
+          m.username?.includes('Sultan') ||
+          m.username?.includes('𓆩') ||
+          m.username?.includes('𓆪') ||
+          m.username === '! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪' ||
+          m.id === '0' ||
+          m.id === '1224502828371017788'
+        );
+      });
+
+      // Prioritize candidate actively in a voice channel
+      const sultan = sultanCandidates.find((m: any) => Boolean(m.channel_id)) || sultanCandidates[0];
+
+      const availableChannels = (data.channels || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        position: c.position
+      }));
+
+      if (sultan && sultan.channel_id) {
+        const channel = (data.channels || []).find((c: any) => c.id === sultan.channel_id);
+        const channelName = channel?.name || 'غرفة صوتية خاصة 🎙️';
+        const isChannelChanged = state.sultanVoiceChannel?.channelId !== sultan.channel_id;
+
+        // Find companions in the same voice channel
+        const companions = (data.members || [])
+          .filter((m: any) => m.channel_id === sultan.channel_id && m !== sultan && m.username !== sultan.username)
+          .map((m: any) => ({
+            id: m.id || m.username,
+            username: m.username,
+            avatar_url: m.avatar_url,
+            isMuted: Boolean(m.mute || m.self_mute),
+            isDeafened: Boolean(m.deaf || m.self_deaf),
+            isStreaming: Boolean(m.self_stream || m.streaming || m.self_video),
+            channelId: m.channel_id,
+            status: m.status || 'online'
+          }));
+
+        // All voice members in the server across all channels
+        const allVoiceMembers = (data.members || [])
+          .filter((m: any) => Boolean(m.channel_id))
+          .map((m: any) => ({
+            id: m.id || m.username,
+            username: m.username,
+            avatar_url: m.avatar_url,
+            isMuted: Boolean(m.mute || m.self_mute),
+            isDeafened: Boolean(m.deaf || m.self_deaf),
+            isStreaming: Boolean(m.self_stream || m.streaming || m.self_video),
+            channelId: m.channel_id,
+            channelName: (data.channels || []).find((c: any) => c.id === m.channel_id)?.name || 'روم صوتي',
+            isSultan: m === sultan || m.username === sultan.username,
+            status: m.status || 'online'
+          }));
+
+        const isStreaming = Boolean(
+          sultan.self_stream ||
+          sultan.streaming ||
+          (data.members || []).some((m: any) => m.id === sultan.id && (m.self_stream || m.self_video))
+        );
+
+        const voiceInfo = {
+          inVoice: true,
+          channelId: sultan.channel_id,
+          channelName,
+          isMuted: Boolean(sultan.self_mute || sultan.mute || sultan.suppress),
+          selfMute: Boolean(sultan.self_mute),
+          serverMute: Boolean(sultan.mute),
+          isDeafened: Boolean(sultan.self_deaf || sultan.deaf),
+          selfDeaf: Boolean(sultan.self_deaf),
+          serverDeaf: Boolean(sultan.deaf),
+          isStreaming,
+          status: sultan.status || 'online',
+          serverName: data.name || '✨ Friends For Ever ✨',
+          connectedAt: isChannelChanged ? new Date().toISOString() : (state.sultanVoiceChannel?.connectedAt || new Date().toISOString()),
+          companions,
+          allVoiceMembers,
+          availableChannels
+        };
+        state.sultanVoiceChannel = voiceInfo;
+        return voiceInfo;
+      } else {
+        state.sultanVoiceChannel = null;
+        return {
+          inVoice: false,
+          channelId: null,
+          channelName: data.channels?.[1]?.name || '🎤﹒General',
+          isMuted: false,
+          isDeafened: false,
+          isStreaming: false,
+          status: sultan?.status || 'offline',
+          serverName: data.name || '✨ Friends For Ever ✨',
+          connectedAt: null,
+          companions: [],
+          availableChannels
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching Discord widget live voice:', err);
+  }
+
+  return {
+    inVoice: false,
+    channelId: null,
+    channelName: '🎤﹒General',
+    isMuted: false,
+    isDeafened: false,
+    isStreaming: false,
+    status: 'offline',
+    connectedAt: null,
+    companions: [],
+    availableChannels: [
+      { id: '1306240131551858704', name: '🎤﹒General', position: 1 },
+      { id: '1540800657588752395', name: '🎬﹒Watching Movies', position: 4 },
+      { id: '1540457611701387314', name: '🎮﹒Gaming', position: 2 },
+      { id: '1540457327298347170', name: '📖﹒Study', position: 3 },
+      { id: '1545422837618184302', name: '💤﹒AFK', position: 5 }
+    ]
+  };
 }
 
 export function getActiveConfig(): BotConfig | null {
@@ -324,13 +515,13 @@ export async function startDiscordBot(config: BotConfig): Promise<{ success: boo
             }
           }, interval);
 
-          // Identify with GUILDS (1) + GUILD_MEMBERS (2) intents = 513
+          // Identify with GUILDS (1) + GUILD_MEMBERS (2) + GUILD_VOICE_STATES (128) = 641
           ws.send(
             JSON.stringify({
               op: 2,
               d: {
                 token: config.botToken,
-                intents: 513,
+                intents: 641,
                 properties: {
                   os: 'linux',
                   browser: 'sultan-site',
@@ -339,7 +530,7 @@ export async function startDiscordBot(config: BotConfig): Promise<{ success: boo
                 presence: {
                   activities: [
                     {
-                      name: '👑 Sultan VIP Auto-Role',
+                      name: '👑 Sultan VIP Auto-Role & Voice Radar',
                       type: 0
                     }
                   ],
@@ -356,6 +547,73 @@ export async function startDiscordBot(config: BotConfig): Promise<{ success: boo
             state.isOnline = true;
             state.lastError = null;
             console.log(`[Sultan Bot] READY! Bot is now active on Discord!`);
+          }
+
+          // Initial guild payload containing active voice states
+          if (t === 'GUILD_CREATE') {
+            const sultanDiscordId = '1224502828371017788';
+            if (Array.isArray(d.voice_states)) {
+              const sultanVs = d.voice_states.find((vs: any) => vs.user_id === sultanDiscordId);
+              if (sultanVs && sultanVs.channel_id) {
+                let channelName = 'غرفة صوتية';
+                try {
+                  const chRes = await fetch(`https://discord.com/api/v10/channels/${sultanVs.channel_id}`, {
+                    headers: { Authorization: `Bot ${config.botToken}` }
+                  });
+                  if (chRes.ok) {
+                    const chData = await chRes.json();
+                    channelName = chData.name || channelName;
+                  }
+                } catch {}
+
+                state.sultanVoiceChannel = {
+                  channelId: sultanVs.channel_id,
+                  channelName,
+                  isMuted: Boolean(sultanVs.self_mute || sultanVs.mute),
+                  isDeafened: Boolean(sultanVs.self_deaf || sultanVs.deaf),
+                  isStreaming: Boolean(sultanVs.self_stream),
+                  connectedAt: new Date().toISOString()
+                };
+                console.log(`[Sultan Bot] 🎙️ Initial GUILD_CREATE: Sultan found in voice channel "${channelName}"`);
+              }
+            }
+          }
+
+          // Real-time Voice Channel Tracking (Voice Radar Sync 🎙️)
+          if (t === 'VOICE_STATE_UPDATE') {
+            const userId = d.user_id;
+            const channelId = d.channel_id; // null when leaving voice channel
+            const sultanDiscordId = '1224502828371017788';
+
+            if (userId === sultanDiscordId) {
+              if (channelId) {
+                // Sultan joined a voice channel! Fetch channel name
+                let channelName = 'غرفة صوتية';
+                try {
+                  const chRes = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
+                    headers: { Authorization: `Bot ${config.botToken}` }
+                  });
+                  if (chRes.ok) {
+                    const chData = await chRes.json();
+                    channelName = chData.name || channelName;
+                  }
+                } catch {}
+
+                state.sultanVoiceChannel = {
+                  channelId,
+                  channelName,
+                  isMuted: Boolean(d.self_mute || d.mute),
+                  isDeafened: Boolean(d.self_deaf || d.deaf),
+                  isStreaming: Boolean(d.self_stream),
+                  connectedAt: new Date().toISOString()
+                };
+                console.log(`[Sultan Bot] 🎙️ Sultan is now in Voice Channel: "${channelName}" (ID: ${channelId})`);
+              } else {
+                // Sultan left the voice channel
+                state.sultanVoiceChannel = null;
+                console.log(`[Sultan Bot] 🎙️ Sultan left voice channels.`);
+              }
+            }
           }
 
           // When a new member joins the server!

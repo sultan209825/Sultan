@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import JSZip from 'jszip';
 import { defineConfig, loadEnv } from 'vite';
-import { startDiscordBot, getBotState, assignRoleToMember } from './src/server/discordBotService.ts';
+import { startDiscordBot, getBotState, assignRoleToMember, getLiveVoiceState } from './src/server/discordBotService.ts';
 
 function discordApiPlugin() {
   return {
@@ -22,8 +22,10 @@ function discordApiPlugin() {
           return;
         }
 
+        const urlPath = req.url ? req.url.split('?')[0] : '';
+
         // Download complete InfinityFree bundle as ready-to-upload ZIP
-        if (req.url === '/api/download-infinityfree-zip') {
+        if (urlPath === '/api/download-infinityfree-zip') {
           try {
             const zip = new JSZip();
             const rootDir = process.cwd();
@@ -82,15 +84,31 @@ function discordApiPlugin() {
             return;
           }
         }
-        // Status of Sultan's Custom Discord Bot
-        if (req.url === '/api/discord/bot-service' && req.method === 'GET') {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify(getBotState()));
+        // Status of Sultan's Custom Discord Bot & Real-time Live Voice Radar
+        if ((urlPath === '/api/discord/bot-service' || urlPath === '/api/discord/live-voice') && req.method === 'GET') {
+          try {
+            const liveVoice = await getLiveVoiceState();
+            const currentState = getBotState();
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            });
+            res.end(
+              JSON.stringify({
+                ...currentState,
+                isOnline: currentState.isOnline || Boolean(liveVoice?.inVoice),
+                sultanVoiceChannel: liveVoice
+              })
+            );
+          } catch {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(getBotState()));
+          }
           return;
         }
 
         // Start / Connect Sultan's Custom Discord Bot
-        if (req.url === '/api/discord/bot-service' && req.method === 'POST') {
+        if (urlPath === '/api/discord/bot-service' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => { body += chunk; });
           req.on('end', async () => {
@@ -108,7 +126,7 @@ function discordApiPlugin() {
           return;
         }
 
-        if (req.url === '/api/discord/assign-role' && req.method === 'POST') {
+        if (urlPath === '/api/discord/assign-role' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => {
             body += chunk;
@@ -136,7 +154,7 @@ function discordApiPlugin() {
         }
 
         // Test Bot Connection Endpoint
-        if (req.url === '/api/discord/test-bot' && req.method === 'POST') {
+        if (urlPath === '/api/discord/test-bot' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => {
             body += chunk;
@@ -212,7 +230,7 @@ function discordApiPlugin() {
         }
 
         // Support for /api_discord_assign.php in development as well
-        if (req.url === '/api_discord_assign.php' && req.method === 'POST') {
+        if (urlPath === '/api_discord_assign.php' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => { body += chunk; });
           req.on('end', async () => {
@@ -280,7 +298,7 @@ function discordApiPlugin() {
         }
 
         // Feature 7: Discord Webhook Auto-Announcer Endpoint
-        if (req.url === '/api/discord/webhook-announce' && req.method === 'POST') {
+        if (urlPath === '/api/discord/webhook-announce' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk: any) => { body += chunk; });
           req.on('end', async () => {
