@@ -36,12 +36,16 @@ export interface LiveVoiceResult {
   companions: VoiceMember[];
   allVoiceMembers: VoiceMember[];
   availableChannels: ChannelInfo[];
-  rawSource?: 'direct_discord' | 'server_proxy' | 'cached';
+  rawSource?: 'direct_discord' | 'php_host' | 'server_proxy' | 'cloud_run' | 'jina_proxy' | 'cached';
 }
+
+const CLOUD_PROXY_BASE = 'https://ais-pre-knb6cnmdjserbwyeurhsdn-925476069651.europe-west2.run.app';
+const GUILD_ID = '1306240131224571957';
+const DISCORD_WIDGET_URL = `https://discord.com/api/guilds/${GUILD_ID}/widget.json`;
 
 let lastResolvedState: LiveVoiceResult | null = null;
 
-export function parseWidgetMembersAndVoice(data: any): LiveVoiceResult {
+export function parseWidgetMembersAndVoice(data: any, source: LiveVoiceResult['rawSource'] = 'direct_discord'): LiveVoiceResult {
   const serverName = data?.name || '✨ Friends For Ever ✨';
   const members: any[] = Array.isArray(data?.members) ? data.members : [];
   const channels: any[] = Array.isArray(data?.channels) ? data.channels : [];
@@ -52,7 +56,7 @@ export function parseWidgetMembersAndVoice(data: any): LiveVoiceResult {
     position: c.position
   }));
 
-  // Find Sultan
+  // Find Sultan: strictly match his known username patterns or Discord ID
   const sultanCandidates = members.filter((m: any) => {
     const u = (m.username || '').toLowerCase();
     const g = (m.game?.name || '').toLowerCase();
@@ -131,71 +135,160 @@ export function parseWidgetMembersAndVoice(data: any): LiveVoiceResult {
     isStreaming,
     status: sultan?.status || 'online',
     serverName,
-    connectedAt: inVoice ? (lastResolvedState?.channelId === targetChannelId && lastResolvedState?.connectedAt ? lastResolvedState.connectedAt : new Date().toISOString()) : null,
+    connectedAt: inVoice
+      ? (lastResolvedState?.channelId === targetChannelId && lastResolvedState?.connectedAt
+          ? lastResolvedState.connectedAt
+          : new Date().toISOString())
+      : null,
     companions,
     allVoiceMembers,
     availableChannels,
-    rawSource: 'direct_discord'
+    rawSource: source
   };
 }
 
 /**
- * Robust fetch with dual-path execution:
- * 1. Fetches from /api/discord/live-voice with unique timestamp (handled by server via fast cached-busted proxy in 500ms)
- * 2. Fallback client-side proxy if server route ever fails or times out
- * 3. Cross-verifies status with Lanyard so Sultan is never falsely marked as offline
- * 4. Automatically triggers timeline diff detection
+ * Universal Multi-Tier Live Voice Telemetry Fetcher:
+ * Operates flawlessly across:
+ * - External static & shared PHP hosting (InfinityFree, cPanel, Vercel, Netlify)
+ * - AI Studio Cloud Run preview & dev environment
+ * - Mobile and desktop browsers
  */
 export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
   const prev = lastResolvedState;
   let resolved: LiveVoiceResult | null = null;
+  const timestampKey = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-  // 1. Query server proxy /api/discord/live-voice with unique timestamp to bypass caching
+  // Tier 1: Direct Client Fetch to Discord Official Widget API
+  // Supported out-of-the-box by Discord with CORS headers in modern browsers
   try {
-    const timestampKey = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const serverRes = await fetch(
-      `/api/discord/live-voice?bypassCache=1&_t=${timestampKey}`,
-      {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          Pragma: 'no-cache'
-        },
-        signal: AbortSignal.timeout(3500)
-      }
-    );
-    if (serverRes.ok) {
-      const data = await serverRes.json();
-      const svc = data?.sultanVoiceChannel || data;
-      if (svc && typeof svc === 'object') {
-        resolved = {
-          inVoice: Boolean(svc.inVoice || svc.channelId),
-          channelId: svc.channelId || null,
-          channelName: svc.channelName || '🎤﹒General',
-          isMuted: Boolean(svc.isMuted),
-          selfMute: Boolean(svc.selfMute),
-          serverMute: Boolean(svc.serverMute),
-          isDeafened: Boolean(svc.isDeafened),
-          selfDeaf: Boolean(svc.selfDeaf),
-          serverDeaf: Boolean(svc.serverDeaf),
-          isStreaming: Boolean(svc.isStreaming),
-          status: svc.status || 'online',
-          serverName: svc.serverName || '✨ Friends For Ever ✨',
-          connectedAt: svc.connectedAt || null,
-          companions: Array.isArray(svc.companions) ? svc.companions : [],
-          allVoiceMembers: Array.isArray(svc.allVoiceMembers) ? svc.allVoiceMembers : [],
-          availableChannels: Array.isArray(svc.availableChannels) ? svc.availableChannels : [],
-          rawSource: 'server_proxy'
-        };
+    const directRes = await fetch(`${DISCORD_WIDGET_URL}?_t=${timestampKey}`, {
+      headers: {
+        Accept: 'application/json'
+      },
+      signal: AbortSignal.timeout(2800)
+    });
+    if (directRes.ok) {
+      const ct = directRes.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const json = await directRes.json();
+        if (json && Array.isArray(json.members)) {
+          resolved = parseWidgetMembersAndVoice(json, 'direct_discord');
+        }
       }
     }
   } catch {}
 
-  // 2. Client fallback direct via Jina proxy if server returned nothing or had an error
+  // Tier 2: Hosting PHP Proxy (if deployed on InfinityFree or cPanel where api_discord_radar.php exists)
+  if (!resolved) {
+    try {
+      const phpRes = await fetch(`./api_discord_radar.php?_t=${timestampKey}`, {
+        headers: {
+          Accept: 'application/json'
+        },
+        signal: AbortSignal.timeout(3000)
+      });
+      if (phpRes.ok) {
+        const ct = phpRes.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const json = await phpRes.json();
+          const widgetData = json?.data || json;
+          if (widgetData && Array.isArray(widgetData.members)) {
+            resolved = parseWidgetMembersAndVoice(widgetData, 'php_host');
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Tier 3: Local Dev / Cloud Run server route (/api/discord/live-voice)
+  if (!resolved) {
+    try {
+      const localRes = await fetch(`/api/discord/live-voice?bypassCache=1&_t=${timestampKey}`, {
+        headers: {
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache'
+        },
+        signal: AbortSignal.timeout(3200)
+      });
+      if (localRes.ok) {
+        const ct = localRes.headers.get('content-type') || '';
+        // CRITICAL: Ensure the server actually returned JSON (and not index.html from SPA rewrite)
+        if (ct.includes('application/json')) {
+          const data = await localRes.json();
+          const svc = data?.sultanVoiceChannel || data;
+          if (svc && typeof svc === 'object' && (svc.inVoice !== undefined || svc.availableChannels)) {
+            resolved = {
+              inVoice: Boolean(svc.inVoice || svc.channelId),
+              channelId: svc.channelId || null,
+              channelName: svc.channelName || '🎤﹒General',
+              isMuted: Boolean(svc.isMuted),
+              selfMute: Boolean(svc.selfMute),
+              serverMute: Boolean(svc.serverMute),
+              isDeafened: Boolean(svc.isDeafened),
+              selfDeaf: Boolean(svc.selfDeaf),
+              serverDeaf: Boolean(svc.serverDeaf),
+              isStreaming: Boolean(svc.isStreaming),
+              status: svc.status || 'online',
+              serverName: svc.serverName || '✨ Friends For Ever ✨',
+              connectedAt: svc.connectedAt || null,
+              companions: Array.isArray(svc.companions) ? svc.companions : [],
+              allVoiceMembers: Array.isArray(svc.allVoiceMembers) ? svc.allVoiceMembers : [],
+              availableChannels: Array.isArray(svc.availableChannels) ? svc.availableChannels : [],
+              rawSource: 'server_proxy'
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Tier 4: Remote Cloud Run Backend Proxy (when frontend is running on an external domain like sultan.kesug.com)
+  if (!resolved && typeof window !== 'undefined' && !window.location.origin.includes('run.app')) {
+    try {
+      const remoteRes = await fetch(`${CLOUD_PROXY_BASE}/api/discord/live-voice?bypassCache=1&_t=${timestampKey}`, {
+        headers: {
+          Accept: 'application/json'
+        },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (remoteRes.ok) {
+        const ct = remoteRes.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const data = await remoteRes.json();
+          const svc = data?.sultanVoiceChannel || data;
+          if (svc && typeof svc === 'object') {
+            resolved = {
+              inVoice: Boolean(svc.inVoice || svc.channelId),
+              channelId: svc.channelId || null,
+              channelName: svc.channelName || '🎤﹒General',
+              isMuted: Boolean(svc.isMuted),
+              selfMute: Boolean(svc.selfMute),
+              serverMute: Boolean(svc.serverMute),
+              isDeafened: Boolean(svc.isDeafened),
+              selfDeaf: Boolean(svc.selfDeaf),
+              serverDeaf: Boolean(svc.serverDeaf),
+              isStreaming: Boolean(svc.isStreaming),
+              status: svc.status || 'online',
+              serverName: svc.serverName || '✨ Friends For Ever ✨',
+              connectedAt: svc.connectedAt || null,
+              companions: Array.isArray(svc.companions) ? svc.companions : [],
+              allVoiceMembers: Array.isArray(svc.allVoiceMembers) ? svc.allVoiceMembers : [],
+              availableChannels: Array.isArray(svc.availableChannels) ? svc.availableChannels : [],
+              rawSource: 'cloud_run'
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Tier 5: High-Resilience Public Proxy fallback (Jina AI)
   if (!resolved || (!resolved.inVoice && (!resolved.allVoiceMembers || resolved.allVoiceMembers.length === 0))) {
     try {
-      const timestampKey = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const proxyRes = await fetch(
-        `https://r.jina.ai/https://discord.com/api/guilds/1306240131224571957/widget.json?_t=${timestampKey}`,
+        `https://r.jina.ai/${DISCORD_WIDGET_URL}?_t=${timestampKey}`,
         {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -212,20 +305,14 @@ export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
         if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
           const json = JSON.parse(text.slice(firstBrace, lastBrace + 1));
           if (json && Array.isArray(json.members)) {
-            resolved = parseWidgetMembersAndVoice(json);
-            // Sync with backend cache
-            fetch('/api/discord/sync-widget', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(json)
-            }).catch(() => {});
+            resolved = parseWidgetMembersAndVoice(json, 'jina_proxy');
           }
         }
       }
     } catch {}
   }
 
-  // 3. Safe fallback if network completely offline: retain previous known valid state
+  // Tier 6: Safe fallback: retain previous valid state so UI never flickers
   if (!resolved) {
     resolved = prev || {
       inVoice: false,
@@ -248,7 +335,7 @@ export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
     };
   }
 
-  // Cross-verify status with Lanyard API to guarantee Sultan is never falsely marked as offline
+  // Tier 7: Cross-verify status with Lanyard API to guarantee Sultan is never falsely marked as offline
   try {
     const lanRes = await fetch('https://api.lanyard.rest/v1/users/1224502828371017788', {
       signal: AbortSignal.timeout(2000)

@@ -59,6 +59,10 @@ function discordApiPlugin() {
             if (fs.existsSync(phpPath)) {
               zip.file('api_discord_assign.php', fs.readFileSync(phpPath));
             }
+            const radarPhpPath = path.resolve(rootDir, 'public/api_discord_radar.php');
+            if (fs.existsSync(radarPhpPath)) {
+              zip.file('api_discord_radar.php', fs.readFileSync(radarPhpPath));
+            }
             const cfWorkerPath = path.resolve(rootDir, 'cloudflare-worker-bot.js');
             if (fs.existsSync(cfWorkerPath)) {
               zip.file('cloudflare-worker-bot.js', fs.readFileSync(cfWorkerPath));
@@ -84,6 +88,18 @@ function discordApiPlugin() {
             return;
           }
         }
+        // Handle CORS preflight for all /api/discord endpoints
+        if (urlPath?.startsWith('/api/discord') && req.method === 'OPTIONS') {
+          res.writeHead(204, {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, Pragma, Cache-Control',
+            'Access-Control-Max-Age': '86400'
+          });
+          res.end();
+          return;
+        }
+
         // Status of Sultan's Custom Discord Bot & Real-time Live Voice Radar
         if ((urlPath === '/api/discord/bot-service' || urlPath === '/api/discord/live-voice') && req.method === 'GET') {
           try {
@@ -93,6 +109,9 @@ function discordApiPlugin() {
             const currentState = getBotState();
             res.writeHead(200, {
               'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization, Pragma, Cache-Control',
               'Cache-Control': 'no-cache, no-store, must-revalidate',
               'Pragma': 'no-cache'
             });
@@ -104,7 +123,10 @@ function discordApiPlugin() {
               })
             );
           } catch {
-            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
             res.end(JSON.stringify(getBotState()));
           }
           return;
@@ -119,10 +141,16 @@ function discordApiPlugin() {
               const data = JSON.parse(body || '{}');
               const synced = syncWidgetData(data);
               const liveVoice = await getLiveVoiceState('1306240131224571957', false);
-              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.writeHead(200, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              });
               res.end(JSON.stringify({ success: synced, sultanVoiceChannel: liveVoice }));
             } catch (err: any) {
-              res.writeHead(400, { 'Content-Type': 'application/json' });
+              res.writeHead(400, {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              });
               res.end(JSON.stringify({ error: err.message || 'Invalid JSON' }));
             }
           });
