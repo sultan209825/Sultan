@@ -161,6 +161,9 @@ export async function saveGlobalConfigToCloud(config: SiteConfig): Promise<{ suc
       discordWebhookEnabled: !!config.discordWebhookEnabled,
       discordAutoRole: config.discordAutoRole || null,
       emailNotifications: config.emailNotifications || null,
+      customGradient: config.customGradient || '',
+      activeGradientPresetId: config.activeGradientPresetId || '',
+      gradientPresets: Array.isArray(config.gradientPresets) ? config.gradientPresets : null,
       updatedAt: new Date().toISOString()
     };
 

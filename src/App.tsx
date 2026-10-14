@@ -10,17 +10,15 @@ import {
   ThumbsDown,
   Calendar,
   Settings,
-  Music,
   ExternalLink,
   Crown,
   Download,
   Package,
   Loader2,
-  Maximize2,
   Swords
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { SiteConfig, SongTrack } from './types';
+import { SiteConfig, SongTrack, BackgroundStyle, AtmosphericEffect } from './types';
 import { SultanLogo } from './components/SultanLogo';
 import { DiscordProfileCard } from './components/DiscordProfileCard';
 import { DiscordSecretRoleModal, getRoleClaimStatus } from './components/DiscordSecretRoleModal';
@@ -36,7 +34,6 @@ import { GamerHub } from './components/GamerHub';
 import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { RoyalTicTacToeModal } from './components/RoyalTicTacToeModal';
 import { VisitorLoyaltyModal } from './components/VisitorLoyaltyModal';
-import { ZenImmersionOverlay } from './components/ZenImmersionOverlay';
 import { recordAndGetLoyalty, VisitorLoyaltyState } from './utils/visitorLoyalty';
 import { defaultGamerHub } from './data/defaultGamerHub';
 import { defaultDailyStory, defaultDiscordRadar } from './data/defaultDailyStory';
@@ -52,8 +49,6 @@ import { EcoModeToggle } from './components/EcoModeToggle';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { SecretsMinigamesView } from './components/SecretsMinigamesView';
-import { MusicVaultView } from './components/MusicVaultView';
-import { FloatingMiniPlayer } from './components/FloatingMiniPlayer';
 import { SectionModal } from './components/SectionModal';
 import { safeLocalStorage, safeSessionStorage } from './utils/safeStorage';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from './utils/lanyard';
@@ -92,6 +87,10 @@ export default function App() {
         if (localTheme) {
           parsed.theme = localTheme;
         }
+        const localAtmos = safeLocalStorage.getItem('sultan_atmospheric_effect') as AtmosphericEffect | null;
+        if (localAtmos) {
+          parsed.atmosphericEffect = localAtmos;
+        }
         return parsed;
       } catch {}
     }
@@ -106,7 +105,8 @@ export default function App() {
       dailyStory: defaultDailyStory,
       discordRadar: defaultDiscordRadar,
       bgEffect: 'auto',
-      bgStyle: (safeLocalStorage.getItem('sultan_bg_style') as 'particle' | 'static' | 'glow') || 'particle',
+      bgStyle: (safeLocalStorage.getItem('sultan_bg_style') as BackgroundStyle) || 'particle',
+      atmosphericEffect: (safeLocalStorage.getItem('sultan_atmospheric_effect') as AtmosphericEffect) || 'stars',
       countdownDate: '2027-08-25T00:00',
       countdownLabel: 'طريق الثانوية العامة والهدف 🎯',
       musicAutoPlay: false,
@@ -136,25 +136,7 @@ export default function App() {
   // Features States:
   const [isTicTacToeOpen, setIsTicTacToeOpen] = useState<boolean>(false);
   const [isLoyaltyModalOpen, setIsLoyaltyModalOpen] = useState<boolean>(false);
-  const [isZenMode, setIsZenMode] = useState<boolean>(false);
   const [visitorLoyalty, setVisitorLoyalty] = useState<VisitorLoyaltyState>(() => recordAndGetLoyalty());
-
-  const toggleZenMode = () => {
-    audioEngine.playPowerUpSound();
-    setIsZenMode((prev) => !prev);
-  };
-
-  // Keyboard shortcut: Z key toggles Zen Immersion mode
-  useEffect(() => {
-    const handleGlobalKey = (e: KeyboardEvent) => {
-      if ((e.key === 'z' || e.key === 'Z') && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        toggleZenMode();
-      }
-    };
-    window.addEventListener('keydown', handleGlobalKey);
-    return () => window.removeEventListener('keydown', handleGlobalKey);
-  }, []);
 
   // Real-time synchronization with Cloud Firestore
   // When Sultan updates anything in Admin, it updates for everyone in real time!
@@ -267,7 +249,7 @@ export default function App() {
     return window.location.hash === '#admin' || window.location.pathname === '/admin' ? 'admin' : 'home';
   });
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [activeModalSection, setActiveModalSection] = useState<'gaming' | 'secrets' | 'music' | null>(null);
+  const [activeModalSection, setActiveModalSection] = useState<'gaming' | 'secrets' | null>(null);
   const [isGameOpen, setIsGameOpen] = useState<boolean>(false);
   const [hasRated, setHasRated] = useState<'up' | 'down' | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -275,8 +257,6 @@ export default function App() {
   const [easterEggBanner, setEasterEggBanner] = useState<{ title: string; subtitle: string; emoji: string } | null>(null);
   const [countdownString, setCountdownString] = useState<string>('');
   const [isGeneratingZip, setIsGeneratingZip] = useState<boolean>(false);
-  const [isMusicPlaying, setIsMusicPlaying] = useState<boolean>(false);
-  const [musicTempo, setMusicTempo] = useState<number>(128);
   const [liveSpotify, setLiveSpotify] = useState<{
     song?: string;
     artist?: string;
@@ -310,13 +290,6 @@ export default function App() {
     return unsub;
   }, []);
 
-  // Sync music playing state globally from audioEngine
-  useEffect(() => {
-    return audioEngine.subscribePlayState((playing) => {
-      setIsMusicPlaying(playing);
-    });
-  }, []);
-
   // Phone hardware/gesture Back Button support via History API
   useEffect(() => {
     const isAnyModalOpen =
@@ -324,8 +297,7 @@ export default function App() {
       isGameOpen ||
       isTicTacToeOpen ||
       isSecretRoleModalOpen ||
-      isLoyaltyModalOpen ||
-      isZenMode;
+      isLoyaltyModalOpen;
 
     if (isAnyModalOpen) {
       window.history.pushState({ sultanModalOpen: true }, '');
@@ -342,8 +314,6 @@ export default function App() {
         setIsSecretRoleModalOpen(false);
       } else if (isLoyaltyModalOpen) {
         setIsLoyaltyModalOpen(false);
-      } else if (isZenMode) {
-        setIsZenMode(false);
       }
     };
 
@@ -354,31 +324,9 @@ export default function App() {
     isGameOpen,
     isTicTacToeOpen,
     isSecretRoleModalOpen,
-    isLoyaltyModalOpen,
-    isZenMode
+    isLoyaltyModalOpen
   ]);
 
-  // Dynamic Mood-based Theme Extraction from playing song
-  const handleApplyMoodTheme = (palette: { accent: string; secondary: string; mood: string }) => {
-    setConfig((prev) => {
-      const updated = {
-        ...prev,
-        theme: 'custom' as ThemeId,
-        customTheme: {
-          id: 'custom' as const,
-          name: palette.mood,
-          accentHex: palette.accent,
-          secondaryHex: palette.secondary,
-          badgeStyle: 'red'
-        }
-      };
-      try {
-        safeLocalStorage.setItem('sultan_site_config', JSON.stringify(updated));
-        safeLocalStorage.setItem('sultan_theme', 'custom');
-      } catch {}
-      return updated;
-    });
-  };
   // Dispatch visitor entry and persist live stats safely
   useEffect(() => {
     // Record real visit once per user session
@@ -614,6 +562,12 @@ export default function App() {
         config={config}
         onSaveConfig={(newCfg) => {
           setConfig(newCfg);
+          if (newCfg.bgStyle) {
+            safeLocalStorage.setItem('sultan_bg_style', newCfg.bgStyle);
+          }
+          if (newCfg.atmosphericEffect) {
+            safeLocalStorage.setItem('sultan_atmospheric_effect', newCfg.atmosphericEffect);
+          }
           try {
             localStorage.setItem('sultan_site_config', JSON.stringify(newCfg));
           } catch {}
@@ -630,8 +584,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#06060a] text-zinc-100 flex flex-col justify-between selection:bg-red-500/30 selection:text-white relative overflow-hidden">
-      {/* Background Interactive Particles */}
-      <BackgroundCanvas effect={config.bgEffect} accentColor={themeAccent} ecoMode={isEcoMode} />
+      {/* Background Interactive Particles & Custom Gradient Presets */}
+      <BackgroundCanvas
+        effect={config.bgEffect}
+        bgStyle={config.bgStyle || (safeLocalStorage.getItem('sultan_bg_style') as BackgroundStyle) || 'particle'}
+        atmosphericEffect={config.atmosphericEffect || (safeLocalStorage.getItem('sultan_atmospheric_effect') as AtmosphericEffect) || 'stars'}
+        accentColor={themeAccent}
+        ecoMode={isEcoMode}
+        customGradient={config.customGradient}
+      />
 
       {/* Ambient background glows */}
       <div
@@ -671,20 +632,6 @@ export default function App() {
             {/* In-App PWA Install Button */}
             <PWAInstallButton variant="header" />
 
-            {/* Feature 9: Zen Immersion Mode Switcher */}
-            <button
-              onClick={toggleZenMode}
-              className={`p-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 ${
-                isZenMode
-                  ? 'bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                  : 'bg-white/5 border-white/10 hover:bg-white/15 text-zinc-300 hover:text-white'
-              }`}
-              title="وضع المسرح والاسترخاء الملكي (اضغط Z)"
-            >
-              <Maximize2 size={13} />
-              <span className="hidden sm:inline font-mono text-[10px]">Zen</span>
-            </button>
-
             {/* Theme Picker */}
             <ThemeSwitcher
               currentTheme={config.theme}
@@ -696,6 +643,19 @@ export default function App() {
                 });
               }}
             />
+
+            {/* Settings & Overlays Panel Button */}
+            <button
+              onClick={() => {
+                audioEngine.playClickSound();
+                setIsAdminOpen(true);
+              }}
+              title="لوحة الإعدادات والتأثيرات ⚙️"
+              className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1 group cursor-pointer"
+            >
+              <Settings size={14} className="group-hover:rotate-45 transition-transform duration-300 text-zinc-300" />
+              <span className="text-[10px] hidden sm:inline font-bold">الإعدادات</span>
+            </button>
 
             <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-red-600/15 border border-red-500/20 text-red-300 font-bold text-[10px] sm:text-[11px] font-mono shrink-0">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
@@ -725,8 +685,6 @@ export default function App() {
           config={config}
           typedBio={typedBio}
           countdownString={countdownString}
-          isMusicPlaying={isMusicPlaying}
-          musicTempo={musicTempo}
           tilt={isEcoMode ? { x: 0, y: 0 } : tilt}
           onAvatarClick={handleAvatarCelebration}
           onShare={handleSharePage}
@@ -737,7 +695,6 @@ export default function App() {
           onMouseLeave={handleCardMouseLeave}
           cardRef={cardRef}
           isEcoMode={isEcoMode}
-          onOpenMusic={() => setActiveModalSection('music')}
           onOpenGaming={() => setActiveModalSection('gaming')}
           onOpenSecrets={() => setActiveModalSection('secrets')}
           visitorLoyalty={visitorLoyalty}
@@ -755,23 +712,7 @@ export default function App() {
       </footer>
 
       {/* Modals & Overlays */}
-      {/* Interactive Section Modals (مربعات ومستطيلات المحتوى زي الرادار والموسيقى) */}
-      <SectionModal
-        isOpen={activeModalSection === 'music'}
-        onClose={() => setActiveModalSection(null)}
-        title="مشغل الأغاني الحصري 🎵"
-        subtitle="أغاني السلطان الحصرية المفضلة مع كلمات متزامنة ومؤثرات صوتية"
-        icon={<Music size={20} />}
-        accentColor={themeAccent}
-      >
-        <MusicVaultView
-          tracks={config.tracks}
-          accentColor={themeAccent}
-          isEcoMode={isEcoMode}
-          onApplyMoodTheme={handleApplyMoodTheme}
-          spotifyData={liveSpotify}
-        />
-      </SectionModal>
+      {/* Interactive Section Modals (مربعات ومستطيلات المحتوى زي الرادار والألعاب) */}
 
       <SectionModal
         isOpen={activeModalSection === 'gaming'}
@@ -823,6 +764,10 @@ export default function App() {
           setIsGameOpen(true);
           recordSiteLog('تشغيل لعبة السلطان 🎮', 'بدء لعبة الركض من القائمة السريعة');
         }}
+        onOpenSettings={() => {
+          audioEngine.playClickSound();
+          setIsAdminOpen(true);
+        }}
         onShare={handleSharePage}
         discordUrl={config.socials?.discord || 'https://discord.gg/TUU6EeC6pb'}
       />
@@ -846,6 +791,9 @@ export default function App() {
           if (newCfg.bgStyle) {
             safeLocalStorage.setItem('sultan_bg_style', newCfg.bgStyle);
           }
+          if (newCfg.atmosphericEffect) {
+            safeLocalStorage.setItem('sultan_atmospheric_effect', newCfg.atmosphericEffect);
+          }
         }}
       />
       <RoyalTicTacToeModal
@@ -856,20 +804,6 @@ export default function App() {
         isOpen={isLoyaltyModalOpen}
         onClose={() => setIsLoyaltyModalOpen(false)}
         loyalty={visitorLoyalty}
-      />
-      <ZenImmersionOverlay
-        isOpen={isZenMode}
-        onClose={() => setIsZenMode(false)}
-        accentColor={themeAccent}
-        tracks={config.tracks}
-        countdownDate={config.countdownDate}
-        countdownLabel={config.countdownLabel}
-      />
-      <FloatingMiniPlayer
-        tracks={config.tracks}
-        accentColor={themeAccent}
-        isEcoMode={isEcoMode}
-        onExpandPlayer={() => setActiveModalSection('music')}
       />
       <OfflineIndicator />
     </div>

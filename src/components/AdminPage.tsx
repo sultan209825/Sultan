@@ -62,7 +62,9 @@ import {
   CheckCircle2,
   Upload,
   Power,
-  Volume2
+  Volume2,
+  Palette,
+  Waves
 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import {
@@ -79,7 +81,8 @@ import {
   Legend
 } from 'recharts';
 import confetti from 'canvas-confetti';
-import { SiteConfig, GamerAccount } from '../types';
+import { SiteConfig, GamerAccount, BackgroundStyle, AtmosphericEffect } from '../types';
+import { safeLocalStorage } from '../utils/safeStorage';
 import { INITIAL_TRACKS } from '../data/tracks';
 import { THEME_LIST, getTheme } from '../utils/themeSystem';
 import { defaultGamerHub } from '../data/defaultGamerHub';
@@ -104,6 +107,7 @@ import {
 import { resetLeaderboardToDefault } from '../utils/leaderboard';
 import { CountdownWidget } from './CountdownWidget';
 import { LogViewer } from './LogViewer';
+import { BackgroundCreator } from './BackgroundCreator';
 
 interface AdminPageProps {
   config: SiteConfig;
@@ -138,9 +142,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   });
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
-  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'story' | 'gaming' | 'stats' | 'logs' | 'security'>('settings');
+  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'story' | 'gaming' | 'backgrounds' | 'stats' | 'logs' | 'security'>('settings');
   const [formData, setFormData] = useState<SiteConfig>({
     ...config,
+    bgStyle: (safeLocalStorage.getItem('sultan_bg_style') as BackgroundStyle) || config.bgStyle || 'particle',
+    atmosphericEffect: (safeLocalStorage.getItem('sultan_atmospheric_effect') as AtmosphericEffect) || config.atmosphericEffect || 'stars',
     musicAutoPlay: config.musicAutoPlay ?? false,
     defaultVolume: config.defaultVolume ?? 0.45,
     tracks: config.tracks && config.tracks.length > 0 ? config.tracks : INITIAL_TRACKS,
@@ -544,13 +550,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       const srcName =
         res.rawSource === 'direct_discord'
           ? 'الاتصال المباشر بديسكورد (Direct CORS) 🟢'
+          : res.rawSource === 'jina_proxy'
+          ? 'البروكسي فائق السرعة المقاوم للحظر (High-Speed Proxy) ⚡'
           : res.rawSource === 'php_host'
           ? 'سكربت الاستضافة المدمج (api_discord_radar.php) 🟣'
-          : res.rawSource === 'cloud_run'
-          ? 'البروكسي السحابي (Cloud Run) ☁️'
-          : 'سيرفر التطبيق ⚡';
+          : 'سيرفر التطبيق المحلي ⚡';
       audioEngine.playAdminSave();
-      showToast(`✅ رادار الديسكورد يعمل بنجاح 100% عبر: ${srcName}! 🎉`);
+      showToast(`✅ رادار الديسكورد متصل 100% عبر: ${srcName}! 🎉`);
     } catch {
       showToast('⚠️ تم فحص الرادار وتجهيز القنوات الاحتياطية بنجاح.');
     } finally {
@@ -992,6 +998,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     audioEngine.playAdminSave();
+    if (formData.bgStyle) {
+      safeLocalStorage.setItem('sultan_bg_style', formData.bgStyle);
+    }
+    if (formData.atmosphericEffect) {
+      safeLocalStorage.setItem('sultan_atmospheric_effect', formData.atmosphericEffect);
+    }
     onSaveConfig(formData);
     localStorage.setItem('sultan_site_config', JSON.stringify(formData));
     saveGlobalConfigToCloud(formData);
@@ -1411,6 +1423,22 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                 >
                   <Gamepad2 size={16} />
                   <span>حسابات الألعاب (Gamer Hub) 🎮</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    audioEngine.playAdminTab();
+                    setActiveSubTab('backgrounds');
+                  }}
+                  className={`px-4 sm:px-5 py-2.5 text-xs sm:text-sm font-bold rounded-xl flex items-center gap-2 transition-all ${
+                    activeSubTab === 'backgrounds'
+                      ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/30'
+                      : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Palette size={16} />
+                  <span>صانع الخلفيات (Background Creator) 🎨</span>
                 </button>
 
                 <button
@@ -2173,8 +2201,277 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   </div>
 
                   <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-3">
-                    <label className="block text-zinc-300 font-bold text-xs">
-                      اختر نمط التأثير الحي للخلفية
+                    {/* Main Feature: نمط حركة وتصميم الخلفية (الجسيمات، أمواج، تدرجات لونية متحركة) */}
+                    <div className="space-y-3 pb-3 border-b border-white/10">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <div>
+                          <label className="block text-zinc-100 font-extrabold text-xs sm:text-sm">
+                            نمط حركة وتصميم الخلفية (Background Style & Animation Mode)
+                          </label>
+                          <p className="text-[11px] text-zinc-400 mt-0.5">
+                            اختر النمط المفضل: جسيمات كوكبية، أمواج متدفقة، أو تدرجات سائلة متحركة مع حفظ التفضيل محلياً 💾
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold self-start sm:self-auto shrink-0 flex items-center gap-1">
+                          <Check size={11} className="text-emerald-400" />
+                          <span>حفظ محلي فوري 💾</span>
+                        </span>
+                      </div>
+
+                      {/* Primary 3 Styles Cards: Particles, Waves, Gradients */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                          {
+                            id: 'particle',
+                            label: 'الجسيمات التفاعلية والشهب ✨',
+                            sublabel: 'Interactive Particles & Embers',
+                            desc: 'جزيئات فضائية، شهب ذهبية، وخطوط كوكبية متفاعلة مع نقرات وحركة الماوس',
+                            icon: <Sparkles size={20} className="text-amber-400" />,
+                            badge: 'الافتراضي 🌌',
+                            colorBorder: 'border-amber-500/50',
+                            glowClass: 'from-amber-950/40'
+                          },
+                          {
+                            id: 'waves',
+                            label: 'أمواج ملكية متدفقة 🌊',
+                            sublabel: 'Flowing Sinusoidal Waves',
+                            desc: 'أمواج جيبية سلسة متدفقة مع طبقات تدرج نيون وقمم مضيئة تتفاعل مع حركة الماوس',
+                            icon: <Waves size={20} className="text-cyan-400 animate-pulse" />,
+                            badge: 'موصى به 🔥',
+                            colorBorder: 'border-cyan-500/60',
+                            glowClass: 'from-cyan-950/40'
+                          },
+                          {
+                            id: 'gradient',
+                            label: 'تدرجات لونية متحركة 🎨',
+                            sublabel: 'Liquid Chromatic Gradients',
+                            desc: 'سحب وتدرجات لونية سائلة ومتحركة بسلاسة وأورورا متجددة مع إضاءة تفاعلية',
+                            icon: <Palette size={20} className="text-purple-400 animate-bounce" />,
+                            badge: 'جديد PRO 🌟',
+                            colorBorder: 'border-purple-500/60',
+                            glowClass: 'from-purple-950/40'
+                          }
+                        ].map((st) => {
+                          const isSelected = (formData.bgStyle || 'particle') === st.id;
+                          return (
+                            <button
+                              key={st.id}
+                              type="button"
+                              onClick={() => {
+                                audioEngine.playAdminToggle(true);
+                                const newStyle = st.id as BackgroundStyle;
+                                const updated = {
+                                  ...formData,
+                                  bgStyle: newStyle
+                                };
+                                setFormData(updated);
+                                safeLocalStorage.setItem('sultan_bg_style', newStyle);
+                                onSaveConfig(updated);
+                                showToast(`تم تفعيل نمط: ${st.label} وحفظه محلياً بنجاح! 💾`);
+                              }}
+                              className={`p-4 rounded-2xl border text-right transition-all duration-200 cursor-pointer relative overflow-hidden group active:scale-98 ${
+                                isSelected
+                                  ? `bg-gradient-to-b ${st.glowClass} via-black/80 to-black/90 ${st.colorBorder} text-white shadow-xl shadow-purple-950/40 ring-2 ring-purple-400/50`
+                                  : 'bg-black/40 border-white/10 text-zinc-400 hover:text-white hover:border-white/25 hover:bg-white/[0.04]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                                  {st.icon}
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                  isSelected
+                                    ? 'bg-purple-500/30 text-purple-200 border-purple-400/50 font-bold'
+                                    : 'bg-white/5 text-zinc-400 border-white/10'
+                                }`}>
+                                  {st.badge}
+                                </span>
+                              </div>
+                              <p className="font-extrabold text-xs sm:text-sm text-white flex items-center gap-1.5">
+                                <span>{st.label}</span>
+                                {isSelected && (
+                                  <Check size={14} className="text-emerald-400 inline shrink-0" />
+                                )}
+                              </p>
+                              <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{st.sublabel}</p>
+                              <p className="text-[11px] text-zinc-400/90 mt-2 leading-relaxed">{st.desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Secondary Subtle Modes: Static & Glow */}
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        <span className="text-[11px] text-zinc-400 font-medium">أنماط إضافية هادئة:</span>
+                        {[
+                          { id: 'glow', label: 'توهج ملكي هادئ (Ambient Glow) 🌟' },
+                          { id: 'static', label: 'ثابت بدون حركة (Static) ⏸️' }
+                        ].map((subSt) => {
+                          const isSelected = formData.bgStyle === subSt.id;
+                          return (
+                            <button
+                              key={subSt.id}
+                              type="button"
+                              onClick={() => {
+                                audioEngine.playAdminClick();
+                                const newStyle = subSt.id as BackgroundStyle;
+                                const updated = {
+                                  ...formData,
+                                  bgStyle: newStyle
+                                };
+                                setFormData(updated);
+                                safeLocalStorage.setItem('sultan_bg_style', newStyle);
+                                onSaveConfig(updated);
+                                showToast(`تم تفعيل: ${subSt.label} وحفظه محلياً 💾`);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 shadow-sm'
+                                  : 'bg-black/30 border-white/10 text-zinc-400 hover:text-white hover:border-white/20'
+                              }`}
+                            >
+                              {subSt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Atmospheric Overlays Section (تأثيرات جوية فوق واجهة الموقع) */}
+                    <div className="space-y-3 pt-3 pb-3 border-b border-white/10">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <div>
+                          <label className="block text-zinc-100 font-extrabold text-xs sm:text-sm flex items-center gap-2">
+                            <Sparkles size={16} className="text-amber-400 animate-pulse" />
+                            <span>تأثيرات جوية فوق واجهة الموقع (Atmospheric Overlays)</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/30 to-red-500/30 text-amber-200 border border-amber-400/40">
+                              جديد ومميز 🌟
+                            </span>
+                          </label>
+                          <p className="text-[11px] text-zinc-400 mt-0.5">
+                            اختر التأثير الجوي المتساقط والمتطاير فوق واجهة الموقع وبطاقة البروفايل (مثل تساقط النجوم، جزيئات متوهجة، شفق قطبي) مع حفظ التفضيل محلياً 💾
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-mono px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-bold self-start sm:self-auto shrink-0 flex items-center gap-1">
+                          <Check size={11} className="text-emerald-400" />
+                          <span>حفظ محلي فوري 💾</span>
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          {
+                            id: 'stars',
+                            name: 'تساقط النجوم والشهب 🌠',
+                            subname: 'Shooting Stars & Cosmic Meteors',
+                            desc: 'شهب ساطعة تنطلق عبر الشاشة مع ذيول متوهجة ونجوم سماوية متلألئة تتساقط برقة',
+                            badge: 'موصى به الملكي 👑',
+                            border: 'border-amber-500/50',
+                            glow: 'from-amber-950/40',
+                            icon: <Sparkles size={18} className="text-amber-400" />
+                          },
+                          {
+                            id: 'embers',
+                            name: 'جزيئات ملكية متوهجة 🔥',
+                            subname: 'Glowing Embers & Fireflies',
+                            desc: 'شعلات وجزيئات نارية متوهجة ترتفع وتتمايل بنعومة وتتفاعل مع حركة ونقرات الماوس',
+                            badge: 'طاقة نارية ⚡',
+                            border: 'border-orange-500/50',
+                            glow: 'from-orange-950/40',
+                            icon: <Flame size={18} className="text-orange-400" />
+                          },
+                          {
+                            id: 'aurora',
+                            name: 'شفق أورورا وسديم 🌌',
+                            subname: 'Boreal Aurora & Stardust',
+                            desc: 'ستائر ضوئية شفقية ملونة متدفقة مع غبار كوني متلألئ يغمر واجهة الموقع',
+                            badge: 'أجواء ساحرة 💜',
+                            border: 'border-purple-500/50',
+                            glow: 'from-purple-950/40',
+                            icon: <Palette size={18} className="text-purple-400" />
+                          },
+                          {
+                            id: 'snow',
+                            name: 'تساقط بلورات الثلج ❄️',
+                            subname: 'Crystal Snowflake Drift',
+                            desc: 'بلورات ثلجية كريستالية بيضاء ناعمة تتساقط برقة وانسيابية فوق البطاقات',
+                            badge: 'شتوي هادئ ⛄',
+                            border: 'border-blue-500/50',
+                            glow: 'from-blue-950/40',
+                            icon: <CloudRain size={18} className="text-blue-300" />
+                          },
+                          {
+                            id: 'rain',
+                            name: 'رذاذ مطر متفاعل 🌧️',
+                            subname: 'Atmospheric Rain Streaks',
+                            desc: 'قطرات ورذاذ مطر ناعم يتساقط بانسيابية حية فوق الواجهة مع رذاذ خفيف',
+                            badge: 'انتعاش وتركيز 💧',
+                            border: 'border-cyan-500/50',
+                            glow: 'from-cyan-950/40',
+                            icon: <CloudRain size={18} className="text-cyan-400" />
+                          },
+                          {
+                            id: 'none',
+                            name: 'بدون تأثير جوي 🚫',
+                            subname: 'Disabled / Minimalist View',
+                            desc: 'إيقاف الطبقة الجوية العائمة وإبقاء الواجهة نظيفة تماماً بدون جزيئات علوية',
+                            badge: 'الوضع البسيط ⏸️',
+                            border: 'border-zinc-700',
+                            glow: 'from-zinc-950/40',
+                            icon: <Power size={18} className="text-zinc-400" />
+                          }
+                        ].map((atm) => {
+                          const isSelected = (formData.atmosphericEffect || 'stars') === atm.id;
+                          return (
+                            <button
+                              key={atm.id}
+                              type="button"
+                              onClick={() => {
+                                audioEngine.playAdminToggle(true);
+                                const newEffect = atm.id as AtmosphericEffect;
+                                const updated = {
+                                  ...formData,
+                                  atmosphericEffect: newEffect
+                                };
+                                setFormData(updated);
+                                safeLocalStorage.setItem('sultan_atmospheric_effect', newEffect);
+                                onSaveConfig(updated);
+                                showToast(`تم تفعيل: ${atm.name} وحفظه محلياً بنجاح! 💾`);
+                              }}
+                              className={`p-3.5 rounded-2xl border text-right transition-all duration-200 cursor-pointer relative overflow-hidden group active:scale-98 ${
+                                isSelected
+                                  ? `bg-gradient-to-b ${atm.glow} via-black/80 to-black/90 ${atm.border} text-white shadow-xl ring-2 ring-amber-400/50`
+                                  : 'bg-black/40 border-white/10 text-zinc-400 hover:text-white hover:border-white/25 hover:bg-white/[0.04]'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform shadow-inner">
+                                  {atm.icon}
+                                </div>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                  isSelected
+                                    ? 'bg-amber-500/30 text-amber-200 border-amber-400/50'
+                                    : 'bg-white/5 text-zinc-400 border-white/10'
+                                }`}>
+                                  {atm.badge}
+                                </span>
+                              </div>
+                              <p className="font-extrabold text-xs text-white flex items-center gap-1.5">
+                                <span>{atm.name}</span>
+                                {isSelected && (
+                                  <Check size={13} className="text-emerald-400 inline shrink-0" />
+                                )}
+                              </p>
+                              <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{atm.subname}</p>
+                              <p className="text-[11px] text-zinc-400/90 mt-1.5 leading-relaxed">{atm.desc}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <label className="block text-zinc-300 font-bold text-xs pt-1">
+                      المؤثر الفصلي/الطقسي للجزيئات (Seasonal Weather Simulation)
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                       {[
@@ -2204,6 +2501,29 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                           <p className="text-[10px] opacity-70 mt-1">{eff.desc}</p>
                         </button>
                       ))}
+                    </div>
+
+                    {/* Background Creator Shortcut Banner */}
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-black/60 border border-purple-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-300 flex items-center justify-center shrink-0">
+                          <Palette size={16} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-white">صانع ومصمم الخلفيات الملكية (Background Creator) 🎨</p>
+                          <p className="text-[10px] text-zinc-400">صمم تدرجات CSS لونية مخصصة، وارفع بريسيتات لـ BackgroundCanvas</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          audioEngine.playAdminTab();
+                          setActiveSubTab('backgrounds');
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/30 transition-all cursor-pointer self-start sm:self-auto shrink-0"
+                      >
+                        <span>فتح الاستوديو 🚀</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -2804,20 +3124,35 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         ? (adminVoiceData.isMuted
                             ? 'bg-amber-950/30 border-amber-500/40 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
                             : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200 shadow-[0_0_20px_rgba(16,185,129,0.15)]')
-                        : 'bg-white/[0.02] border-white/5 text-zinc-400'
+                        : 'bg-zinc-900/50 border-white/5 text-zinc-400'
                     }`}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-bold flex items-center gap-1.5">
-                          {adminVoiceData.isMuted ? <MicOff size={14} className="text-amber-400" /> : <Mic size={14} className="text-emerald-400" />}
+                          {!adminVoiceData.inVoice ? (
+                            <MicOff size={14} className="text-zinc-600" />
+                          ) : adminVoiceData.isMuted ? (
+                            <MicOff size={14} className="text-amber-400" />
+                          ) : (
+                            <Mic size={14} className="text-emerald-400" />
+                          )}
                           <span>حالة المايك (Mic)</span>
                         </span>
-                        {adminVoiceData.isMuted ? (
+                        {!adminVoiceData.inVoice ? (
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[10px] font-mono font-bold border border-zinc-700/60">
+                            خارج الروم
+                          </span>
+                        ) : adminVoiceData.isMuted ? (
                           <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-mono font-black border border-amber-500/40 flex items-center gap-1">
                             <MicOff size={11} /> Muted
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-black border border-emerald-500/40 flex items-center gap-1">
-                            <Mic size={11} className={adminVoiceData.inVoice ? 'animate-pulse' : ''} /> Unmuted
+                            <span className="flex gap-0.5 items-end h-2.5">
+                              <span className="w-0.5 h-1 bg-emerald-400 animate-pulse rounded-full" />
+                              <span className="w-0.5 h-2.5 bg-emerald-400 animate-pulse delay-75 rounded-full" />
+                              <span className="w-0.5 h-1.5 bg-emerald-400 animate-pulse delay-150 rounded-full" />
+                            </span>
+                            <Mic size={11} className="animate-pulse" /> Unmuted
                           </span>
                         )}
                       </div>
@@ -2835,13 +3170,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                             </>
                           )
                         ) : (
-                          <span>غير متصل بصوت</span>
+                          <span className="text-zinc-500">غير متصل بصوت</span>
                         )}
                       </p>
                       <span className="text-[10px] text-zinc-400 font-mono block mt-1">
                         {adminVoiceData.inVoice
                           ? (adminVoiceData.selfMute ? 'كتم يدوي (Self Mute)' : adminVoiceData.serverMute ? 'مكتوم إدارياً' : 'جاهز للتحدث في الروم')
-                          : 'خارج الرومات'}
+                          : 'خارج الرومات الصوتية'}
                       </span>
                     </div>
 
@@ -2853,14 +3188,24 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                         ? (adminVoiceData.isDeafened
                             ? 'bg-rose-950/30 border-rose-500/40 text-rose-200 shadow-[0_0_20px_rgba(244,63,94,0.15)]'
                             : 'bg-indigo-950/30 border-indigo-500/40 text-indigo-200 shadow-[0_0_20px_rgba(99,102,241,0.15)]')
-                        : 'bg-white/[0.02] border-white/5 text-zinc-400'
+                        : 'bg-zinc-900/50 border-white/5 text-zinc-400'
                     }`}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs font-bold flex items-center gap-1.5">
-                          {adminVoiceData.isDeafened ? <VolumeX size={14} className="text-rose-400" /> : <Headphones size={14} className="text-indigo-400" />}
+                          {!adminVoiceData.inVoice ? (
+                            <VolumeX size={14} className="text-zinc-600" />
+                          ) : adminVoiceData.isDeafened ? (
+                            <VolumeX size={14} className="text-rose-400" />
+                          ) : (
+                            <Headphones size={14} className="text-indigo-400" />
+                          )}
                           <span>حالة الديفن (Deaf)</span>
                         </span>
-                        {adminVoiceData.isDeafened ? (
+                        {!adminVoiceData.inVoice ? (
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[10px] font-mono font-bold border border-zinc-700/60">
+                            خارج الروم
+                          </span>
+                        ) : adminVoiceData.isDeafened ? (
                           <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-mono font-black border border-rose-500/40 flex items-center gap-1">
                             <VolumeX size={11} /> Deafened
                           </span>
@@ -2884,13 +3229,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                             </>
                           )
                         ) : (
-                          <span>غير متصل بصوت</span>
+                          <span className="text-zinc-500">غير متصل بصوت</span>
                         )}
                       </p>
                       <span className="text-[10px] text-zinc-400 font-mono block mt-1">
                         {adminVoiceData.inVoice
                           ? (adminVoiceData.selfDeaf ? 'ديفن شخصي (Self Deafen)' : adminVoiceData.serverDeaf ? 'ديفن إداري' : 'يستمع للمحادثة بوضوح')
-                          : 'خارج الرومات'}
+                          : 'خارج الرومات الصوتية'}
                       </span>
                     </div>
 
@@ -3458,6 +3803,19 @@ export const AdminPage: React.FC<AdminPageProps> = ({
                   )}
                 </div>
               </form>
+            )}
+
+            {/* TAB: Background Creator & Custom CSS Gradient Presets */}
+            {activeSubTab === 'backgrounds' && (
+              <BackgroundCreator
+                config={formData}
+                onUpdateConfig={(updated) => {
+                  const newCfg = { ...formData, ...updated };
+                  setFormData(newCfg);
+                  onSaveConfig(newCfg);
+                }}
+                showToast={showToast}
+              />
             )}
 
             {/* TAB 2: Live Statistics */}

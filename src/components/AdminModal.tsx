@@ -22,7 +22,8 @@ import {
   Download,
   Package
 } from 'lucide-react';
-import { SiteConfig } from '../types';
+import { SiteConfig, BackgroundStyle, AtmosphericEffect } from '../types';
+import { safeLocalStorage } from '../utils/safeStorage';
 import { audioEngine } from '../utils/audioEngine';
 import { sendEmailNotification } from '../utils/emailNotifier';
 import { generateFullApplicationSourceZip } from '../utils/exactAppBuilder';
@@ -81,7 +82,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'settings' | 'stats'>('settings');
   const [passwordInput, setPasswordInput] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
-  const [formData, setFormData] = useState<SiteConfig>(config);
+  const [formData, setFormData] = useState<SiteConfig>(() => ({
+    ...config,
+    bgStyle: (safeLocalStorage.getItem('sultan_bg_style') as BackgroundStyle) || config.bgStyle || 'particle',
+    atmosphericEffect: (safeLocalStorage.getItem('sultan_atmospheric_effect') as AtmosphericEffect) || config.atmosphericEffect || 'stars'
+  }));
   const [savedToast, setSavedToast] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [announceLoading, setAnnounceLoading] = useState<boolean>(false);
@@ -124,6 +129,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     return INITIAL_LOGS;
   });
 
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+
   useEffect(() => {
     setFormData(config);
   }, [config]);
@@ -159,6 +166,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     audioEngine.playAdminSave();
+    if (formData.bgStyle) {
+      safeLocalStorage.setItem('sultan_bg_style', formData.bgStyle);
+    }
+    if (formData.atmosphericEffect) {
+      safeLocalStorage.setItem('sultan_atmospheric_effect', formData.atmosphericEffect);
+    }
     onSaveConfig(formData);
     localStorage.setItem('sultan_site_config', JSON.stringify(formData));
     setSavedToast(true);
@@ -179,7 +192,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
-  const [isDownloading, setIsDownloading] = useState(false);
   const handleDownloadZip = async () => {
     try {
       setIsDownloading(true);
@@ -494,6 +506,62 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       />
                     </div>
                   )}
+                </div>
+
+                {/* Background Animation Style */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-zinc-300 font-bold text-xs">نمط حركة وتصميم الخلفية (Background Style)</label>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">حفظ محلي 💾</span>
+                  </div>
+                  <select
+                    value={formData.bgStyle || 'particle'}
+                    onChange={(e) => {
+                      const newStyle = e.target.value as BackgroundStyle;
+                      setFormData({
+                        ...formData,
+                        bgStyle: newStyle
+                      });
+                      safeLocalStorage.setItem('sultan_bg_style', newStyle);
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-black/50 border border-white/10 text-white outline-none focus:border-red-500 cursor-pointer text-xs"
+                  >
+                    <option value="particle">الجسيمات التفاعلية والشهب ✨ (Interactive Particles)</option>
+                    <option value="waves">أمواج ملكية متدفقة 🌊 (Flowing Royal Waves)</option>
+                    <option value="gradient">تدرجات لونية متحركة 🎨 (Liquid Chromatic Gradients)</option>
+                    <option value="glow">توهج ملكي هادئ 🌟 (Ambient Glow)</option>
+                    <option value="static">ثابت بدون حركة ⏸️ (Static Luxury)</option>
+                  </select>
+                </div>
+
+                {/* Atmospheric Overlay Effect */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-zinc-300 font-bold text-xs flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-400" />
+                      <span>تأثيرات جوية فوق واجهة الموقع (Atmospheric Overlays)</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">حفظ محلي 💾</span>
+                  </div>
+                  <select
+                    value={formData.atmosphericEffect || 'stars'}
+                    onChange={(e) => {
+                      const newEffect = e.target.value as AtmosphericEffect;
+                      setFormData({
+                        ...formData,
+                        atmosphericEffect: newEffect
+                      });
+                      safeLocalStorage.setItem('sultan_atmospheric_effect', newEffect);
+                    }}
+                    className="w-full p-2.5 rounded-xl bg-black/50 border border-white/10 text-white outline-none focus:border-red-500 cursor-pointer text-xs"
+                  >
+                    <option value="stars">تساقط النجوم والشهب 🌠 (Falling Shooting Stars & Stardust)</option>
+                    <option value="embers">جزيئات ملكية متوهجة 🔥 (Glowing Embers & Royal Fireflies)</option>
+                    <option value="aurora">شفق أورورا وسديم 🌌 (Boreal Aurora & Cosmic Glow)</option>
+                    <option value="snow">تساقط بلورات الثلج ❄️ (Crystal Snowfall)</option>
+                    <option value="rain">رذاذ مطر متفاعل 🌧️ (Atmospheric Rain & Mist)</option>
+                    <option value="none">بدون تأثير جوي 🚫 (None / Disabled)</option>
+                  </select>
                 </div>
 
                 {/* Visual Background Canvas Effect */}

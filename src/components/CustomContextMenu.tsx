@@ -1,16 +1,18 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Share2, Copy, MessageSquare, Check, Gamepad2 } from 'lucide-react';
+import { Share2, Copy, MessageSquare, Check, Gamepad2, Settings } from 'lucide-react';
 import { audioEngine } from '../utils/audioEngine';
 
 interface CustomContextMenuProps {
   onShare: () => void;
   onOpenGame?: () => void;
+  onOpenSettings?: () => void;
   discordUrl?: string;
 }
 
 export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
   onShare,
   onOpenGame,
+  onOpenSettings,
   discordUrl = 'https://discord.gg/TUU6EeC6pb'
 }) => {
   const [visible, setVisible] = useState(false);
@@ -137,6 +139,22 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
               <span>لعبة الركض (Sultan Runner)</span>
             </div>
             <span className="text-[10px] text-indigo-400/80">Play 🎮</span>
+          </button>
+        )}
+
+        {onOpenSettings && (
+          <button
+            onClick={() => {
+              onOpenSettings();
+              setVisible(false);
+            }}
+            className="w-full px-3 py-2 rounded-xl flex items-center justify-between hover:bg-white/10 hover:text-white transition-colors text-zinc-300 font-medium"
+          >
+            <div className="flex items-center gap-2">
+              <Settings size={14} className="text-amber-400" />
+              <span>لوحة الإعدادات والتأثيرات</span>
+            </div>
+            <span className="text-[10px] text-zinc-400">Settings ⚙️</span>
           </button>
         )}
       </div>

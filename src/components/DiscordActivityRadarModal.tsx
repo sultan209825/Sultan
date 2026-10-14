@@ -17,6 +17,7 @@ import {
   Zap,
   Mic,
   Monitor,
+  MonitorOff,
   Smartphone,
   Globe,
   Film,
@@ -223,7 +224,8 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
     setTouchStartY(null);
   };
 
-  const status = lanyard?.discord_status || 'dnd';
+  const status = lanyard?.discord_status || 'offline';
+  const isOffline = !lanyard?.discord_status || lanyard.discord_status === 'offline';
   const gameActivity = lanyard?.activities?.find((a) => a.type === 0);
   const activeActivity = lanyard?.activities?.find((a) => a.type !== 2) || lanyard?.activities?.[0];
   const spotify = lanyard?.listening_to_spotify ? lanyard.spotify : null;
@@ -314,9 +316,9 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
         };
       default:
         return {
-          text: 'غير متصل (Offline)',
+          text: 'غير متصل (الكمبيوتر مغلق 💤)',
           color: 'text-zinc-400',
-          bg: 'bg-zinc-500/10 border-zinc-500/30',
+          bg: 'bg-zinc-800/80 border-zinc-700/60',
           dot: 'bg-zinc-500'
         };
     }
@@ -326,14 +328,17 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
 
   // Active client device
   const getActiveDevice = () => {
+    if (isOffline) {
+      return { icon: <MonitorOff size={14} className="text-zinc-500" />, name: 'الجهاز مغلق (PC Off)' };
+    }
     if (lanyard?.active_on_discord_desktop) {
-      return { icon: <Monitor size={14} />, name: 'كمبيوتر (Desktop Client)' };
+      return { icon: <Monitor size={14} className="text-cyan-400" />, name: 'كمبيوتر (Desktop Client)' };
     }
     if (lanyard?.active_on_discord_mobile) {
-      return { icon: <Smartphone size={14} />, name: 'موبايل (Mobile App)' };
+      return { icon: <Smartphone size={14} className="text-emerald-400" />, name: 'موبايل (Mobile App)' };
     }
     if (lanyard?.active_on_discord_web) {
-      return { icon: <Globe size={14} />, name: 'متصفح (Web Client)' };
+      return { icon: <Globe size={14} className="text-indigo-400" />, name: 'متصفح (Web Client)' };
     }
     return { icon: <Monitor size={14} />, name: 'ديسكورد الرسمي' };
   };
@@ -457,44 +462,77 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
             </span>
           </div>
 
-          {(gameActivity || activeActivity) ? (
+          {gameActivity ? (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-purple-950/20 border border-purple-500/30">
               <div className="w-12 h-12 rounded-xl bg-purple-900/40 border border-purple-500/40 flex items-center justify-center shrink-0 text-purple-300 shadow-md overflow-hidden relative">
-                {getActivityImageUrl(gameActivity || activeActivity) ? (
+                {getActivityImageUrl(gameActivity) ? (
                   <img
-                    src={getActivityImageUrl(gameActivity || activeActivity)!}
-                    alt={(gameActivity || activeActivity)?.name || 'Game'}
+                    src={getActivityImageUrl(gameActivity)!}
+                    alt={gameActivity.name || 'Game'}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <Gamepad2 size={24} />
                 )}
-                {(gameActivity || activeActivity)?.timestamps?.start && (
+                {gameActivity.timestamps?.start && (
                   <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-400 rounded-full border border-black animate-pulse" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="font-extrabold text-sm text-white truncate">{(gameActivity || activeActivity)?.name}</p>
+                  <p className="font-extrabold text-sm text-white truncate">{gameActivity.name}</p>
                   {elapsedTimerString && (
                     <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30 shrink-0">
                       ⏱️ {elapsedTimerString}
                     </span>
                   )}
                 </div>
-                {(gameActivity || activeActivity)?.details && (
-                  <p className="text-xs text-purple-300 truncate mt-0.5 font-medium">{(gameActivity || activeActivity)?.details}</p>
+                {gameActivity.details && (
+                  <p className="text-xs text-purple-300 truncate mt-0.5 font-medium">{gameActivity.details}</p>
                 )}
-                {(gameActivity || activeActivity)?.state && (
-                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">{(gameActivity || activeActivity)?.state}</p>
+                {gameActivity.state && (
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">{gameActivity.state}</p>
                 )}
               </div>
+            </div>
+          ) : activeActivity && !isOffline ? (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-950/20 border border-blue-500/30">
+              <div className="w-12 h-12 rounded-xl bg-blue-900/40 border border-blue-500/40 flex items-center justify-center shrink-0 text-blue-300 shadow-md overflow-hidden relative">
+                {getActivityImageUrl(activeActivity) ? (
+                  <img
+                    src={getActivityImageUrl(activeActivity)!}
+                    alt={activeActivity.name || 'Activity'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Activity size={24} />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-extrabold text-sm text-white truncate">{activeActivity.name}</p>
+                {activeActivity.details && (
+                  <p className="text-xs text-blue-300 truncate mt-0.5">{activeActivity.details}</p>
+                )}
+              </div>
+            </div>
+          ) : isOffline ? (
+            <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 text-xs text-zinc-400">
+              <div className="flex items-center gap-2.5">
+                <span className="text-xl">💤</span>
+                <div>
+                  <span className="text-zinc-300 font-bold block">الكمبيوتر مغلق حالياً (Offline)</span>
+                  <span className="text-[11px] text-zinc-500">سلطان غير متصل بالديسكورد أو الألعاب في الوقت الحالي</span>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700/60 shrink-0">
+                OFFLINE 💤
+              </span>
             </div>
           ) : (
             <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between gap-3 text-xs text-zinc-400">
               <div className="flex items-center gap-2">
                 <Sparkles size={14} className="text-amber-400" />
-                <span>جاهز للعب وسحق الخصوم في VALORANT & PUBG 🎮🔥</span>
+                <span>متصل بالديسكورد وجاهز للانضمام للألعاب 🎮🔥</span>
               </div>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
                 LFG READY
@@ -722,18 +760,27 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
                     ? (liveVoiceData.isMuted
                         ? 'bg-amber-950/30 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.15)]'
                         : 'bg-emerald-950/30 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.15)]')
-                    : 'bg-black/30 border-white/5'
+                    : 'bg-zinc-900/50 border-white/5'
                 }`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-bold text-zinc-400">حالة المايك</span>
-                    {liveVoiceData.isMuted ? (
+                    {!liveVoiceData.inVoice ? (
+                      <MicOff size={15} className="text-zinc-600" />
+                    ) : liveVoiceData.isMuted ? (
                       <MicOff size={15} className="text-amber-400" />
                     ) : (
-                      <Mic size={15} className="text-emerald-400 animate-pulse" />
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex gap-0.5 items-end h-3.5">
+                          <span className="w-0.5 h-1.5 bg-emerald-400 animate-pulse rounded-full" />
+                          <span className="w-0.5 h-3 bg-emerald-400 animate-pulse delay-75 rounded-full" />
+                          <span className="w-0.5 h-2 bg-emerald-400 animate-pulse delay-150 rounded-full" />
+                        </span>
+                        <Mic size={15} className="text-emerald-400 animate-pulse" />
+                      </div>
                     )}
                   </div>
                   <p className={`text-xs font-black truncate ${
-                    liveVoiceData.isMuted ? 'text-amber-300' : 'text-emerald-300'
+                    !liveVoiceData.inVoice ? 'text-zinc-500' : liveVoiceData.isMuted ? 'text-amber-300' : 'text-emerald-300'
                   }`}>
                     {liveVoiceData.inVoice
                       ? (liveVoiceData.isMuted ? 'مكتوم 🔇' : 'المايك يعمل 🎙️')
@@ -752,18 +799,20 @@ export const DiscordActivityRadarModal: React.FC<DiscordActivityRadarModalProps>
                     ? (liveVoiceData.isDeafened
                         ? 'bg-rose-950/30 border-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.15)]'
                         : 'bg-indigo-950/30 border-indigo-500/40 shadow-[0_0_15px_rgba(99,102,241,0.15)]')
-                    : 'bg-black/30 border-white/5'
+                    : 'bg-zinc-900/50 border-white/5'
                 }`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-[10px] font-bold text-zinc-400">حالة السماعة</span>
-                    {liveVoiceData.isDeafened ? (
+                    {!liveVoiceData.inVoice ? (
+                      <VolumeX size={15} className="text-zinc-600" />
+                    ) : liveVoiceData.isDeafened ? (
                       <VolumeX size={15} className="text-rose-400" />
                     ) : (
                       <Headphones size={15} className="text-indigo-400" />
                     )}
                   </div>
                   <p className={`text-xs font-black truncate ${
-                    liveVoiceData.isDeafened ? 'text-rose-300' : 'text-indigo-300'
+                    !liveVoiceData.inVoice ? 'text-zinc-500' : liveVoiceData.isDeafened ? 'text-rose-300' : 'text-indigo-300'
                   }`}>
                     {liveVoiceData.inVoice
                       ? (liveVoiceData.isDeafened ? 'السماعة مكتومة 🔕' : 'السماعة تعمل 🎧')

@@ -43,8 +43,8 @@ interface DiscordProfileCardProps {
   config: SiteConfig;
   typedBio: string;
   countdownString: string;
-  isMusicPlaying: boolean;
-  musicTempo: number;
+  isMusicPlaying?: boolean;
+  musicTempo?: number;
   tilt: { x: number; y: number };
   onAvatarClick: () => void;
   onShare: () => void;
@@ -899,33 +899,9 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
         </div>
 
-        {/* 4. صف كبسولات الأقسام الأربعة المنظم: الموسيقى، الألعاب، الأسرار، الرادار */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 pt-1 pb-1 w-full">
-          {/* 1. الموسيقى */}
-          <div className="relative group/sec">
-            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-violet-600/35 to-fuchsia-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
-            <button
-              type="button"
-              onClick={() => handleSectionClick('music', onOpenMusic)}
-              onMouseEnter={playHover}
-              onTouchStart={playHover}
-              className={`relative w-full min-h-[46px] flex flex-row items-center justify-center gap-1.5 py-2.5 px-2 rounded-2xl bg-gradient-to-b from-violet-950/40 to-black/60 border border-violet-500/30 group-hover/sec:border-violet-400/80 text-white text-xs font-bold transition-all duration-200 active:scale-90 shadow-sm group-hover/sec:shadow-[0_0_20px_rgba(139,92,246,0.35)] cursor-pointer overflow-hidden ${
-                pulsingSection === 'music'
-                  ? 'scale-90 ring-2 ring-violet-400 bg-violet-900/60 shadow-[0_0_25px_rgba(139,92,246,0.7)]'
-                  : ''
-              }`}
-              title="مشغل الأغاني الحصري لـ سلطان"
-              data-tooltip="فتح مشغل الأغاني والكلمات المتزامنة"
-            >
-              {pulsingSection === 'music' && (
-                <span className="absolute inset-0 rounded-2xl animate-ping border-2 border-violet-400 opacity-75 pointer-events-none" />
-              )}
-              <Music size={15} className={`text-violet-400 group-hover/sec:scale-110 transition-transform shrink-0 ${isMusicPlaying ? 'animate-bounce text-violet-300' : ''}`} />
-              <span className="truncate">الموسيقى 🎵</span>
-            </button>
-          </div>
-
-          {/* 2. الألعاب */}
+        {/* صف كبسولات الأقسام الرئيسية: الألعاب، الأسرار، الرادار */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-2.5 pt-1 pb-1 w-full">
+          {/* 1. الألعاب */}
           <div className="relative group/sec">
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-emerald-600/35 to-teal-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
             <button
@@ -1061,25 +1037,49 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
 
           {/* Feature 2: رادار حالة اللعب والنشاط الفوري (Live Gaming Activity Badge) */}
-          <button
-            type="button"
-            onClick={() => {
-              audioEngine.playPowerUpSound();
-              setIsRadarModalOpen(true);
-            }}
-            onMouseEnter={playHover}
-            onTouchStart={playHover}
-            className="group/radar relative flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-950/70 via-sky-950/50 to-blue-950/70 border border-cyan-500/40 text-cyan-200 text-xs font-bold shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:border-cyan-400 hover:shadow-[0_0_20px_rgba(6,182,212,0.4)] transition-all duration-150 active:scale-95 cursor-pointer"
-            data-tooltip="عرض رادار الألعاب والنشاط المباشر للسلطان"
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping shrink-0" />
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="text-zinc-300 font-medium">يلعب الآن:</span>
-              <span className="font-bold text-cyan-300 truncate max-w-[130px] sm:max-w-[160px]">
-                {lanyard?.activities?.find((a) => a.type === 0)?.name || 'تدريب فالورانت 🎮'}
-              </span>
-            </div>
-          </button>
+          {(() => {
+            const isOffline = !lanyard?.discord_status || lanyard.discord_status === 'offline';
+            const currentGame = lanyard?.activities?.find((a) => a.type === 0)?.name;
+            const spotifySong = lanyard?.listening_to_spotify ? lanyard.spotify?.song : null;
+
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  audioEngine.playPowerUpSound();
+                  setIsRadarModalOpen(true);
+                }}
+                onMouseEnter={playHover}
+                onTouchStart={playHover}
+                className={`group/radar relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-150 active:scale-95 cursor-pointer ${
+                  isOffline
+                    ? 'bg-zinc-900/80 border-zinc-700/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 shadow-sm'
+                    : currentGame
+                    ? 'bg-gradient-to-r from-purple-950/70 via-indigo-950/50 to-blue-950/70 border-purple-500/40 text-purple-200 shadow-[0_0_15px_rgba(168,85,247,0.25)] hover:border-purple-400'
+                    : spotifySong
+                    ? 'bg-gradient-to-r from-emerald-950/70 via-teal-950/50 to-black/70 border-emerald-500/40 text-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:border-emerald-400'
+                    : 'bg-gradient-to-r from-cyan-950/70 via-sky-950/50 to-blue-950/70 border-cyan-500/40 text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:border-cyan-400'
+                }`}
+                data-tooltip="عرض رادار الألعاب والنشاط المباشر للسلطان"
+              >
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  isOffline ? 'bg-zinc-500' : 'bg-emerald-400 animate-ping'
+                }`} />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-zinc-400 font-medium">
+                    {isOffline ? 'الرادار:' : currentGame ? 'يلعب الآن:' : spotifySong ? 'يستمع إلى:' : 'الحالة:'}
+                  </span>
+                  <span className={`font-bold truncate max-w-[130px] sm:max-w-[160px] ${
+                    isOffline ? 'text-zinc-400' : currentGame ? 'text-purple-300' : spotifySong ? 'text-emerald-300' : 'text-cyan-300'
+                  }`}>
+                    {isOffline
+                      ? 'وضع الاستعداد 💤'
+                      : currentGame || (spotifySong ? `${spotifySong} 🎵` : 'متصل ديسكورد 💬')}
+                  </span>
+                </div>
+              </button>
+            );
+          })()}
 
           {/* Feature 3: نظام شارات الولاء للزوار (Visitor VIP Badges & Loyalty Streaks) */}
           {visitorLoyalty && (

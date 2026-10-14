@@ -62,6 +62,19 @@ export interface DiscordRadarConfig {
   allowDirectMessage?: boolean;
 }
 
+export interface GradientPreset {
+  id: string;
+  name: string;
+  css: string;
+  type?: 'linear' | 'radial' | 'conic' | 'mesh';
+  category?: string;
+  createdAt?: string;
+  isCustom?: boolean;
+}
+
+export type BackgroundStyle = 'particle' | 'waves' | 'gradient' | 'static' | 'glow';
+export type AtmosphericEffect = 'stars' | 'embers' | 'aurora' | 'snow' | 'rain' | 'none';
+
 export interface SiteConfig {
   username: string;
   handle: string;
@@ -70,7 +83,11 @@ export interface SiteConfig {
   footerDomain: string;
   theme: ThemeId;
   bgEffect: 'auto' | 'winter' | 'summer' | 'cyber' | 'rain' | 'none';
-  bgStyle?: 'particle' | 'static' | 'glow';
+  bgStyle?: BackgroundStyle;
+  atmosphericEffect?: AtmosphericEffect;
+  customGradient?: string;
+  activeGradientPresetId?: string;
+  gradientPresets?: GradientPreset[];
   countdownDate: string;
   countdownLabel: string;
   musicAutoPlay?: boolean;

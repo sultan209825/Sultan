@@ -922,6 +922,7 @@ echo json_encode(['success' => $sent]);
   // 5. Clean config.json
   const configJson = `{
     "bgEffect": "auto",
+    "customGradient": "",
     "username": "! 𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪",
     "handle": "5susu",
     "bio": "3 ثانوي 📖 + GYM 🦾",
