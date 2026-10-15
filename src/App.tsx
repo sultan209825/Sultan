@@ -784,6 +784,7 @@ export default function App() {
         onShare={handleSharePage}
         discordUrl={config.socials?.discord || 'https://discord.gg/TUU6EeC6pb'}
         discordUsername={config.handle || '5susu'}
+        discordUserId={DISCORD_USER_ID}
         isEcoMode={isEcoMode}
         onToggleEcoMode={toggleEcoMode}
         currentTheme={config.theme}

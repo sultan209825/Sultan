@@ -11,12 +11,12 @@ import {
   RotateCcw,
   ExternalLink,
   Flame,
-  UserCheck,
   X,
   Zap,
   Leaf,
   Palette,
-  BatteryCharging
+  BatteryCharging,
+  Link2
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { audioEngine } from '../utils/audioEngine';
@@ -32,6 +32,7 @@ interface CustomContextMenuProps {
   onOpenLoyalty?: () => void;
   discordUrl?: string;
   discordUsername?: string;
+  discordUserId?: string;
   isEcoMode?: boolean;
   onToggleEcoMode?: () => void;
   currentTheme?: string;
@@ -46,6 +47,7 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
   onOpenLoyalty,
   discordUrl = 'https://discord.gg/TUU6EeC6pb',
   discordUsername = '5susu',
+  discordUserId = DISCORD_USER_ID,
   isEcoMode = false,
   onToggleEcoMode,
   currentTheme = 'blood_royal',
@@ -204,11 +206,12 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
     } catch {}
   };
 
-  const handleCopyAccount = () => {
+  const discordProfileUrl = `https://discord.com/users/${discordUserId || DISCORD_USER_ID}`;
+
+  const handleCopyAccountLink = () => {
     audioEngine.playClickSound();
     try {
-      const fullAccount = `@${discordUsername || '5susu'}`;
-      navigator.clipboard.writeText(fullAccount);
+      navigator.clipboard.writeText(discordProfileUrl);
       setCopiedAccount(true);
       confetti({
         particleCount: 35,
@@ -219,7 +222,7 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
         setCopiedAccount(false);
         setVisible(false);
       }, 1000);
-      recordSiteLog('نسخ حساب الديسكورد 📋', `تم نسخ الحساب: ${fullAccount}`);
+      recordSiteLog('نسخ لينك حساب الديسكورد 🔗', `تم نسخ الرابط: ${discordProfileUrl}`);
     } catch {}
   };
 
@@ -380,21 +383,22 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
           </span>
         </a>
 
-        {/* Copy Discord Account */}
+        {/* Copy Discord Account Link */}
         <button
           type="button"
-          onClick={handleCopyAccount}
+          onClick={handleCopyAccountLink}
           className="w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between hover:bg-white/10 hover:text-white transition-all text-right group cursor-pointer"
+          title={`نسخ لينك حساب الديسكورد: ${discordProfileUrl}`}
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-cyan-400">
-              {copiedAccount ? <Check size={13} className="text-emerald-400" /> : <UserCheck size={13} />}
+              {copiedAccount ? <Check size={13} className="text-emerald-400" /> : <Link2 size={13} />}
             </div>
             <span className="font-medium text-[11px] truncate">
-              {copiedAccount ? 'تم نسخ الحساب! (@' + (discordUsername || '5susu') + ')' : 'نسخ حساب الديسكورد'}
+              {copiedAccount ? 'تم نسخ لينك الحساب! 🔗' : 'نسخ لينك حساب الديسكورد'}
             </span>
           </div>
-          <span className="text-[9px] font-mono text-zinc-400">@{discordUsername || '5susu'}</span>
+          <span className="text-[9px] font-mono text-zinc-400">Link 🔗</span>
         </button>
 
         {/* Copy Website URL */}
