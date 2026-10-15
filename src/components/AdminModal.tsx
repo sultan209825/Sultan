@@ -135,6 +135,29 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setFormData(config);
   }, [config]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+        window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        audioEngine.playClickSound();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleLogin = (e: React.FormEvent) => {
@@ -238,16 +261,57 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     onClose();
   };
 
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 85) {
+      handleClose();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
+  const handleTouchCancel = () => {
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   return (
     <div
       onClick={handleClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/85 backdrop-blur-md animate-fadeIn"
       dir="rtl"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col bg-[#0d0d18] border border-red-500/30 rounded-3xl shadow-2xl overflow-hidden text-white"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        style={{
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          touchAction: 'pan-y'
+        }}
+        className="relative w-full max-w-2xl max-h-[92vh] flex flex-col adaptive-frosted-glass bg-[#0d0d18]/95 border border-red-500/30 rounded-t-[32px] sm:rounded-3xl shadow-2xl overflow-hidden text-white animate-modal-slide-up"
       >
+        {/* Mobile Swipe to Dismiss Top Grab Handle */}
+        <div className="swipe-grab-handle shrink-0 mt-3 sm:hidden" />
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-gradient-to-r from-red-950/40 via-black to-black">
           <div className="flex items-center gap-2.5">

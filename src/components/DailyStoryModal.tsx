@@ -86,6 +86,12 @@ export const DailyStoryModal: React.FC<DailyStoryModalProps> = ({
     setTouchStartY(null);
   };
 
+  const handleTouchCancel = () => {
+    setIsPaused(false);
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   // Story auto-progress timer (10 seconds duration)
   useEffect(() => {
     if (!isOpen) {
@@ -173,10 +179,11 @@ export const DailyStoryModal: React.FC<DailyStoryModalProps> = ({
       dir="rtl"
     >
       <div
-        className="relative w-full max-w-md rounded-t-[32px] sm:rounded-3xl bg-[#0d0e18] border border-red-500/40 shadow-[0_0_60px_rgba(239,68,68,0.35)] overflow-hidden flex flex-col justify-between p-5 sm:p-6 min-h-[500px] text-white animate-modal-slide-up transition-transform"
+        className="relative w-full max-w-md rounded-t-[32px] sm:rounded-3xl adaptive-frosted-glass bg-[#0d0e18]/90 border border-red-500/40 shadow-[0_0_60px_rgba(239,68,68,0.35)] overflow-hidden flex flex-col justify-between p-5 sm:p-6 min-h-[500px] text-white animate-modal-slide-up transition-transform"
         style={{
           transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
-          transition: dragOffset === 0 ? 'transform 0.2s ease-out' : 'none'
+          transition: dragOffset === 0 ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          touchAction: 'pan-y'
         }}
         onClick={(e) => e.stopPropagation()}
         onMouseEnter={() => setIsPaused(true)}
@@ -184,9 +191,10 @@ export const DailyStoryModal: React.FC<DailyStoryModalProps> = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
         {/* Mobile Swipe to Dismiss Top Grab Handle */}
-        <div className="w-12 h-1.5 rounded-full bg-white/20 hover:bg-white/40 mx-auto -mt-1 mb-2.5 cursor-grab shrink-0 transition-colors" />
+        <div className="swipe-grab-handle shrink-0" />
 
         {/* Animated Background Aura */}
         <div className="absolute -top-24 -right-24 w-60 h-60 bg-red-600/25 rounded-full blur-3xl pointer-events-none animate-pulse" />

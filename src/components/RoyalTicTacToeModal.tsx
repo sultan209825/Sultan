@@ -150,21 +150,70 @@ export const RoyalTicTacToeModal: React.FC<RoyalTicTacToeModalProps> = ({
     setIsXNext(true);
   };
 
+  // Swipe to dismiss state
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+
+  if (!isOpen) return null;
+
   const handleClose = () => {
+    window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+    window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     audioEngine.playClickSound();
     onClose();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 85) {
+      handleClose();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
+  const handleTouchCancel = () => {
+    setDragOffset(0);
+    setTouchStartY(null);
   };
 
   return (
     <div
       onClick={handleClose}
-      className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
       dir="rtl"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md bg-[#0d0e18] border border-amber-500/40 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-amber-500/20 text-white space-y-4 animate-modal-slide-up"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        style={{
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          touchAction: 'pan-y'
+        }}
+        className="relative w-full max-w-md adaptive-frosted-glass bg-[#0d0e18]/90 border border-amber-500/40 rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl shadow-amber-500/20 text-white space-y-4 animate-modal-slide-up transition-transform overscroll-contain max-h-[92vh] overflow-y-auto"
       >
+        {/* Mobile Swipe-to-Dismiss Grab Handle */}
+        <div className="swipe-grab-handle shrink-0" />
+
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">

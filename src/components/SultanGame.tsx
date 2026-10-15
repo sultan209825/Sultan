@@ -119,6 +119,11 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
       return;
     }
 
+    // Safety: ensure loop is running if somehow cancelled
+    if (animFrameRef.current === null) {
+      startGameLoop();
+    }
+
     if (playerRef.current.isGrounded) {
       playerRef.current.vy = -7.6;
       playerRef.current.isGrounded = false;
@@ -405,17 +410,22 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
   };
 
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     if (isOpen) {
       setActiveTab('game');
       setLeaderboard(getLeaderboard());
       resetGame();
-      startGameLoop();
+      // Ensure canvas ref is mounted and painted
+      timer = setTimeout(() => {
+        startGameLoop();
+      }, 60);
     } else {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
       gameStateRef.current = 'idle';
     }
 
     return () => {
+      clearTimeout(timer);
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     };
   }, [isOpen]);
@@ -445,7 +455,7 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn"
+      className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn"
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -644,6 +654,16 @@ export const SultanGame: React.FC<SultanGameProps> = ({ isOpen, onClose }) => {
                 </div>
               )}
             </div>
+
+            {/* Mobile Touch Jump Button */}
+            <button
+              type="button"
+              onClick={jump}
+              className="sm:hidden w-full py-2.5 bg-gradient-to-r from-red-600 to-rose-600 text-white rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-red-600/30 active:scale-95 transition-transform cursor-pointer"
+            >
+              <Gamepad2 size={16} />
+              <span>اقفز الآن (Tap to Jump) 🚀</span>
+            </button>
 
             {/* Controls Info */}
             <p className="text-[11px] text-zinc-400 font-sans">

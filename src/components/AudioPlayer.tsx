@@ -15,7 +15,9 @@ import {
   Mic2,
   Sparkles,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  Waves,
+  Activity
 } from 'lucide-react';
 import { SongTrack } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -35,10 +37,23 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onPlayStateChange,
   accentColor = '#7c5cff'
 }) => {
-  const [currentIdx, setCurrentIdx] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [volume, setVolume] = useState<number>(0.65);
+  const [currentIdx, setCurrentIdx] = useState<number>(0);
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sultan_audio_muted') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [volume, setVolume] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('sultan_audio_volume');
+      return saved !== null ? Math.max(0, Math.min(1, parseFloat(saved))) : 0.65;
+    } catch {
+      return 0.65;
+    }
+  });
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
@@ -48,6 +63,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [lyricsOffset, setLyricsOffset] = useState<number>(0); // manual micro-offset in seconds (+/-)
   const [customTracks, setCustomTracks] = useState<SongTrack[]>(tracks);
   const [freqBars, setFreqBars] = useState<number[]>([15, 25, 45, 70, 50, 30, 20, 40]);
+  const [isWaveformMode, setIsWaveformMode] = useState<boolean>(true);
+  const [hoverTime, setHoverTime] = useState<number | null>(null);
+  const [hoverRatio, setHoverRatio] = useState<number | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const progressTimerRef = useRef<number | null>(null);
@@ -55,6 +73,27 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const activeLineRef = useRef<HTMLDivElement | null>(null);
 
   const activeTrack = customTracks[currentIdx] || customTracks[0];
+
+  // Dynamic 42-bar acoustic signature waveform profile for the active track
+  const trackWaveformData = React.useMemo(() => {
+    const barsCount = 42;
+    const trackSeed = (activeTrack?.title || 'sultan').split('').reduce(
+      (acc, c, idx) => acc + c.charCodeAt(0) * (idx + 1),
+      (activeTrack?.tempo || 90) * 7
+    );
+    const bars: number[] = [];
+    for (let i = 0; i < barsCount; i++) {
+      const x = i / barsCount;
+      const s1 = Math.sin(x * Math.PI * 4 + trackSeed * 0.1) * 0.28;
+      const s2 = Math.cos(x * Math.PI * 8 + trackSeed * 0.05) * 0.18;
+      const s3 = Math.sin(x * Math.PI * 1.5) * 0.35;
+      const noise = ((Math.sin(i * 99 + trackSeed) + 1) / 2) * 0.15;
+      const raw = 0.42 + s1 + s2 + s3 + noise;
+      const clamped = Math.max(0.2, Math.min(0.96, raw));
+      bars.push(clamped);
+    }
+    return bars;
+  }, [activeTrack?.id, activeTrack?.title, activeTrack?.tempo]);
 
   // Parse lyrics into structured timed lines - prioritizing real timedLyrics from the audio
   const parsedLyrics = React.useMemo(() => {
@@ -294,14 +333,29 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const val = parseFloat(e.target.value);
     setVolume(val);
     audioEngine.setVolume(val);
-    if (val === 0) setIsMuted(true);
-    else setIsMuted(false);
+    try {
+      localStorage.setItem('sultan_audio_volume', val.toString());
+    } catch {}
+    if (val === 0) {
+      setIsMuted(true);
+      try {
+        localStorage.setItem('sultan_audio_muted', 'true');
+      } catch {}
+    } else if (isMuted) {
+      setIsMuted(false);
+      try {
+        localStorage.setItem('sultan_audio_muted', 'false');
+      } catch {}
+    }
   };
 
   const handleToggleMute = () => {
     audioEngine.playClickSound();
     const muted = audioEngine.toggleMute();
     setIsMuted(muted);
+    try {
+      localStorage.setItem('sultan_audio_muted', String(muted));
+    } catch {}
     recordSiteLog('كتم الصوت 🔇', muted ? 'تفعيل كتم الصوت' : 'إلغاء كتم الصوت');
   };
 
@@ -444,30 +498,152 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Advanced Audio Waveform Visualizer & Scrubber */}
       <div className="mt-3.5">
-        <div
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-            const newTime = ratio * (activeTrack?.duration || 120);
-            setCurrentTime(newTime);
-            audioEngine.seek(newTime);
-          }}
-          className="relative w-full h-1.5 bg-white/10 hover:h-2 rounded-full cursor-pointer transition-all overflow-hidden"
-        >
+        {isWaveformMode ? (
           <div
-            className="absolute top-0 bottom-0 left-0 rounded-full transition-all"
-            style={{
-              width: `${progressPercent}%`,
-              background: `linear-gradient(90deg, #ef4444, ${trackColor}, #ffffff)`
+            className="relative w-full h-12 bg-black/45 border border-white/10 rounded-xl px-2 py-1.5 flex items-end justify-between gap-[2px] cursor-pointer group/wave overflow-hidden backdrop-blur-md select-none transition-all hover:border-white/20"
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              setHoverRatio(ratio);
+              setHoverTime(ratio * (activeTrack?.duration || 120));
             }}
-          />
-        </div>
+            onMouseLeave={() => {
+              setHoverRatio(null);
+              setHoverTime(null);
+            }}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              const newTime = ratio * (activeTrack?.duration || 120);
+              setCurrentTime(newTime);
+              audioEngine.seek(newTime);
+              audioEngine.playClickSound();
+            }}
+          >
+            {/* Ambient Background Waveform Glow */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-20 transition-opacity duration-300 group-hover/wave:opacity-40"
+              style={{
+                background: `radial-gradient(ellipse at ${progressPercent}% 100%, ${trackColor} 0%, transparent 70%)`
+              }}
+            />
 
-        <div className="flex justify-between items-center text-[10px] font-mono-custom text-zinc-400 mt-1">
-          <span>{formatSec(currentTime)}</span>
-          <span>{formatSec(activeTrack?.duration || 120)}</span>
+            {/* Hover Time Capsule Preview */}
+            {hoverTime !== null && hoverRatio !== null && (
+              <div
+                className="absolute -top-7 z-30 -translate-x-1/2 pointer-events-none px-2 py-0.5 rounded-md bg-[#131326] border border-white/20 text-[10px] font-mono-custom text-cyan-300 shadow-lg flex items-center gap-1"
+                style={{ left: `${hoverRatio * 100}%` }}
+              >
+                <span>{formatSec(hoverTime)}</span>
+                <span className="text-[9px] text-zinc-400">⏱️</span>
+              </div>
+            )}
+
+            {/* Glowing Scrubber Playhead Line */}
+            <div
+              className="absolute top-0 bottom-0 z-20 pointer-events-none transition-all duration-75"
+              style={{ left: `${progressPercent}%` }}
+            >
+              <div
+                className="w-0.5 h-full relative"
+                style={{
+                  background: '#ffffff',
+                  boxShadow: `0 0 10px #ffffff, 0 0 18px ${trackColor}`
+                }}
+              >
+                <div
+                  className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full border border-white shadow-sm animate-pulse"
+                  style={{ background: trackColor }}
+                />
+              </div>
+            </div>
+
+            {/* 42 Dynamic Interactive Waveform Bars */}
+            {trackWaveformData.map((baseRatio, idx) => {
+              const barPercent = (idx / (trackWaveformData.length - 1)) * 100;
+              const isPlayed = barPercent <= progressPercent;
+
+              // Calculate dynamic height reactive to frequency when playing
+              const dynamicFreq = isPlaying
+                ? ((freqBars[idx % freqBars.length] || 15) / 26) * 0.45
+                : 0;
+              const computedRatio = Math.min(1, Math.max(0.18, baseRatio + dynamicFreq));
+              const barHeightPx = Math.round(computedRatio * 38);
+
+              return (
+                <div
+                  key={idx}
+                  className="flex-1 flex flex-col justify-end items-center h-full relative z-10 transition-all duration-75"
+                >
+                  <span
+                    className="w-full max-w-[5px] rounded-t-full transition-all duration-100"
+                    style={{
+                      height: `${barHeightPx}px`,
+                      background: isPlayed
+                        ? `linear-gradient(to top, ${trackColor}, #f59e0b, #ffffff)`
+                        : 'rgba(255, 255, 255, 0.15)',
+                      boxShadow: isPlayed && isPlaying ? `0 0 8px ${trackColor}80` : 'none',
+                      opacity: isPlayed ? 1 : 0.65
+                    }}
+                  />
+                  {/* Subtle lower reflection */}
+                  <span
+                    className="w-full max-w-[5px] h-[3px] rounded-b-full opacity-30 mt-[1px]"
+                    style={{
+                      background: isPlayed ? trackColor : 'rgba(255,255,255,0.08)'
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Classic Linear Scrubber */
+          <div
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              const newTime = ratio * (activeTrack?.duration || 120);
+              setCurrentTime(newTime);
+              audioEngine.seek(newTime);
+            }}
+            className="relative w-full h-2 bg-white/10 hover:h-2.5 rounded-full cursor-pointer transition-all overflow-hidden"
+          >
+            <div
+              className="absolute top-0 bottom-0 left-0 rounded-full transition-all"
+              style={{
+                width: `${progressPercent}%`,
+                background: `linear-gradient(90deg, #ef4444, ${trackColor}, #ffffff)`
+              }}
+            />
+          </div>
+        )}
+
+        {/* Timestamps & Waveform Switcher Pill */}
+        <div className="flex justify-between items-center text-[10px] font-mono-custom text-zinc-400 mt-1.5 px-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-white font-bold">{formatSec(currentTime)}</span>
+            <span className="text-zinc-500">/</span>
+            <span>{formatSec(activeTrack?.duration || 120)}</span>
+          </div>
+
+          <button
+            onClick={() => {
+              audioEngine.playClickSound();
+              setIsWaveformMode(!isWaveformMode);
+            }}
+            className={`px-2 py-0.5 rounded-full border text-[9px] flex items-center gap-1 transition-all ${
+              isWaveformMode
+                ? 'text-cyan-300 bg-cyan-500/10 border-cyan-500/30'
+                : 'text-zinc-400 bg-white/5 border-white/10 hover:text-white'
+            }`}
+            title="تبديل وضع العرض بين الموجات والشريط"
+          >
+            <Waves size={11} className={isWaveformMode ? 'animate-pulse' : ''} />
+            <span>{isWaveformMode ? 'موجات حية 🎛️' : 'شريط بسيط'}</span>
+          </button>
         </div>
       </div>
 

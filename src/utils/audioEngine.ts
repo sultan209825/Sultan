@@ -79,6 +79,12 @@ class AudioEngine {
     return this.isMuted;
   }
 
+  public setMuted(muted: boolean): boolean {
+    this.isMuted = muted;
+    this.setVolume(this.volume);
+    return this.isMuted;
+  }
+
   public getAnalyser(): AnalyserNode | null {
     return this.analyser;
   }

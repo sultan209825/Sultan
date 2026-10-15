@@ -31,7 +31,6 @@ import { CustomCursorEffects } from './components/CustomCursorEffects';
 import { GlobalCustomTooltip } from './components/GlobalCustomTooltip';
 import { LoadingScreen } from './components/LoadingScreen';
 import { GamerHub } from './components/GamerHub';
-import { ThemeSwitcher } from './components/ThemeSwitcher';
 import { RoyalTicTacToeModal } from './components/RoyalTicTacToeModal';
 import { VisitorLoyaltyModal } from './components/VisitorLoyaltyModal';
 import { recordAndGetLoyalty, VisitorLoyaltyState } from './utils/visitorLoyalty';
@@ -45,8 +44,6 @@ import { generateFullApplicationSourceZip } from './utils/exactAppBuilder';
 import { recordSiteLog, getCurrentClientEnv } from './utils/siteLogger';
 import { sendEmailNotification } from './utils/emailNotifier';
 import { useEcoMode } from './hooks/useEcoMode';
-import { EcoModeToggle } from './components/EcoModeToggle';
-import { PWAInstallButton } from './components/PWAInstallButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { SecretsMinigamesView } from './components/SecretsMinigamesView';
 import { SectionModal } from './components/SectionModal';
@@ -161,6 +158,26 @@ export default function App() {
 
     return () => {
       unsubscribe();
+    };
+  }, []);
+
+  // Global User Gesture AudioContext Unlock (Prevents Browser Autoplay Restrictions)
+  useEffect(() => {
+    const unlockAudio = () => {
+      audioEngine.init();
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { once: true });
+    window.addEventListener('keydown', unlockAudio, { once: true });
+    window.addEventListener('touchstart', unlockAudio, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+      window.removeEventListener('touchstart', unlockAudio);
     };
   }, []);
 
@@ -552,6 +569,27 @@ export default function App() {
     }
   };
 
+  const handleCycleTheme = () => {
+    audioEngine.playPowerUpSound();
+    const themeKeys: ThemeId[] = [
+      'blood_royal',
+      'imperial_gold',
+      'cyber_neon',
+      'stealth_black',
+      'emerald_dynasty',
+      'royal'
+    ];
+    const currentIndex = themeKeys.indexOf(config.theme as ThemeId);
+    const nextTheme = themeKeys[(currentIndex + 1) % themeKeys.length];
+    setConfig((prev) => {
+      const updated = { ...prev, theme: nextTheme };
+      safeLocalStorage.setItem('sultan_site_config', JSON.stringify(updated));
+      safeLocalStorage.setItem('sultan_theme', nextTheme);
+      return updated;
+    });
+    recordSiteLog('تبديل الثيم 🎨', `تغيير الثيم إلى ${nextTheme} من الكليك يمين`);
+  };
+
   const activeTheme = getTheme(config.theme);
   const themeAccent = activeTheme.accentHex;
 
@@ -613,51 +651,16 @@ export default function App() {
           >
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0 shadow-[0_0_8px_#10b981]" />
             <div className="flex items-baseline gap-1.5 truncate">
-              <span className="font-black text-white text-xs sm:text-sm tracking-wide">سلطان • SULTAN</span>
+              <span className="font-black text-white text-[11px] xs:text-xs sm:text-sm tracking-wide truncate">سلطان • SULTAN</span>
               <span className="text-zinc-300 font-mono text-[10px] sm:text-xs hidden xs:inline font-medium">
                 {config.footerDomain || 'sultansusu.vercel.app'}
               </span>
             </div>
           </div>
 
-          {/* Unified Quick Controls Capsule (Feature 3) */}
-          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl shadow-inner shrink-0">
-            {/* Eco Mode / Performance Mode Switcher */}
-            <EcoModeToggle
-              isEcoMode={isEcoMode}
-              onToggle={toggleEcoMode}
-              battery={battery}
-            />
-
-            {/* In-App PWA Install Button */}
-            <PWAInstallButton variant="header" />
-
-            {/* Theme Picker */}
-            <ThemeSwitcher
-              currentTheme={config.theme}
-              onThemeChange={(newTh) => {
-                setConfig((prev) => {
-                  const updated = { ...prev, theme: newTh };
-                  safeLocalStorage.setItem('sultan_site_config', JSON.stringify(updated));
-                  return updated;
-                });
-              }}
-            />
-
-            {/* Settings & Overlays Panel Button */}
-            <button
-              onClick={() => {
-                audioEngine.playClickSound();
-                setIsAdminOpen(true);
-              }}
-              title="لوحة الإعدادات والتأثيرات ⚙️"
-              className="p-1.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1 group cursor-pointer"
-            >
-              <Settings size={14} className="group-hover:rotate-45 transition-transform duration-300 text-zinc-300" />
-              <span className="text-[10px] hidden sm:inline font-bold">الإعدادات</span>
-            </button>
-
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-red-600/15 border border-red-500/20 text-red-300 font-bold text-[10px] sm:text-[11px] font-mono shrink-0">
+          {/* Clean Royal Brand Badge */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/15 border border-red-500/25 text-red-300 font-bold text-[11px] font-mono shadow-[0_0_15px_rgba(239,68,68,0.2)]">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
               <span>𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪</span>
             </div>
@@ -762,14 +765,29 @@ export default function App() {
         onOpenGame={() => {
           audioEngine.playClickSound();
           setIsGameOpen(true);
-          recordSiteLog('تشغيل لعبة السلطان 🎮', 'بدء لعبة الركض من القائمة السريعة');
+          recordSiteLog('تشغيل لعبة السلطان 🎮', 'بدء لعبة الركض من القائمة الملكية');
         }}
-        onOpenSettings={() => {
+        onOpenTicTacToe={() => {
           audioEngine.playClickSound();
-          setIsAdminOpen(true);
+          setIsTicTacToeOpen(true);
+          recordSiteLog('تشغيل لعبة إكس أو 🎲', 'بدء لعبة XO من القائمة الملكية');
+        }}
+        onOpenRadar={() => {
+          window.dispatchEvent(new CustomEvent('sultan-open-radar'));
+          recordSiteLog('فتح رادار الديسكورد 📡', 'فتح رادار الديسكورد من القائمة الملكية');
+        }}
+        onOpenLoyalty={() => {
+          audioEngine.playClickSound();
+          setIsLoyaltyModalOpen(true);
+          recordSiteLog('فتح أوسمة الولاء 👑', 'فتح أوسمة الولاء من القائمة الملكية');
         }}
         onShare={handleSharePage}
         discordUrl={config.socials?.discord || 'https://discord.gg/TUU6EeC6pb'}
+        discordUsername={config.handle || '5susu'}
+        isEcoMode={isEcoMode}
+        onToggleEcoMode={toggleEcoMode}
+        currentTheme={config.theme}
+        onCycleTheme={handleCycleTheme}
       />
       <DiscordSecretRoleModal
         isOpen={isSecretRoleModalOpen}

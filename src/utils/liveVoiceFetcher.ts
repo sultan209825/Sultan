@@ -55,22 +55,24 @@ export function parseWidgetMembersAndVoice(data: any, source: LiveVoiceResult['r
     position: c.position
   }));
 
-  // Find Sultan: strictly match his known username patterns or Discord ID
+  // Find Sultan: strictly match his known username patterns or Discord ID with NFKD Unicode normalization
   const sultanCandidates = members.filter((m: any) => {
-    const u = (m.username || '').toLowerCase();
-    const g = (m.game?.name || '').toLowerCase();
+    const rawU = m.username || '';
+    const normU = rawU.normalize('NFKD').toLowerCase();
+    const rawG = m.game?.name || '';
+    const normG = rawG.normalize('NFKD').toLowerCase();
     return (
       m.id === '1224502828371017788' ||
-      u.includes('5susu') ||
-      u.includes('sultan') ||
-      u.includes('سلطان') ||
-      m.username?.includes('𝑺𝒖𝒍𝒕𝒂𝒏') ||
-      m.username?.includes('𓆩') ||
-      m.username?.includes('𓆪') ||
-      g.includes('sultan') ||
-      g.includes('سلطان') ||
-      g.includes('5susu') ||
-      g.includes('𝑺𝒖𝒍𝒕𝒂𝒏')
+      normU.includes('5susu') ||
+      normU.includes('sultan') ||
+      normU.includes('سلطان') ||
+      rawU.includes('𝑺𝒖𝒍𝒕𝒂𝒏') ||
+      rawU.includes('𓆩') ||
+      rawU.includes('𓆪') ||
+      normG.includes('sultan') ||
+      normG.includes('سلطان') ||
+      normG.includes('5susu') ||
+      rawG.includes('𝑺𝒖𝒍𝒕𝒂𝒏')
     );
   });
 
@@ -149,8 +151,9 @@ export function parseWidgetMembersAndVoice(data: any, source: LiveVoiceResult['r
 /**
  * Universal Multi-Tier Live Voice Telemetry Fetcher:
  * Operates flawlessly across:
- * - External static & shared PHP hosting (InfinityFree, cPanel, Vercel, Netlify)
- * - AI Studio Cloud Run preview & dev environment
+ * - Local dev & Cloud Run preview environment
+ * - Direct Discord Official Widget with native CORS
+ * - External static & shared PHP hosting (InfinityFree, cPanel, Vercel)
  * - Mobile and desktop browsers
  */
 export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
@@ -158,69 +161,12 @@ export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
   let resolved: LiveVoiceResult | null = null;
   const timestampKey = `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-  // Tier 1: Direct Client Fetch to Discord Official Widget API
-  // Supported with native CORS in modern browsers - cache: 'no-store' prevents stale 300s cache
-  try {
-    const directRes = await fetch(`${DISCORD_WIDGET_URL}?_t=${timestampKey}`, {
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        Pragma: 'no-cache'
-      },
-      signal: AbortSignal.timeout(2400)
-    });
-    if (directRes.ok) {
-      const ct = directRes.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
-        const json = await directRes.json();
-        if (json && Array.isArray(json.members)) {
-          resolved = parseWidgetMembersAndVoice(json, 'direct_discord');
-        }
-      }
-    }
-  } catch {}
-
-  // Tier 2: Public High-Speed Proxy fallback (Jina AI) with fresh timestamp
-  if (!resolved) {
-    try {
-      const proxyRes = await fetch(
-        `https://r.jina.ai/${DISCORD_WIDGET_URL}?_t=${timestampKey}`,
-        {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            Pragma: 'no-cache',
-            'x-no-cache': 'true'
-          },
-          signal: AbortSignal.timeout(3000)
-        }
-      );
-      if (proxyRes.ok) {
-        const text = await proxyRes.text();
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-          const json = JSON.parse(text.slice(firstBrace, lastBrace + 1));
-          if (json && Array.isArray(json.members)) {
-            resolved = parseWidgetMembersAndVoice(json, 'jina_proxy');
-          }
-        }
-      }
-    } catch {}
-  }
-
-  // Tier 3: Local Dev / Same-origin server proxy route (/api/discord/live-voice)
-  if (!resolved && typeof window !== 'undefined') {
+  // Tier 1: Local Dev & Cloud Run server proxy (/api/discord/live-voice)
+  if (typeof window !== 'undefined') {
     try {
       const localRes = await fetch(`/api/discord/live-voice?bypassCache=1&_t=${timestampKey}`, {
-        cache: 'no-store',
-        headers: {
-          Accept: 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          Pragma: 'no-cache'
-        },
-        signal: AbortSignal.timeout(2800)
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(3500)
       });
       if (localRes.ok) {
         const ct = localRes.headers.get('content-type') || '';
@@ -253,24 +199,51 @@ export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
     } catch {}
   }
 
-  // Tier 4: Hosting PHP Proxy (if deployed on cPanel / shared host where api_discord_radar.php exists)
+  // Tier 2: Direct Client Fetch to Discord Official Widget API
+  // NOTE: Do NOT send custom headers like Cache-Control/Pragma which trigger preflight OPTIONS failure.
+  // Standard simple GET request natively receives 'access-control-allow-origin: *' from Discord.
   if (!resolved) {
     try {
+      const directRes = await fetch(`${DISCORD_WIDGET_URL}?_t=${timestampKey}`, {
+        signal: AbortSignal.timeout(4000)
+      });
+      if (directRes.ok) {
+        const json = await directRes.json();
+        if (json && Array.isArray(json.members)) {
+          resolved = parseWidgetMembersAndVoice(json, 'direct_discord');
+        }
+      }
+    } catch {}
+  }
+
+  // Tier 3: External hosting PHP Proxy (if deployed on cPanel / shared host where api_discord_radar.php exists)
+  if (!resolved && typeof window !== 'undefined') {
+    try {
       const phpRes = await fetch(`./api_discord_radar.php?_t=${timestampKey}`, {
-        cache: 'no-store',
-        headers: {
-          Accept: 'application/json'
-        },
+        headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(2500)
       });
       if (phpRes.ok) {
-        const ct = phpRes.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          const json = await phpRes.json();
-          const widgetData = json?.data || json;
-          if (widgetData && Array.isArray(widgetData.members)) {
-            resolved = parseWidgetMembersAndVoice(widgetData, 'php_host');
-          }
+        const json = await phpRes.json();
+        const widgetData = json?.data || json;
+        if (widgetData && Array.isArray(widgetData.members)) {
+          resolved = parseWidgetMembersAndVoice(widgetData, 'php_host');
+        }
+      }
+    } catch {}
+  }
+
+  // Tier 4: Public CORS Proxy fallback (allorigins)
+  if (!resolved) {
+    try {
+      const proxyRes = await fetch(
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(DISCORD_WIDGET_URL)}`,
+        { signal: AbortSignal.timeout(3500) }
+      );
+      if (proxyRes.ok) {
+        const json = await proxyRes.json();
+        if (json && Array.isArray(json.members)) {
+          resolved = parseWidgetMembersAndVoice(json, 'jina_proxy');
         }
       }
     } catch {}
@@ -300,19 +273,18 @@ export async function fetchLiveVoiceTelemetry(): Promise<LiveVoiceResult> {
   }
 
   // Tier 5: Real-time Lanyard Cross-Verification
-  // Guarantees 100% accurate online/offline and cleans voice state when PC is off
+  // Updates online/offline status, but NEVER clears voice state if Discord Guild Widget explicitly found him in a channel
   try {
     const lanRes = await fetch('https://api.lanyard.rest/v1/users/1224502828371017788', {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(2000)
+      signal: AbortSignal.timeout(2500)
     });
     if (lanRes.ok) {
       const lanData = await lanRes.json();
       const dStatus = lanData?.data?.discord_status;
       if (dStatus) {
         resolved.status = dStatus;
-        if (dStatus === 'offline') {
-          resolved.inVoice = false;
+        // Only if Discord widget did NOT find him in voice AND Lanyard reports offline
+        if (dStatus === 'offline' && !resolved.inVoice) {
           resolved.channelId = null;
           resolved.isMuted = false;
           resolved.selfMute = false;

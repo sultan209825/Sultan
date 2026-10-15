@@ -256,15 +256,56 @@ export const DiscordSecretRoleModal: React.FC<DiscordSecretRoleModalProps> = ({
     onClose();
   };
 
+  const [touchStartY, setTouchStartY] = React.useState<number | null>(null);
+  const [dragOffset, setDragOffset] = React.useState<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 85) {
+      handleClose();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
+  const handleTouchCancel = () => {
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   return (
     <div
       onClick={handleClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-3xl bg-[#0e0e15] border border-amber-500/30 p-6 shadow-2xl shadow-amber-500/20 space-y-5"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        style={{
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          touchAction: 'pan-y'
+        }}
+        className="relative w-full max-w-md rounded-t-[32px] sm:rounded-3xl adaptive-frosted-glass bg-[#0e0e15]/90 border border-amber-500/30 p-5 sm:p-6 shadow-2xl shadow-amber-500/20 space-y-5 animate-modal-slide-up transition-transform overscroll-contain max-h-[92vh] overflow-y-auto"
       >
+        {/* Mobile Swipe-to-Dismiss Grab Handle */}
+        <div className="swipe-grab-handle shrink-0" />
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

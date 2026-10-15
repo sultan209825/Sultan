@@ -23,6 +23,9 @@ export const SectionModal: React.FC<SectionModalProps> = ({
 }) => {
   useEffect(() => {
     if (!isOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
@@ -36,11 +39,16 @@ export const SectionModal: React.FC<SectionModalProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      document.body.style.overflow = originalOverflow;
       window.removeEventListener('keydown', handleKeyDown);
       window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
       window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
     };
   }, [isOpen, onClose]);
+
+  const [touchStartY, setTouchStartY] = React.useState<number | null>(null);
+  const [dragOffset, setDragOffset] = React.useState<number>(0);
+  const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
 
   if (!isOpen) return null;
 
@@ -54,6 +62,37 @@ export const SectionModal: React.FC<SectionModalProps> = ({
     onClose();
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Only allow swipe down if the scroll container is at the very top
+    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop > 5) {
+      setTouchStartY(null);
+      return;
+    }
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 85) {
+      handleCloseModal();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
+  const handleTouchCancel = () => {
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   return (
     <div
       className="fixed inset-0 z-[9990] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
@@ -61,14 +100,21 @@ export const SectionModal: React.FC<SectionModalProps> = ({
       dir="rtl"
     >
       <div
-        className="relative w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] bg-[#0a0a14] border border-white/15 rounded-t-[32px] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-modal-slide-up"
+        className="relative w-full max-w-2xl max-h-[92vh] sm:max-h-[88vh] adaptive-frosted-glass bg-[#0a0a14]/90 border border-white/15 rounded-t-[32px] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-modal-slide-up transition-transform overscroll-contain"
         style={{
-          boxShadow: `0 0 50px ${accentColor}30, 0 20px 40px rgba(0,0,0,0.85)`
+          boxShadow: `0 0 50px ${accentColor}30, 0 20px 40px rgba(0,0,0,0.85)`,
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          touchAction: 'pan-y'
         }}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
-        {/* Mobile Slide-in Indicator Handle */}
-        <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto mt-2.5 -mb-1 sm:hidden shrink-0" />
+        {/* Mobile Swipe-to-Dismiss Grab Handle */}
+        <div className="swipe-grab-handle shrink-0 mt-3" />
 
         {/* Modal Top Bar */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
@@ -99,7 +145,7 @@ export const SectionModal: React.FC<SectionModalProps> = ({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {children}
         </div>
       </div>

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { LanyardData, SiteConfig, DailyStory } from '../types';
 import { fetchLanyardUser, subscribeToLanyard, DISCORD_USER_ID } from '../utils/lanyard';
+import { fetchLiveVoiceTelemetry } from '../utils/liveVoiceFetcher';
 import { audioEngine } from '../utils/audioEngine';
 import { getTheme } from '../utils/themeSystem';
 import { DailyStoryModal } from './DailyStoryModal';
@@ -117,6 +118,57 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
     ]
   });
   const dailyStory = config.dailyStory || defaultDailyStory;
+  const [meshCoords, setMeshCoords] = useState<{ x: number; y: number }>({ x: 50, y: 35 });
+
+  const handleLocalMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (cardRef && 'current' in cardRef && cardRef.current && !isEcoMode) {
+      const rect = cardRef.current.getBoundingClientRect();
+      const x = Math.max(5, Math.min(95, ((e.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(5, Math.min(95, ((e.clientY - rect.top) / rect.height) * 100));
+      setMeshCoords({ x, y });
+    }
+    if (onMouseMove) onMouseMove(e);
+  };
+
+  const handleLocalTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (cardRef && 'current' in cardRef && cardRef.current && !isEcoMode && e.touches[0]) {
+      const rect = cardRef.current.getBoundingClientRect();
+      const touch = e.touches[0];
+      const x = Math.max(5, Math.min(95, ((touch.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(5, Math.min(95, ((touch.clientY - rect.top) / rect.height) * 100));
+      setMeshCoords({ x, y });
+    }
+  };
+
+  // Gyroscope tilt reflection support on mobile devices
+  useEffect(() => {
+    if (typeof window === 'undefined' || isEcoMode) return;
+    let isMounted = true;
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (!isMounted) return;
+      if (e.gamma !== null && e.beta !== null) {
+        const xPercent = Math.max(10, Math.min(90, 50 + (e.gamma / 35) * 35));
+        const yPercent = Math.max(10, Math.min(90, 40 + ((e.beta - 35) / 35) * 35));
+        setMeshCoords({ x: xPercent, y: yPercent });
+      }
+    };
+    window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+    return () => {
+      isMounted = false;
+      window.removeEventListener('deviceorientation', handleOrientation);
+    };
+  }, [isEcoMode]);
+
+  // Global event listener to open Radar from context menu or quick actions
+  useEffect(() => {
+    const handleOpenRadarEvent = () => {
+      setIsRadarModalOpen(true);
+      setIsCardHovered(false);
+      audioEngine.playClickSound();
+    };
+    window.addEventListener('sultan-open-radar', handleOpenRadarEvent);
+    return () => window.removeEventListener('sultan-open-radar', handleOpenRadarEvent);
+  }, []);
 
   const handleSectionClick = (sectionKey: string, action?: () => void) => {
     audioEngine.playPowerUpSound();
@@ -132,7 +184,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
   };
 
   useEffect(() => {
-    // 1. Initial fetch from Lanyard & Bot Voice Service (scheduled every 5 seconds as requested)
+    // 1. Initial fetch from Lanyard & Live Voice Telemetry (every 5s)
     const loadUser = async () => {
       try {
         const data = await fetchLanyardUser(DISCORD_USER_ID);
@@ -140,11 +192,9 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
       } catch {}
 
       try {
-        const res = await fetch(`/api/discord/bot-service?_t=${Date.now()}`);
-        if (res.ok) {
-          const botData = await res.json();
-          const svc = botData?.sultanVoiceChannel;
-          if (svc?.inVoice) {
+        const svc = await fetchLiveVoiceTelemetry();
+        if (svc) {
+          if (svc.inVoice || svc.channelId) {
             const chName = svc.channelName || 'غرفة صوتية';
             setCurrentVoiceRoom(chName);
             setVoiceCompanions(svc.companions || []);
@@ -164,7 +214,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
               channelName: svc?.channelName || serverVoiceChannel || '🎤﹒General',
               isMuted: false,
               isDeafened: false,
-              isStreaming: false,
+              isStreaming: Boolean(svc?.isStreaming),
               availableChannels: svc?.availableChannels || []
             });
           }
@@ -697,14 +747,44 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           isCardHovered ? 'animate-sultan-hover-float' : 'animate-sultan-float'
         }`}
       >
-        {/* Dynamic Ambient Room Aura Glow (يعكس حالة ولون الروم الحالي: ألعاب / روقان / خمول) */}
+        {/* Dynamic Interactive Ambient Mesh Glow (نظام إضاءة ديناميكي تفاعلي متقدم) */}
         <div
-          className={`absolute -inset-1.5 rounded-[32px] bg-gradient-to-r ${currentRoomConfig.ambientGlow} blur-2xl opacity-70 pointer-events-none transition-all duration-700`}
-        />
+          className="absolute -inset-3 sm:-inset-6 rounded-[38px] pointer-events-none transition-all duration-700 z-0 overflow-visible"
+          aria-hidden="true"
+        >
+          {/* Main Interactive Mesh Orb tracking cursor/touch */}
+          <div
+            className="absolute w-72 sm:w-88 h-72 sm:h-88 rounded-full blur-3xl opacity-60 transition-all duration-300 pointer-events-none"
+            style={{
+              left: `${meshCoords.x}%`,
+              top: `${meshCoords.y}%`,
+              transform: 'translate(-50%, -50%)',
+              background: `radial-gradient(circle, ${activeTheme.accentHex} 0%, ${activeTheme.secondaryHex || '#6366f1'} 45%, transparent 75%)`
+            }}
+          />
+          {/* Dynamic Secondary Orb based on Spotify / Voice Room / Status */}
+          <div
+            className="absolute -top-10 -right-10 w-64 sm:w-72 h-64 sm:h-72 rounded-full blur-3xl opacity-45 pointer-events-none transition-all duration-700"
+            style={{
+              background: lanyard?.listening_to_spotify
+                ? 'radial-gradient(circle, #10b981 0%, #064e3b 60%, transparent 80%)'
+                : status === 'dnd'
+                ? 'radial-gradient(circle, #ef4444 0%, #881337 60%, transparent 80%)'
+                : status === 'online'
+                ? 'radial-gradient(circle, #22c55e 0%, #14532d 60%, transparent 80%)'
+                : 'radial-gradient(circle, #818cf8 0%, #312e81 60%, transparent 80%)'
+            }}
+          />
+          {/* Base Ambient Room Glow */}
+          <div
+            className={`absolute -inset-1.5 rounded-[32px] bg-gradient-to-r ${currentRoomConfig.ambientGlow} blur-2xl opacity-60 pointer-events-none transition-all duration-700`}
+          />
+        </div>
 
         <div
           ref={cardRef}
-          onMouseMove={onMouseMove}
+          onMouseMove={handleLocalMouseMove}
+          onTouchMove={handleLocalTouchMove}
           onMouseEnter={() => {
             setIsCardHovered(true);
           }}
@@ -712,9 +792,26 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             setIsCardHovered(false);
             onMouseLeave();
           }}
-          className={`w-full relative rounded-3xl ${currentRoomConfig.cardBg} border backdrop-blur-2xl transition-all duration-700 overflow-hidden text-right z-20 ${statusConfig.borderGlow}`}
+          className={`w-full relative rounded-3xl adaptive-frosted-glass ${currentRoomConfig.cardBg} border border-white/10 backdrop-blur-3xl transition-all duration-700 overflow-hidden text-right z-20 ${statusConfig.borderGlow} shadow-[0_20px_60px_-15px_rgba(0,0,0,0.85)]`}
           dir="rtl"
         >
+      {/* Adaptive Frosted Glass Specular Sheen (انعكاس زجاجي تفاعلي يتبع حركة الفأرة وإمالة الهاتف) */}
+      <div
+        className="absolute inset-0 pointer-events-none z-25 rounded-3xl overflow-hidden transition-opacity duration-300"
+        style={{
+          background: `radial-gradient(650px circle at ${meshCoords.x}% ${meshCoords.y}%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 35%, transparent 70%)`,
+          mixBlendMode: 'screen'
+        }}
+      />
+
+      {/* Tactile Frosted Glass Micro-Ring & Prismatic Edge */}
+      <div
+        className="absolute inset-0 pointer-events-none z-25 rounded-3xl"
+        style={{
+          boxShadow: `inset 0 1.5px 2px 0 rgba(255, 255, 255, 0.18), inset 0 -1.5px 2px 0 rgba(0, 0, 0, 0.5)`
+        }}
+      />
+
       {/* Dynamic Profile Effect: Floating particles */}
       <div className="absolute inset-0 pointer-events-none z-15 overflow-hidden">
         <div className="absolute top-8 left-1/4 w-1.5 h-1.5 rounded-full bg-cyan-300/60 blur-[0.5px] animate-ping duration-1000" />
@@ -782,8 +879,8 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
         </div>
       </div>
 
-      {/* Main Body below Banner */}
-      <div className="px-4 sm:px-7 pb-6 space-y-4 sm:space-y-5">
+      {/* Main Body below Banner with clean mobile cadence */}
+      <div className="px-3.5 xs:px-4 sm:px-7 pb-5 sm:pb-6 space-y-3.5 sm:space-y-5">
         {/* 2. Avatar Overlap Zone with Live Decoration / Frame & Story Ring */}
         <div className="flex flex-wrap items-end justify-between -mt-12 sm:-mt-16 relative z-10 mb-2 gap-2">
           {/* Steady Calm Avatar with Status Indicator and Live Story Ring */}
@@ -1036,9 +1133,10 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </div>
           </div>
 
-          {/* Feature 2: رادار حالة اللعب والنشاط الفوري (Live Gaming Activity Badge) */}
+          {/* Feature 2: رادار حالة اللعب والنشاط الفوري (Live Gaming & Voice Activity Badge) */}
           {(() => {
-            const isOffline = !lanyard?.discord_status || lanyard.discord_status === 'offline';
+            const isVoice = Boolean(voiceStateDetails.inVoice);
+            const isOffline = !isVoice && (!lanyard?.discord_status || lanyard.discord_status === 'offline');
             const currentGame = lanyard?.activities?.find((a) => a.type === 0)?.name;
             const spotifySong = lanyard?.listening_to_spotify ? lanyard.spotify?.song : null;
 
@@ -1054,26 +1152,30 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
                 className={`group/radar relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-150 active:scale-95 cursor-pointer ${
                   isOffline
                     ? 'bg-zinc-900/80 border-zinc-700/60 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200 shadow-sm'
+                    : isVoice
+                    ? 'bg-gradient-to-r from-cyan-950/80 via-blue-950/60 to-black/80 border-cyan-400/60 text-cyan-200 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:border-cyan-300 ring-1 ring-cyan-500/40'
                     : currentGame
                     ? 'bg-gradient-to-r from-purple-950/70 via-indigo-950/50 to-blue-950/70 border-purple-500/40 text-purple-200 shadow-[0_0_15px_rgba(168,85,247,0.25)] hover:border-purple-400'
                     : spotifySong
                     ? 'bg-gradient-to-r from-emerald-950/70 via-teal-950/50 to-black/70 border-emerald-500/40 text-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:border-emerald-400'
                     : 'bg-gradient-to-r from-cyan-950/70 via-sky-950/50 to-blue-950/70 border-cyan-500/40 text-cyan-200 shadow-[0_0_15px_rgba(6,182,212,0.2)] hover:border-cyan-400'
                 }`}
-                data-tooltip="عرض رادار الألعاب والنشاط المباشر للسلطان"
+                data-tooltip="عرض رادار الألعاب والصوت المباشر للسلطان"
               >
                 <span className={`w-2 h-2 rounded-full shrink-0 ${
                   isOffline ? 'bg-zinc-500' : 'bg-emerald-400 animate-ping'
                 }`} />
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="text-zinc-400 font-medium">
-                    {isOffline ? 'الرادار:' : currentGame ? 'يلعب الآن:' : spotifySong ? 'يستمع إلى:' : 'الحالة:'}
+                    {isOffline ? 'الرادار:' : isVoice ? 'بالروم الصوتي:' : currentGame ? 'يلعب الآن:' : spotifySong ? 'يستمع إلى:' : 'الحالة:'}
                   </span>
                   <span className={`font-bold truncate max-w-[130px] sm:max-w-[160px] ${
-                    isOffline ? 'text-zinc-400' : currentGame ? 'text-purple-300' : spotifySong ? 'text-emerald-300' : 'text-cyan-300'
+                    isOffline ? 'text-zinc-400' : isVoice ? 'text-cyan-300 font-extrabold' : currentGame ? 'text-purple-300' : spotifySong ? 'text-emerald-300' : 'text-cyan-300'
                   }`}>
                     {isOffline
                       ? 'وضع الاستعداد 💤'
+                      : isVoice
+                      ? `${voiceStateDetails.channelName || 'في الروم الصوتي'} 🎙️`
                       : currentGame || (spotifySong ? `${spotifySong} 🎵` : 'متصل ديسكورد 💬')}
                   </span>
                 </div>
@@ -1164,48 +1266,63 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
           </div>
         )}
 
-        {/* 9. Discord Server Live Box (Friends For Ever) with Tactile CTA */}
-        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-950/30 to-[#0e0d1c] border border-indigo-500/25 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
-                👑
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
-                  <span className="truncate">{serverName}</span>
-                  <ExternalLink size={12} className="text-indigo-400 shrink-0" />
-                </h2>
-                <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-zinc-300 font-mono">
-                  <span className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                    <span className="text-emerald-400 font-bold">{onlineMembers}</span> متصل
-                  </span>
-                  <span>•</span>
-                  <span>
-                    <span className="text-zinc-200 font-bold">{totalMembers}</span> عضو
-                  </span>
+        {/* 9. Discord & TikTok High-Converting Magnetic Pulse CTAs */}
+        <div className="space-y-3.5">
+          {/* 9.1 Discord Server Magnetic Pulse CTA */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-[#0d0c1e] to-[#0c0b1a] border border-indigo-500/30 shadow-[0_0_25px_rgba(88,101,242,0.15)] space-y-3 relative overflow-hidden group/discordbox">
+            {/* Ambient Breathing Pulse Aura */}
+            <div className="absolute -top-12 -right-12 w-36 h-36 rounded-full bg-indigo-600/20 blur-2xl pointer-events-none transition-all duration-500 group-hover/discordbox:bg-indigo-500/35" />
+            <div className="absolute -bottom-12 -left-12 w-36 h-36 rounded-full bg-purple-600/20 blur-2xl pointer-events-none" />
+
+            <div className="flex items-center justify-between gap-2 relative z-10">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md shrink-0">
+                  👑
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+                    <span className="truncate">{serverName}</span>
+                    <ExternalLink size={12} className="text-indigo-400 shrink-0" />
+                  </h2>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-[11px] text-zinc-300 font-mono">
+                    <span className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                      <span className="text-emerald-400 font-bold">{onlineMembers}</span> متصل
+                    </span>
+                    <span>•</span>
+                    <span>
+                      <span className="text-zinc-200 font-bold">{totalMembers}</span> عضو
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              <span className="text-[10px] sm:text-[11px] font-mono text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 font-bold">
+                TUU6EeC6pb
+              </span>
             </div>
 
-            <span className="text-[10px] sm:text-[11px] font-mono text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 shrink-0 font-bold">
-              TUU6EeC6pb
-            </span>
+            {/* Magnetic Pulse Discord CTA Button */}
+            <a
+              href="https://discord.gg/TUU6EeC6pb"
+              target="_blank"
+              rel="noopener noreferrer"
+              onMouseEnter={playHover}
+              onTouchStart={playHover}
+              onClick={() => audioEngine.playPowerUpSound()}
+              className="relative group/cta w-full min-h-[48px] py-3 px-4 bg-gradient-to-r from-indigo-600 via-[#5865F2] to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all duration-300 flex items-center justify-center gap-2.5 shadow-[0_0_20px_rgba(88,101,242,0.4)] hover:shadow-[0_0_35px_rgba(88,101,242,0.7)] hover:scale-[1.02] active:scale-95 cursor-pointer overflow-hidden border border-white/20"
+            >
+              <span className="absolute inset-0 rounded-xl bg-white/20 opacity-0 group-hover/cta:opacity-100 group-hover/cta:animate-ping duration-1000 pointer-events-none" />
+              <div className="p-1 rounded-lg bg-white/10 text-white">
+                <MessageSquare size={16} className="group-hover/cta:rotate-12 transition-transform" />
+              </div>
+              <span className="font-extrabold tracking-wide">انضم لسيرفر السلطان (Friends For Ever) 🚀</span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-400/30 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span>متصل</span>
+              </span>
+            </a>
           </div>
-
-          <a
-            href="https://discord.gg/TUU6EeC6pb"
-            target="_blank"
-            rel="noopener noreferrer"
-            onMouseEnter={playHover}
-            onTouchStart={playHover}
-            onClick={() => audioEngine.playClickSound()}
-            className="w-full min-h-[46px] py-2.5 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 hover:scale-[1.01] active:scale-95 cursor-pointer"
-          >
-            <MessageSquare size={16} />
-            <span>انضم لسيرفر السلطان (Friends For Ever) 🚀</span>
-          </a>
         </div>
 
         {/* 10. Rating Section with tactile CSS Scale */}

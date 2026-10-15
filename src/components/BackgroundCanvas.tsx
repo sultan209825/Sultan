@@ -170,7 +170,16 @@ export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
 
     window.addEventListener('click', handleWindowClick);
 
-    const render = () => {
+    let lastTime = 0;
+    const isSmallScreen = window.innerWidth < 768;
+    const frameInterval = (isSmallScreen || ecoMode) ? (1000 / 30) : (1000 / 60);
+
+    const render = (time: number) => {
+      animId = requestAnimationFrame(render);
+      if (document.hidden) return;
+      if (time - lastTime < frameInterval) return;
+      lastTime = time;
+
       ctx.clearRect(0, 0, width, height);
       const [rAccent, gAccent, bAccent] = hexToRgb(accentColor);
 
@@ -646,11 +655,9 @@ export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
         ctx.fill();
         ctx.restore();
       });
-
-      animId = requestAnimationFrame(render);
     };
 
-    render();
+    animId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animId);
@@ -817,8 +824,16 @@ export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
     }));
 
     let lastShootingStarSpawn = 0;
+    let lastAtmosTime = 0;
+    const isSmallAtmos = window.innerWidth < 768;
+    const atmosInterval = (isSmallAtmos || ecoMode) ? (1000 / 30) : (1000 / 60);
 
     const renderAtmos = (timestamp: number) => {
+      animId = requestAnimationFrame(renderAtmos);
+      if (document.hidden) return;
+      if (timestamp - lastAtmosTime < atmosInterval) return;
+      lastAtmosTime = timestamp;
+
       ctx.clearRect(0, 0, width, height);
       time += 0.016;
 
@@ -1063,8 +1078,6 @@ export const BackgroundCanvas: React.FC<BackgroundCanvasProps> = ({
         });
         ctx.restore();
       }
-
-      animId = requestAnimationFrame(renderAtmos);
     };
 
     animId = requestAnimationFrame(renderAtmos);

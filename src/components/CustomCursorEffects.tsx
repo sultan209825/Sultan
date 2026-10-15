@@ -59,7 +59,7 @@ export const CustomCursorEffects: React.FC = () => {
         spark.style.backgroundColor = Math.random() > 0.5 ? '#ef4444' : '#ffd700';
         spark.style.boxShadow = '0 0 6px rgba(255, 215, 0, 0.8)';
         spark.style.pointerEvents = 'none';
-        spark.style.zIndex = '99999';
+        spark.style.zIndex = '100003';
         document.body.appendChild(spark);
 
         const angle = Math.random() * Math.PI * 2;
@@ -96,9 +96,9 @@ export const CustomCursorEffects: React.FC = () => {
 
   return (
     <>
-      {/* Outer Glow Follower */}
+      {/* Outer Glow Follower - High Z-Index to remain above Context Menu */}
       <div
-        className="custom-cursor fixed pointer-events-none z-[9998] -translate-x-1/2 -translate-y-1/2 rounded-full transition-[width,height,background-color,border-color,box-shadow] duration-200 ease-out"
+        className="custom-cursor fixed pointer-events-none z-[100001] -translate-x-1/2 -translate-y-1/2 rounded-full transition-[width,height,background-color,border-color,box-shadow] duration-200 ease-out"
         style={{
           left: `${glowPos.x}px`,
           top: `${glowPos.y}px`,
@@ -116,9 +116,9 @@ export const CustomCursorEffects: React.FC = () => {
         }}
       />
 
-      {/* Center Precise Dot */}
+      {/* Center Precise Dot - High Z-Index */}
       <div
-        className="custom-cursor fixed pointer-events-none z-[9999] -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform duration-100 ease-out"
+        className="custom-cursor fixed pointer-events-none z-[100002] -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform duration-100 ease-out"
         style={{
           left: `${pos.x}px`,
           top: `${pos.y}px`,

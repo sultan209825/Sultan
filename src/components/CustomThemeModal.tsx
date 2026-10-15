@@ -53,7 +53,42 @@ export const CustomThemeModal: React.FC<CustomThemeModalProps> = ({
     onClose();
   };
 
+  // Swipe to dismiss state
+  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState<number>(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === null) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+    if (diff > 0) {
+      setDragOffset(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (dragOffset > 85) {
+      handleClose();
+    }
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
+  const handleTouchCancel = () => {
+    setDragOffset(0);
+    setTouchStartY(null);
+  };
+
   const handleClose = () => {
+    window.dispatchEvent(new CustomEvent('sultan-clear-hover-state'));
+    window.dispatchEvent(new CustomEvent('hide-custom-tooltip'));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
     audioEngine.playClickSound();
     onClose();
   };
@@ -63,16 +98,26 @@ export const CustomThemeModal: React.FC<CustomThemeModalProps> = ({
   return (
     <div
       onClick={handleClose}
-      className="fixed inset-0 z-[9995] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9995] flex items-end sm:items-center justify-center p-0 sm:p-5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
       dir="rtl"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md bg-[#0e0e18] border border-white/15 rounded-3xl p-5 sm:p-6 shadow-2xl text-white space-y-4 animate-modal-slide-up max-h-[92vh] overflow-y-auto"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
         style={{
-          boxShadow: `0 0 40px ${colors.accentHex}35, 0 20px 40px rgba(0,0,0,0.8)`
+          boxShadow: `0 0 40px ${colors.accentHex}35, 0 20px 40px rgba(0,0,0,0.8)`,
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : undefined,
+          transition: dragOffset === 0 ? 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          touchAction: 'pan-y'
         }}
+        className="relative w-full max-w-md bg-[#0e0e18] border border-white/15 rounded-t-[32px] sm:rounded-3xl p-5 sm:p-6 shadow-2xl text-white space-y-4 animate-modal-slide-up transition-transform overscroll-contain max-h-[92vh] overflow-y-auto"
       >
+        {/* Mobile Swipe-to-Dismiss Grab Handle */}
+        <div className="w-12 h-1.5 rounded-full bg-white/25 hover:bg-white/40 mx-auto -mt-1 -mb-1 cursor-grab shrink-0 transition-colors" />
+
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">

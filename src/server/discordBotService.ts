@@ -97,11 +97,9 @@ async function fetchGuildWidgetData(guildId: string, force = false): Promise<any
       const res = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
           Accept: 'application/json'
         },
-        signal: AbortSignal.timeout(1800)
+        signal: AbortSignal.timeout(4000)
       });
       if (res.ok) {
         const json = await res.json();
@@ -113,21 +111,18 @@ async function fetchGuildWidgetData(guildId: string, force = false): Promise<any
           return json;
         }
       } else if (res.status === 429) {
-        // Block direct Discord calls for 2 minutes to prevent slowing down requests
-        rateLimitBlockedUntil = now + 120000;
+        rateLimitBlockedUntil = now + 10000;
       }
     } catch {}
   }
 
-  // 2. High-resilience Jina proxy fallback with fresh unique timestamp (guarantees live, uncached Discord snapshot)
+  // 2. High-resilience proxy fallback with fresh unique timestamp
   try {
     const timestampKey = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const jinaRes = await fetch(`https://r.jina.ai/https://discord.com/api/guilds/${guildId}/widget.json?_t=${timestampKey}`, {
       headers: {
         'User-Agent': 'Mozilla/5.0',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'x-no-cache': 'true'
+        Accept: 'application/json'
       },
       signal: AbortSignal.timeout(3500)
     });
@@ -163,22 +158,24 @@ export async function getLiveVoiceState(guildId: string = '1306240131224571957',
     const data = await fetchGuildWidgetData(guildId, force);
 
     if (data && Array.isArray(data.members)) {
-      // Find Sultan: strictly match his known username patterns or Discord ID (do NOT match generic m.id === '0' which matches everyone)
+      // Find Sultan: strictly match his known username patterns or Discord ID with NFKD Unicode normalization
       const sultanCandidates = data.members.filter((m: any) => {
-        const u = (m.username || '').toLowerCase();
-        const g = (m.game?.name || '').toLowerCase();
+        const rawU = m.username || '';
+        const normU = rawU.normalize('NFKD').toLowerCase();
+        const rawG = m.game?.name || '';
+        const normG = rawG.normalize('NFKD').toLowerCase();
         return (
           m.id === '1224502828371017788' ||
-          u.includes('5susu') ||
-          u.includes('sultan') ||
-          u.includes('سلطان') ||
-          m.username?.includes('𝑺𝒖𝒍𝒕𝒂𝒏') ||
-          m.username?.includes('𓆩') ||
-          m.username?.includes('𓆪') ||
-          g.includes('sultan') ||
-          g.includes('سلطان') ||
-          g.includes('5susu') ||
-          g.includes('𝑺𝒖𝒍𝒕𝒂𝒏')
+          normU.includes('5susu') ||
+          normU.includes('sultan') ||
+          normU.includes('سلطان') ||
+          rawU.includes('𝑺𝒖𝒍𝒕𝒂𝒏') ||
+          rawU.includes('𓆩') ||
+          rawU.includes('𓆪') ||
+          normG.includes('sultan') ||
+          normG.includes('سلطان') ||
+          normG.includes('5susu') ||
+          rawG.includes('𝑺𝒖𝒍𝒕𝒂𝒏')
         );
       });
 
