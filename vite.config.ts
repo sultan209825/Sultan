@@ -101,7 +101,7 @@ function discordApiPlugin() {
         }
 
         // Status of Sultan's Custom Discord Bot & Real-time Live Voice Radar
-        if ((urlPath === '/api/discord/bot-service' || urlPath === '/api/discord/live-voice') && req.method === 'GET') {
+        if ((urlPath === '/api/discord/bot-service' || urlPath === '/api/discord/bot-status' || urlPath === '/api/discord/live-voice') && req.method === 'GET') {
           try {
             const rawUrl = req.url || '';
             const bypassCache = rawUrl.includes('bypassCache=1') || rawUrl.includes('nocache=1');

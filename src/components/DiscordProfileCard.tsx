@@ -26,7 +26,6 @@ import {
   BookOpen,
   Moon,
   Coffee,
-  Clapperboard,
   Tv
 } from 'lucide-react';
 import { LanyardData, SiteConfig, DailyStory } from '../types';
@@ -175,11 +174,9 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
     setPulsingSection(sectionKey);
     setTimeout(() => {
       setPulsingSection(null);
-    }, 450);
+    }, 350);
     if (action) {
-      setTimeout(() => {
-        action();
-      }, 120);
+      action();
     }
   };
 
@@ -1022,7 +1019,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
 
-          {/* 3. الأسرار */}
+          {/* 2. الأسرار */}
           <div className="relative group/sec">
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-amber-600/35 to-yellow-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
             <button
@@ -1046,7 +1043,7 @@ export const DiscordProfileCard: React.FC<DiscordProfileCardProps> = ({
             </button>
           </div>
 
-          {/* 4. الرادار */}
+          {/* 3. الرادار */}
           <div className="relative group/sec">
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-600/35 to-sky-600/35 opacity-0 group-hover/sec:opacity-100 transition-opacity duration-300 blur-md pointer-events-none" />
             <button

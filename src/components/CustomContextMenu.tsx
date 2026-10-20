@@ -267,13 +267,13 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
             onOpenGame?.();
             setVisible(false);
           }}
-          className="p-2 rounded-xl bg-gradient-to-b from-red-950/40 to-black border border-red-500/30 hover:border-red-400 text-center flex flex-col items-center justify-center gap-1 group transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+          className="p-1.5 sm:p-2 rounded-xl bg-gradient-to-b from-red-950/40 to-black border border-red-500/30 hover:border-red-400 text-center flex flex-col items-center justify-center gap-1 group transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
           title="تشغيل لعبة قفزة السلطان"
         >
-          <div className="w-7 h-7 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-colors">
-            <Gamepad2 size={15} />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-red-600/20 text-red-400 flex items-center justify-center group-hover:bg-red-600 group-hover:text-white transition-colors">
+            <Gamepad2 size={14} />
           </div>
-          <span className="text-[10px] font-bold text-zinc-200 group-hover:text-white">قفزة السلطان</span>
+          <span className="text-[9px] sm:text-[10px] font-bold text-zinc-200 group-hover:text-white truncate">القفزة</span>
         </button>
 
         {/* Game 2: Tic-Tac-Toe */}
@@ -283,13 +283,13 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
             onOpenTicTacToe?.();
             setVisible(false);
           }}
-          className="p-2 rounded-xl bg-gradient-to-b from-amber-950/40 to-black border border-amber-500/30 hover:border-amber-400 text-center flex flex-col items-center justify-center gap-1 group transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+          className="p-1.5 sm:p-2 rounded-xl bg-gradient-to-b from-amber-950/40 to-black border border-amber-500/30 hover:border-amber-400 text-center flex flex-col items-center justify-center gap-1 group transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
           title="تحدي إكس أو الملكي"
         >
-          <div className="w-7 h-7 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
-            <Crown size={15} />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-amber-600/20 text-amber-400 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
+            <Crown size={14} />
           </div>
-          <span className="text-[10px] font-bold text-zinc-200 group-hover:text-white">تحدي إكس أو</span>
+          <span className="text-[9px] sm:text-[10px] font-bold text-zinc-200 group-hover:text-white truncate">إكس أو</span>
         </button>
 
         {/* Radar */}
@@ -299,13 +299,13 @@ export const CustomContextMenu: React.FC<CustomContextMenuProps> = ({
             onOpenRadar?.();
             setVisible(false);
           }}
-          className="p-2 rounded-xl bg-gradient-to-b from-cyan-950/40 to-black border border-cyan-500/30 hover:border-cyan-400 text-center flex flex-col items-center justify-center gap-1 group transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
+          className="p-1.5 sm:p-2 rounded-xl bg-gradient-to-b from-cyan-950/40 to-black border border-cyan-500/30 hover:border-cyan-400 text-center flex flex-col items-center justify-center gap-1 group transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm"
           title="فتح رادار نشاط الديسكورد"
         >
-          <div className="w-7 h-7 rounded-lg bg-cyan-600/20 text-cyan-400 flex items-center justify-center group-hover:bg-cyan-600 group-hover:text-white transition-colors">
-            <Radio size={15} className="animate-pulse" />
+          <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-cyan-600/20 text-cyan-400 flex items-center justify-center group-hover:bg-cyan-600 group-hover:text-white transition-colors">
+            <Radio size={14} className="animate-pulse" />
           </div>
-          <span className="text-[10px] font-bold text-zinc-200 group-hover:text-white">رادار الديسكورد</span>
+          <span className="text-[9px] sm:text-[10px] font-bold text-zinc-200 group-hover:text-white truncate">الرادار</span>
         </button>
       </div>
 

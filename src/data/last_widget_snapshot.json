@@ -62,6 +62,17 @@
     },
     {
       "id": "2",
+      "username": "Elmotaram",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/df9mKfD13yAZzOD16VsnlYpUiqj5QXzhKhp1eORTRmA/h5cPn2GPHfIU3EtOCPzXIUNrAWnFtA0rcsy395ORqVbxlPLAOqF7gdTs3YMyPfAPQYZqSy7CH_JUyq1clllH54Pa7TvIqS2AMt-vHg6umFE0efb5pP611Iqou1tZJPlrYtt7lBt3RpUW1yg",
+      "game": {
+        "name": "VALORANT"
+      }
+    },
+    {
+      "id": "3",
       "username": "LunaBot 🌙",
       "discriminator": "0000",
       "avatar": null,
@@ -69,7 +80,26 @@
       "avatar_url": "https://cdn.discordapp.com/widget-avatars/3xfSBAIV24BaKB8S4_61KGuPdq-Pa5aP7fGZjjDqDno/LRYE1gT-MgmMv2HG1xCdN7c9hnVtY_dK1fjvq63Wk1KdEKMNUeqjYIE2UWrHaLAGYWBHO0S5UYpIudJUZs6I4VbcSHZjrPnMwwH_Cbtvmqlz5Kgn1KVsfsljeLdKKN3xkpcYnFKvSVgQoOTr"
     },
     {
-      "id": "3",
+      "id": "4",
+      "username": "mond..!🖤",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "idle",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/t6ExykXTdhpt4yCamjtRSFEfmnmBnwtgIG8Wk_w5IlA/WtcnxWIdXS-0wmxeYnZL_fsrjuUMfroHRfBeWw7_2ambjBK7NVBdjiRtq0CegIoqWwquNx0s-i9SFsHNkMhvMIcVCmm6_iw3KgnQgvF1OhekqVisrY2JD_5ouPcIvzHWHT2Sv8zNQyz9Q9s"
+    },
+    {
+      "id": "5",
+      "username": "ProBot ✨",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/SSDmHECXMZ91e76w1L8igtBe0Enl5XjGeDi9rn6szH4/TZGedxQXpVIFDgWbGEW3y5o3SjEskhNLm4fW19OgxgCYdtaDJX6GnpMko3lYBYtDJqg8xqZGg8TkJoNemzDAz8B9qEDRUQicrXMjLsAnURbkAXNZtQSv4Z1Ki0BiMpv84-9X8qR8c7vbpQ",
+      "game": {
+        "name": "/help"
+      }
+    },
+    {
+      "id": "6",
       "username": "Rythm",
       "discriminator": "0000",
       "avatar": null,
@@ -80,7 +110,7 @@
       }
     },
     {
-      "id": "4",
+      "id": "7",
       "username": "Sapphire",
       "discriminator": "0000",
       "avatar": null,
@@ -88,7 +118,21 @@
       "avatar_url": "https://cdn.discordapp.com/widget-avatars/YgXEeECDtgv2SfTbbHI_v5tSg0sI-kLp26H79-LFJcg/_HyjN6Lo_I8E7SauS9717Qgmpx8FugIIsedhxjZXER3zYB5NQCjNFbGXurcqEqitZQQM3JhGAOsy7SaRDWrg4H_lzG2PAwXkJDCnS2GGsaGCjRs0vgJREzy47D4emyuUuZPJ2uMuAxBaGw"
     },
     {
-      "id": "5",
+      "id": "8",
+      "username": "STRUGGLER",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/WZ1MWPShztDvm9XQ-aUT2MJ7DoSKX2VFDcgYh1gmJOk/wpLrZcWT9tZmnr7MAx05HsESMa2vuHULFCWCrWu6KRsixr5cm7fCmdnT4wqs1QoZE53_94ZGWEDziKO_4Wq2Dwup-RCZDhqptT8FnQZtD4OXLs14qO3q1sCz7UVDwTvnqytfHK4orkveOg",
+      "deaf": false,
+      "mute": false,
+      "self_deaf": false,
+      "self_mute": false,
+      "suppress": false,
+      "channel_id": "1540457611701387314"
+    },
+    {
+      "id": "9",
       "username": "TempVoice",
       "discriminator": "0000",
       "avatar": null,
@@ -96,13 +140,35 @@
       "avatar_url": "https://cdn.discordapp.com/widget-avatars/5vnujI80ppQJy0YLCvNxsGCrS_UEs8JMivEWIee9GTY/Kk1YUfkSXEMEKjCIE6DNjyiJN0ipyH73QvC67kq9ZlgUpsM-lIcHuEazYwlHSPUXpL99_KV2jOB2raik-1nS985MWfBJ8Ya5Xqitp1r1iOmS0rcqz4lFBEGCw2CI4ARTtN_h2eQdG3B8nYVr"
     },
     {
-      "id": "6",
+      "id": "10",
+      "username": "uchiha itachi",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "idle",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/IuLmLS41arFWBGkZUKoz7WfwVugABhDo4VTFZd__UAU/ThJDTE8yyh2-RUIik41gzPP5e-thO1630bNgxIQF09qr-R2WapX4_bpG9ygR2qLfEHSBhKILJ-aFX1XZieE2h8BdX-M2_tpTaCpa-Hi33m9c0z9-EUya3nPnzbb5_5fhAPNd-P7k6m7zLBM",
+      "deaf": false,
+      "mute": false,
+      "self_deaf": true,
+      "self_mute": true,
+      "suppress": false,
+      "channel_id": "1540457611701387314"
+    },
+    {
+      "id": "11",
       "username": "𓆩𝑺𝒖𝒍𝒕𝒂𝒏𓆪",
       "discriminator": "0000",
       "avatar": null,
       "status": "online",
       "avatar_url": "https://cdn.discordapp.com/widget-avatars/WSZ6bwPzhPLyAsLt-NAKiJD4iEcxSoe9WmBYgulOnQI/8gyvb7k_0w3dkwjQluHGaNgD69AeD-gMIUOaop4LyRccGGgw31gPYRIIomCyuJNsmLiJmD-3t_kStffGqh28TFJacvDk_apLa77Mewj1IFz1oyzZKeY14Kjibq9_PshVIYiCNwZrUcrbWLY"
+    },
+    {
+      "id": "12",
+      "username": "𝐠𝐫𝐢𝐟𝐟𝐭𝐡",
+      "discriminator": "0000",
+      "avatar": null,
+      "status": "online",
+      "avatar_url": "https://cdn.discordapp.com/widget-avatars/txcz_t7KJT57zsJUMcNbtsr4QgfyrEWxkrrgR2FvT9Y/e4cIEtekoVSunsmbdRq5tDnqj-qCjNRi2P_YzbK6zzUY2eg8YR8fQKE4VZiC2kmu91E-eORiCoFNVFuKkEkbGOFdVD9zPO7BX5Vn2cP52_0scjkU-8B_WjCsvzg2dCbM1aBhWj6am9aFWLA"
     }
   ],
-  "presence_count": 7
+  "presence_count": 13
 }
